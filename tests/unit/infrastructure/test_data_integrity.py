@@ -28,7 +28,7 @@ from app.infrastructure.models import (
     SourceRecordModel,
     OutreachAttemptModel,
 )
-from contact_ingestion import clean_contacts, read_mnc_rows
+from app.infrastructure.source.excel_reader import TabularSourceReader
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -63,9 +63,8 @@ class TestDataIntegrityAndMigration:
 
         # 2. Perform intensive read and extraction operations
         if (DATA_DIR / "MNC_Final.xlsx").exists():
-            rows = read_mnc_rows(DATA_DIR / "MNC_Final.xlsx")
-            cleaned = clean_contacts(rows, "91")
-            assert len(cleaned) > 0
+            rows = TabularSourceReader().read_rows(DATA_DIR / "MNC_Final.xlsx")
+            assert len(rows) > 0
 
         if (DATA_DIR / "crm_data.json").exists():
             with (DATA_DIR / "crm_data.json").open("r", encoding="utf-8") as f:
