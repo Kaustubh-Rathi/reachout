@@ -40,8 +40,9 @@ def _calculate_file_sha256(path: Path) -> Optional[str]:
 # Configure test environment BEFORE any database module is loaded
 _TEMP_TEST_DIR = tempfile.mkdtemp(prefix="reachout_pytest_isolation_")
 _TEST_DB_FILE = Path(_TEMP_TEST_DIR) / "test_reachout_isolated.db"
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TEST_DB_FILE.as_posix()}")
-os.environ.setdefault("OUTREACH_MODE", "mock")
+os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB_FILE.as_posix()}"
+os.environ["OUTREACH_CHANNEL_DELAY_WA"] = "0.01"
+os.environ["OUTREACH_CHANNEL_DELAY_EM"] = "0.01"
 
 
 def pytest_sessionstart(session):
@@ -56,9 +57,28 @@ def pytest_sessionstart(session):
     import app.infrastructure.database as db
     # Rebind engine and sessionmaker to isolated test database
     db.DB_URL = f"sqlite:///{_TEST_DB_FILE.as_posix()}"
-    db.engine = db.create_db_engine(db.DB_URL)
     db.SessionFactory = sessionmaker(autocommit=False, autoflush=False, bind=db.engine)
     db.init_db(target_engine=db.engine)
+
+    # Configure test doubles as active provider overrides during tests
+    from app.infrastructure.providers.factory import set_email_provider, set_whatsapp_provider
+    from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
+    set_whatsapp_provider(FakeWhatsAppProvider())
+    set_email_provider(FakeEmailProvider())
+
+
+@pytest.fixture(autouse=True)
+def reset_test_provider_overrides():
+    """Ensure test doubles are active provider overrides before and after each test."""
+    from app.infrastructure.providers.factory import set_email_provider, set_whatsapp_provider
+    from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
+    fake_wa = FakeWhatsAppProvider()
+    fake_em = FakeEmailProvider()
+    set_whatsapp_provider(fake_wa)
+    set_email_provider(fake_em)
+    yield
+    set_whatsapp_provider(fake_wa)
+    set_email_provider(fake_em)
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -80,6 +100,12 @@ def pytest_sessionfinish(session, exitstatus):
             )
 
 
+from tests.doubles.fake_providers import (
+    FakeEmailProvider,
+    FakeWhatsAppProvider,
+    MockEmailProvider,
+    MockWhatsAppProvider,
+)
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -138,79 +164,6 @@ def frozen_clock() -> FrozenClock:
     """Deterministic frozen clock set to August 17, 2026 12:00:00 UTC."""
     fixed_time = datetime.datetime(2026, 8, 17, 12, 0, 0, tzinfo=timezone.utc)
     return FrozenClock(fixed_time)
-
-
-class MockWhatsAppProvider(WhatsAppProvider):
-    """Test double for WhatsApp provider port."""
-
-    def __init__(self, default_success: bool = True):
-        self.default_success = default_success
-        self.sent_calls: List[dict] = []
-        self.fail_next_with: Optional[tuple[str, str]] = None
-        self.unknown_next: bool = False
-        self.recovery_required_next: bool = False
-
-    def send_message(
-        self,
-        attempt: OutreachAttempt,
-        recipient_phone: str,
-        message_body: str,
-        attachment_path: Optional[str] = None,
-    ) -> ProviderSendResult:
-        self.sent_calls.append({
-            "attempt_id": attempt.id,
-            "phone": recipient_phone,
-            "body": message_body,
-            "attachment": attachment_path,
-        })
-        if self.unknown_next:
-            self.unknown_next = False
-            return ProviderSendResult.unknown("Simulated network drop before ACK")
-        if self.recovery_required_next:
-            self.recovery_required_next = False
-            return ProviderSendResult.recovery_required("Text sent but PDF attachment crashed")
-        if self.fail_next_with:
-            code, detail = self.fail_next_with
-            self.fail_next_with = None
-            return ProviderSendResult.failed(code, detail)
-        if self.default_success:
-            return ProviderSendResult.sent(provider_reference=f"wa_ref_{len(self.sent_calls)}")
-        return ProviderSendResult.failed("ERR_SEND_FAILED", "Default mock failure")
-
-    def check_status(self, provider_reference: str) -> ProviderStatusResult:
-        return ProviderStatusResult(status=OutreachStatus.SENT, detail="Verified delivery")
-
-
-class MockEmailProvider(EmailProvider):
-    """Test double for Email provider port."""
-
-    def __init__(self, default_success: bool = True):
-        self.default_success = default_success
-        self.sent_calls: List[dict] = []
-        self.fail_next_with: Optional[tuple[str, str]] = None
-
-    def send_email(
-        self,
-        attempt: OutreachAttempt,
-        recipient_email: str,
-        subject: str,
-        message_body: str,
-        attachment_path: Optional[str] = None,
-    ) -> ProviderSendResult:
-        self.sent_calls.append({
-            "attempt_id": attempt.id,
-            "email": recipient_email,
-            "subject": subject,
-            "body": message_body,
-            "attachment": attachment_path,
-        })
-        if self.fail_next_with:
-            code, detail = self.fail_next_with
-            self.fail_next_with = None
-            return ProviderSendResult.failed(code, detail)
-        if self.default_success:
-            return ProviderSendResult.sent(provider_reference=f"em_ref_{len(self.sent_calls)}")
-        return ProviderSendResult.failed("ERR_SMTP_AUTH", "SMTP Auth Failed")
 
 
 @pytest.fixture

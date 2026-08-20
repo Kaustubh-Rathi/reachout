@@ -17,8 +17,6 @@ from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_ke
 from app.domain.policies.resend_policy import prepare_manual_resend
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.providers.factory import (
-    MockEmailProvider,
-    MockWhatsAppProvider,
     get_email_provider,
     get_whatsapp_provider,
 )
@@ -73,19 +71,13 @@ class OutreachService:
         sender = None
         if sender_id:
             sender = self.sender_repo.get_by_id(sender_id)
+            if not sender:
+                raise ValueError(f"Sender account not found: {sender_id}")
         if not sender:
             active_senders = self.sender_repo.list_active(Channel.WHATSAPP)
             sender = active_senders[0] if active_senders else None
         if not sender:
-            # Fallback placeholder sender
-            sender = SenderAccount.create(
-                channel=Channel.WHATSAPP,
-                provider="playwright_whatsapp",
-                identity="default_wa",
-                display_name="WA Default Direct",
-                account_id="WA-001",
-            )
-            self.sender_repo.save(sender)
+            raise ValueError(f"NO_ACTIVE_WHATSAPP_SESSION: No active WhatsApp sender account available for {contact_id}")
 
         # Resolve template / body
         body = custom_body or ""
@@ -266,18 +258,13 @@ class OutreachService:
         sender = None
         if sender_id:
             sender = self.sender_repo.get_by_id(sender_id)
+            if not sender:
+                raise ValueError(f"Sender account not found: {sender_id}")
         if not sender:
             active_senders = self.sender_repo.list_active(Channel.EMAIL)
             sender = active_senders[0] if active_senders else None
         if not sender:
-            sender = SenderAccount.create(
-                channel=Channel.EMAIL,
-                provider="smtp",
-                identity="default_email@domain.com",
-                display_name="Email Primary (Gmail)",
-                account_id="EMAIL-001",
-            )
-            self.sender_repo.save(sender)
+            raise ValueError(f"NO_ACTIVE_EMAIL_SESSION: No active Email sender account available for {contact_id}")
 
         body = custom_body or ""
         subj = subject or ""
@@ -460,18 +447,13 @@ class OutreachService:
         sender = None
         if sender_id:
             sender = self.sender_repo.get_by_id(sender_id)
+            if not sender:
+                raise ValueError(f"Sender account not found: {sender_id}")
         if not sender:
             active_senders = self.sender_repo.list_active(Channel.WHATSAPP)
             sender = active_senders[0] if active_senders else None
         if not sender:
-            sender = SenderAccount.create(
-                channel=Channel.WHATSAPP,
-                provider="playwright_whatsapp",
-                identity="default_wa",
-                display_name="WA Default Direct",
-                account_id="WA-001",
-            )
-            self.sender_repo.save(sender)
+            raise ValueError(f"NO_ACTIVE_WHATSAPP_SESSION: No active WhatsApp sender account available for {contact_id}")
 
         body = custom_body or ""
         template = None
@@ -567,18 +549,13 @@ class OutreachService:
         sender = None
         if sender_id:
             sender = self.sender_repo.get_by_id(sender_id)
+            if not sender:
+                raise ValueError(f"Sender account not found: {sender_id}")
         if not sender:
             active_senders = self.sender_repo.list_active(Channel.EMAIL)
             sender = active_senders[0] if active_senders else None
         if not sender:
-            sender = SenderAccount.create(
-                channel=Channel.EMAIL,
-                provider="smtp",
-                identity="default_email@domain.com",
-                display_name="Email Primary",
-                account_id="EMAIL-001",
-            )
-            self.sender_repo.save(sender)
+            raise ValueError(f"NO_ACTIVE_EMAIL_SESSION: No active Email sender account available for {contact_id}")
 
         body = custom_body or ""
         subj = subject or ""

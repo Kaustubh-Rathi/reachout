@@ -16,8 +16,27 @@ def client():
 
 def test_readiness_gate_blocks_when_no_active_whatsapp(client):
     """Verify Start Outreach is blocked with structured error when no WhatsApp sessions are active."""
+    from app.domain.company import Company
+    from app.domain.contact import Contact
+    from app.domain.message_template import MessageTemplate
+    from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
+    from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
+    from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
+
     with SessionFactory() as session:
         sender_svc = SenderService(session)
+        comp_repo = SqliteCompanyRepository(session)
+        cnt_repo = SqliteContactRepository(session)
+        tpl_repo = SqliteTemplateRepository(session)
+
+        # Seed company, contact and template so readiness proceeds to sender check
+        if not comp_repo.list_all():
+            comp_repo.save(Company.create(name="Gate Company", domain="gate.com", company_id="cmp_gate_test"))
+        if not cnt_repo.list_all():
+            cnt_repo.save(Contact(contact_id="cnt_gate_test", company_id="cmp_gate_test", name="Gate Test", phone="919999900000"))
+        if not tpl_repo.list_by_channel(Channel.WHATSAPP):
+            tpl_repo.save(MessageTemplate.create(name="WA Tpl", channel=Channel.WHATSAPP, body="Hello"))
+
         # Ensure all WA senders are AUTH_REQUIRED
         senders = sender_svc.repo.list_by_channel(Channel.WHATSAPP)
         for s in senders:
@@ -41,7 +60,7 @@ def test_readiness_gate_blocks_when_no_active_whatsapp(client):
 
 
 def test_whatsapp_auth_flow_activates_sender_and_unblocks_readiness(client):
-    """Verify starting QR auth and confirming scan updates sender to ACTIVE and unblocks readiness."""
+    """Verify starting auth and updating sender status to ACTIVE unblocks readiness."""
     # 1. Configure WhatsApp sessions
     res_cfg = client.post("/api/senders/whatsapp/configure", json={"count": 2})
     assert res_cfg.status_code == 200
@@ -50,15 +69,15 @@ def test_whatsapp_auth_flow_activates_sender_and_unblocks_readiness(client):
     res_start_auth = client.post("/api/senders/whatsapp/WA_SESSION_1/auth/start")
     assert res_start_auth.status_code == 200
 
-    # 3. Check status (in mock mode, QR is available)
+    # 3. Check status
     res_status = client.get("/api/senders/whatsapp/WA_SESSION_1/auth/status")
     assert res_status.status_code == 200
     assert res_status.json()["sender_id"] == "WA_SESSION_1"
 
-    # 4. Confirm scan
-    res_confirm = client.post("/api/senders/whatsapp/WA_SESSION_1/auth/confirm")
-    assert res_confirm.status_code == 200
-    assert res_confirm.json()["status"] == "ACTIVE"
+    # 4. Update status to ACTIVE
+    res_status_update = client.put("/api/senders/WA_SESSION_1/status", json={"status": "ACTIVE"})
+    assert res_status_update.status_code == 200
+    assert res_status_update.json()["status"] == "ACTIVE"
 
     # 5. Check readiness now passes
     res_readiness = client.get("/api/senders/readiness")

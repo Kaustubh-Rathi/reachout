@@ -50,7 +50,7 @@ from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base, SessionFactory
 from app.infrastructure.events.event_bus import EventBus
-from app.infrastructure.providers.factory import MockEmailProvider, MockWhatsAppProvider
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories import (
@@ -510,24 +510,23 @@ class TestFinding4DefinitiveFailureAndFallback:
 class TestFinding6WhatsAppAuthentication:
     """Audit Finding 6: WhatsApp live vs mock authentication state machine."""
 
-    def test_fresh_live_mode_senders_seeded_as_auth_required(self, monkeypatch):
-        """In live mode (OUTREACH_MODE=live), seeded senders start as AUTH_REQUIRED."""
-        monkeypatch.setenv("OUTREACH_MODE", "live")
+    def test_fresh_live_mode_senders_seeded_as_auth_required(self):
+        """In production, seeded senders start as AUTH_REQUIRED."""
         senders = get_default_senders()
         for s in senders:
             assert s.status == SenderStatus.AUTH_REQUIRED
 
     def test_whatsapp_auth_flow_qr_to_active(self):
-        """Starting QR auth returns QR_REQUIRED and confirming transitions to ACTIVE."""
+        """Starting QR auth returns AUTHENTICATING and set_auth_state transitions to ACTIVE."""
         mgr = WhatsAppSessionManager()
         sender_id = "WA_SESSION_TEST_P9"
 
-        # Start mock auth
+        # Start auth
         res_start = mgr.start_qr_authentication(sender_id)
         assert res_start["status"] in (SenderStatus.AUTHENTICATING.value, SenderStatus.QR_REQUIRED.value)
 
-        # Confirm auth
-        res_confirm = mgr.confirm_mock_auth(sender_id)
+        # Set ACTIVE when authenticated
+        res_confirm = mgr.set_auth_state(sender_id, SenderStatus.ACTIVE)
         assert res_confirm["status"] == SenderStatus.ACTIVE.value
 
         # Status check returns ACTIVE

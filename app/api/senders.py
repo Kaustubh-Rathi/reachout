@@ -93,15 +93,6 @@ def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_sess
         raise HTTPException(status_code=404, detail=str(exc))
 
 
-@router.post("/whatsapp/{sender_id}/auth/confirm")
-def confirm_whatsapp_auth(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
-    """Explicitly confirm WhatsApp session as ACTIVE (test/smoke test mode)."""
-    svc = SenderService(session)
-    try:
-        return svc.confirm_whatsapp_auth(sender_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-
 
 @router.post("/email/configure")
 def configure_email_sender(

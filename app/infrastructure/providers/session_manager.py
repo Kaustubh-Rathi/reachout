@@ -20,50 +20,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_SESSIONS_ROOT = ROOT_DIR / ".sessions" / "whatsapp"
 
 
-def _generate_mock_qr_data_url(sender_id: str) -> str:
-    """Generate a clean SVG data URL representation of a QR code for mock/testing environments."""
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
-      <rect width="220" height="220" fill="#ffffff" rx="12" />
-      <rect x="20" y="20" width="60" height="60" fill="#0f172a" rx="6" />
-      <rect x="30" y="30" width="40" height="40" fill="#ffffff" rx="4" />
-      <rect x="40" y="40" width="20" height="20" fill="#0284c7" />
-      
-      <rect x="140" y="20" width="60" height="60" fill="#0f172a" rx="6" />
-      <rect x="150" y="30" width="40" height="40" fill="#ffffff" rx="4" />
-      <rect x="160" y="40" width="20" height="20" fill="#0284c7" />
-      
-      <rect x="20" y="140" width="60" height="60" fill="#0f172a" rx="6" />
-      <rect x="30" y="150" width="40" height="40" fill="#ffffff" rx="4" />
-      <rect x="40" y="160" width="20" height="20" fill="#0284c7" />
-
-      <!-- QR grid pattern -->
-      <rect x="95" y="25" width="12" height="12" fill="#334155" />
-      <rect x="115" y="25" width="12" height="12" fill="#334155" />
-      <rect x="95" y="45" width="12" height="12" fill="#334155" />
-      <rect x="115" y="65" width="12" height="12" fill="#334155" />
-      <rect x="25" y="95" width="12" height="12" fill="#334155" />
-      <rect x="45" y="115" width="12" height="12" fill="#334155" />
-      <rect x="65" y="95" width="12" height="12" fill="#334155" />
-      
-      <rect x="95" y="95" width="30" height="30" fill="#10b981" rx="4" />
-      <text x="110" y="114" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle" fill="#ffffff">WA</text>
-
-      <rect x="140" y="95" width="12" height="12" fill="#334155" />
-      <rect x="160" y="115" width="12" height="12" fill="#334155" />
-      <rect x="180" y="95" width="12" height="12" fill="#334155" />
-      
-      <rect x="95" y="140" width="12" height="12" fill="#334155" />
-      <rect x="115" y="160" width="12" height="12" fill="#334155" />
-      <rect x="140" y="140" width="12" height="12" fill="#334155" />
-      <rect x="160" y="160" width="12" height="12" fill="#334155" />
-      <rect x="180" y="180" width="12" height="12" fill="#334155" />
-
-      <text x="110" y="205" font-size="9" font-family="monospace" font-weight="600" text-anchor="middle" fill="#64748b">{sender_id}</text>
-    </svg>"""
-    b64 = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
-    return f"data:image/svg+xml;base64,{b64}"
-
-
 class WhatsAppSessionManager:
     """Manages persistent browser directories and contexts for N WhatsApp senders."""
 
@@ -118,15 +74,6 @@ class WhatsAppSessionManager:
 
     def check_session_status(self, sender_id: str, timeout_seconds: int = 15) -> SenderStatus:
         """Probe session health to determine if authenticated, auth required, or expired."""
-        is_live = os.environ.get("OUTREACH_MODE", "mock").strip().lower() == "live"
-        if not is_live:
-            # Check current in-memory state
-            cur = self.get_auth_state(sender_id)
-            try:
-                return SenderStatus(cur["status"])
-            except ValueError:
-                return SenderStatus.ACTIVE
-
         try:
             from playwright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]
         except ImportError:
@@ -202,25 +149,6 @@ class WhatsAppSessionManager:
         timeout_seconds: int = 120,
     ) -> None:
         """Background worker driving Playwright QR code capture and login detection."""
-        is_live = os.environ.get("OUTREACH_MODE", "mock").strip().lower() == "live"
-
-        if not is_live:
-            # Mock mode: Generate instant mock QR code
-            time.sleep(0.3)
-            qr_url = _generate_mock_qr_data_url(sender_id)
-            self.set_auth_state(sender_id, SenderStatus.QR_REQUIRED, qr_code=qr_url)
-            if callback:
-                callback(
-                    "sender.qr_received",
-                    {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED", "qr_code": qr_url},
-                )
-                callback(
-                    "sender.status_changed",
-                    {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED"},
-                )
-            return
-
-        # Live Playwright WhatsApp Web automation
         try:
             from playwright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]
         except ImportError:
@@ -266,24 +194,22 @@ class WhatsAppSessionManager:
                     # Check for QR canvas
                     if not qr_emitted and qr_canvas.count() > 0 and qr_canvas.first.is_visible():
                         try:
-                            # Extract QR as base64 PNG screenshot
                             qr_bytes = qr_canvas.first.screenshot()
                             qr_b64 = base64.b64encode(qr_bytes).decode("utf-8")
                             qr_data_url = f"data:image/png;base64,{qr_b64}"
+                            self.set_auth_state(sender_id, SenderStatus.QR_REQUIRED, qr_code=qr_data_url)
+                            qr_emitted = True
+                            if callback:
+                                callback(
+                                    "sender.qr_received",
+                                    {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED", "qr_code": qr_data_url},
+                                )
+                                callback(
+                                    "sender.status_changed",
+                                    {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED"},
+                                )
                         except Exception:
-                            qr_data_url = _generate_mock_qr_data_url(sender_id)
-
-                        self.set_auth_state(sender_id, SenderStatus.QR_REQUIRED, qr_code=qr_data_url)
-                        qr_emitted = True
-                        if callback:
-                            callback(
-                                "sender.qr_received",
-                                {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED", "qr_code": qr_data_url},
-                            )
-                            callback(
-                                "sender.status_changed",
-                                {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED"},
-                            )
+                            pass
 
                     time.sleep(1.0)
 
@@ -305,18 +231,3 @@ class WhatsAppSessionManager:
                     "sender.status_changed",
                     {"sender_id": sender_id, "channel": "WHATSAPP", "status": "ERROR", "error": str(exc)},
                 )
-
-    def confirm_mock_auth(
-        self,
-        sender_id: str,
-        on_event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-    ) -> Dict[str, Any]:
-        """Explicitly confirm mock QR scan authentication for testing or smoke testing."""
-        res = self.set_auth_state(sender_id, SenderStatus.ACTIVE, qr_code=None)
-        if on_event_callback:
-            on_event_callback(
-                "sender.status_changed",
-                {"sender_id": sender_id, "channel": "WHATSAPP", "status": "ACTIVE"},
-            )
-        return res
-

@@ -54,7 +54,7 @@ from app.infrastructure.models import (
     OutreachAttemptModel,
     SenderAccountModel,
 )
-from app.infrastructure.providers.factory import MockEmailProvider, MockWhatsAppProvider
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository

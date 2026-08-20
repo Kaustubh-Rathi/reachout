@@ -66,18 +66,15 @@ from app.infrastructure.models import (
     SourceRecordModel,
 )
 from app.infrastructure.providers.factory import (
-    MockEmailProvider,
-    MockWhatsAppProvider,
     create_email_provider,
     create_whatsapp_provider,
     get_email_provider,
-    get_outreach_mode,
     get_whatsapp_provider,
     reset_provider_overrides,
     set_email_provider,
-    set_outreach_mode,
     set_whatsapp_provider,
 )
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
@@ -313,33 +310,29 @@ class TestManualSendAndResendRegression:
 # ==============================================================================
 
 class TestProviderModesAndConfiguration:
-    def test_explicit_mock_mode_resolves_mock_providers(self):
-        os.environ["OUTREACH_MODE"] = "mock"
-        assert get_outreach_mode() == "mock"
-
-        wa = create_whatsapp_provider()
-        assert isinstance(wa, MockWhatsAppProvider)
-
-        em = create_email_provider()
-        assert isinstance(em, MockEmailProvider)
-
-    def test_explicit_live_mode_resolves_concrete_providers_without_sending(self):
-        os.environ["OUTREACH_MODE"] = "live"
-        assert get_outreach_mode() == "live"
-
+    def test_production_factory_resolves_concrete_providers(self):
         wa = create_whatsapp_provider()
         assert isinstance(wa, PlaywrightWhatsAppProvider)
 
         em = create_email_provider()
         assert isinstance(em, SmtpEmailProvider)
 
-    def test_mock_mode_is_safe_default_and_records_audit_trail(self):
+    def test_dependency_injection_provider_overrides(self):
         reset_provider_overrides()
-        if "OUTREACH_MODE" in os.environ:
-            del os.environ["OUTREACH_MODE"]
+        mock_wa = MockWhatsAppProvider()
+        set_whatsapp_provider(mock_wa)
+        assert get_whatsapp_provider() is mock_wa
 
-        wa = get_whatsapp_provider()
-        assert isinstance(wa, MockWhatsAppProvider)
+        mock_em = MockEmailProvider()
+        set_email_provider(mock_em)
+        assert get_email_provider() is mock_em
+
+        reset_provider_overrides()
+        assert isinstance(get_whatsapp_provider(), PlaywrightWhatsAppProvider)
+        assert isinstance(get_email_provider(), SmtpEmailProvider)
+
+    def test_mock_provider_records_audit_trail(self):
+        wa = MockWhatsAppProvider()
 
         attempt = OutreachAttempt.prepare(
             contact_id="cnt_test",
