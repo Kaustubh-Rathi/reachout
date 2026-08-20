@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Reachout Runtime Databases & Storage (Ignore SQLite DB and WAL/SHM runtime state)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite
+data/*.sqlite3
+data/backups/
+*.db
+*.db-wal
+*.db-shm
+
+# Reachout Sessions & Vault Credentials
+.sessions/
+.whatsapp_session/
+.vault_key
+*.enc
+
+# Logs & Screenshots
+logs/*.log
+logs/screenshots/
+*.log
+
+# Environment variables & local configuration
+.env
+.env.*
+!.env.example

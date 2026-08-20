@@ -1,0 +1,23 @@
+{
+  "razorpay|918826363651": {
+    "crm_status": "Follow-up Needed",
+    "notes": "",
+    "follow_up_date": "",
+    "tags": [],
+    "updated_at": "2026-08-20T15:55:08"
+  },
+  "wells fargo|919980656407": {
+    "notes": "",
+    "tags": [],
+    "updated_at": "2026-08-20T15:55:08",
+    "crm_status": "No Status",
+    "follow_up_date": ""
+  },
+  "flipkart|919370155113": {
+    "notes": "",
+    "tags": [],
+    "updated_at": "2026-08-20T15:55:08",
+    "crm_status": "Follow-up Needed",
+    "follow_up_date": ""
+  }
+}
