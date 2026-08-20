@@ -102,12 +102,4 @@ def archive_contact(contact_id: str, reason: str = "MANUAL_CRM_DELETION", sessio
     return {"status": "success", "archived_contact_id": contact_id}
 
 
-@router.post("/{contact_id}/archive")
-def archive_contact_post(contact_id: str, reason: str = "MANUAL_CRM_DELETION", session: Session = Depends(get_session)):
-    """POST endpoint for archiving/deleting a contact."""
-    svc = ContactService(session)
-    success = svc.archive_contact(contact_id, reason=reason)
-    if not success:
-        raise HTTPException(status_code=404, detail=f"Contact {contact_id} not found")
-    return {"status": "success", "archived_contact_id": contact_id}
 
