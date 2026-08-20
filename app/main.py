@@ -77,27 +77,6 @@ app.add_middleware(
 app.include_router(api_router)
 
 
-@app.websocket("/ws")
-async def websocket_root_events(websocket: WebSocket):
-    """Stream live domain events over root WebSocket."""
-    await websocket.accept()
-    await websocket.send_json({"type": "connected", "event_type": "connected", "payload": {"status": "connected"}})
-    try:
-        async for event in event_bus.subscribe():
-            dot_type = event.event_type.lower().replace("_", ".")
-            data_payload = {
-                "type": dot_type,
-                "event_id": event.event_id,
-                "event_type": event.event_type,
-                "payload": event.payload,
-                "occurred_at": event.occurred_at.isoformat(),
-            }
-            await websocket.send_json(data_payload)
-    except WebSocketDisconnect:
-        pass
-    except Exception:
-        pass
-
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
