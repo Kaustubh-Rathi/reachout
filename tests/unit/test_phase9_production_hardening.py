@@ -595,22 +595,23 @@ class TestFinding7SmtpCredentialPersistence:
 
 
 # ==============================================================================
-# FINDING 8: LEGACY /api/stats CANONICAL DELEGATION
+# FINDING 8: CANONICAL CRM KPIS SERVICE
 # ==============================================================================
-class TestFinding8LegacyApiStats:
-    """Audit Finding 8: Legacy /api/stats delegation to canonical CRM KPI service."""
+class TestFinding8CanonicalCrmKpis:
+    """Audit Finding 8: Canonical CRM KPI service aggregation."""
 
-    def test_legacy_stats_delegates_to_kpi_service(self, tmp_path):
-        """Verify get_stats matches CrmService.get_kpis."""
-        from app.main import get_stats
-        res = get_stats()
-        assert "total" in res
-        assert "sent" in res
-        assert "delivered" in res
-        assert "interested" in res
-        assert "no_hiring" in res
-        assert "follow_ups" in res
-        assert "response_rate" in res
+    def test_crm_kpis_service_aggregation(self, tmp_path):
+        """Verify CrmService.get_kpis provides complete operational metrics."""
+        with SessionFactory() as session:
+            svc = CrmService(session)
+            kpis = svc.get_kpis()
+            assert "total_contacts" in kpis
+            assert "contacted" in kpis
+            assert "whatsapp_sent" in kpis
+            assert "email_sent" in kpis
+            assert "interested" in kpis
+            assert "not_interested" in kpis
+            assert "follow_up_due" in kpis
 
 
 # ==============================================================================

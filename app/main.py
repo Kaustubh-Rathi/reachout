@@ -83,36 +83,6 @@ def favicon():
     return Response(status_code=204)
 
 
-@app.get("/api/stats", deprecated=True, tags=["Deprecated"])
-def get_stats():
-    """Aggregated stats for backward compatibility (DEPRECATED: Use /api/crm/kpis instead).
-    
-    Delegates directly to canonical CrmService KPI calculation.
-    """
-    with SessionFactory() as session:
-        svc = CrmService(session)
-        kpis = svc.get_kpis()
-        contacts = svc.contact_repo.list_all()
-        companies = sorted(list({c.company_id for c in contacts if c.company_id}))
-        resp_rate = round((kpis["interested"] / kpis["contacted"]) * 100, 1) if kpis["contacted"] > 0 else 0.0
-        return {
-            "workbook_name": "Reachout System",
-            "total": kpis["total_contacts"],
-            "sent": kpis["whatsapp_sent"] + kpis["email_sent"],
-            "whatsapp_sent": kpis["whatsapp_sent"],
-            "email_sent": kpis["email_sent"],
-            "sent_text_only": 0,
-            "delivered": kpis["contacted"],
-            "not_sent": kpis["total_contacts"] - kpis["contacted"],
-            "failed": kpis["failed"],
-            "replies": kpis["interested"] + kpis["not_interested"],
-            "response_rate": resp_rate,
-            "interested": kpis["interested"],
-            "no_hiring": kpis["not_interested"],
-            "follow_ups": kpis["follow_up_due"],
-            "companies": companies,
-            "statuses": ["No Status", "Pending Reply", "Interested", "No Hiring / Not Interested", "Follow-Up Scheduled", "Interview Scheduled"],
-        }
 
 
 @app.get("/", response_class=HTMLResponse)
