@@ -1,0 +1,3278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reachout CRM Control Plane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #0f172a;
+      --bg-surface-raised: #1e293b;
+      --bg-surface-hover: #334155;
+      --border-subtle: #1e293b;
+      --border-medium: #334155;
+      --border-focus: #38bdf8;
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --accent-emerald: #10b981;
+      --accent-emerald-bg: rgba(16, 185, 129, 0.12);
+      --accent-emerald-border: rgba(16, 185, 129, 0.3);
+
+      --accent-blue: #38bdf8;
+      --accent-blue-bg: rgba(56, 189, 248, 0.12);
+      --accent-blue-border: rgba(56, 189, 248, 0.3);
+
+      --accent-amber: #f59e0b;
+      --accent-amber-bg: rgba(245, 158, 11, 0.12);
+      --accent-amber-border: rgba(245, 158, 11, 0.3);
+
+      --accent-rose: #f43f5e;
+      --accent-rose-bg: rgba(244, 63, 94, 0.12);
+      --accent-rose-border: rgba(244, 63, 94, 0.3);
+
+      --accent-indigo: #818cf8;
+      --accent-indigo-bg: rgba(129, 140, 248, 0.12);
+      --accent-indigo-border: rgba(129, 140, 248, 0.3);
+
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-full: 9999px;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* Modern Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg-base);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-medium);
+      border-radius: var(--radius-full);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-focus);
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation */
+    header {
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: white;
+      font-weight: 800;
+      font-size: 1rem;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 12px rgba(2, 132, 199, 0.4);
+      flex-shrink: 0;
+    }
+
+    .brand-text h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.675rem;
+      font-weight: 600;
+      color: var(--accent-emerald);
+      background: var(--accent-emerald-bg);
+      border: 1px solid var(--accent-emerald-border);
+      padding: 0.15rem 0.5rem;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent-emerald);
+      border-radius: 50%;
+      animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px var(--accent-emerald); }
+      100% { transform: scale(0.95); opacity: 0.7; }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      font-size: 0.825rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-primary {
+      background: #0284c7;
+      color: white;
+      border-color: #0284c7;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #0369a1;
+      border-color: #0369a1;
+    }
+
+    .btn-emerald {
+      background: var(--accent-emerald);
+      color: #022c22;
+      font-weight: 700;
+    }
+    .btn-emerald:hover:not(:disabled) {
+      background: #059669;
+    }
+
+    .btn-amber {
+      background: var(--accent-amber);
+      color: #451a03;
+      font-weight: 700;
+    }
+    .btn-amber:hover:not(:disabled) {
+      background: #d97706;
+    }
+
+    .btn-rose {
+      background: var(--accent-rose);
+      color: white;
+    }
+    .btn-rose:hover:not(:disabled) {
+      background: #e11d48;
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface-raised);
+      color: var(--text-primary);
+      border-color: var(--border-medium);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--bg-surface-hover);
+      color: white;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-secondary);
+      border-color: var(--border-medium);
+    }
+    .btn-outline:hover:not(:disabled) {
+      background: var(--bg-surface-raised);
+      color: var(--text-primary);
+      border-color: var(--border-focus);
+    }
+
+    .btn-xs {
+      font-size: 0.725rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: var(--radius-xs);
+    }
+
+    .btn-sm {
+      font-size: 0.775rem;
+      padding: 0.35rem 0.65rem;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1720px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1.25rem 1.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* KPI Metrics Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--border-medium);
+      transform: translateY(-1px);
+    }
+
+    .kpi-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .kpi-value {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .kpi-sub {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    /* KPI Card Accents */
+    .kpi-card.kpi-eligible .kpi-value { color: var(--accent-blue); }
+    .kpi-card.kpi-contacted .kpi-value { color: #a5b4fc; }
+    .kpi-card.kpi-wa .kpi-value { color: var(--accent-emerald); }
+    .kpi-card.kpi-email .kpi-value { color: #38bdf8; }
+    .kpi-card.kpi-interested .kpi-value { color: #34d399; }
+    .kpi-card.kpi-interview .kpi-value { color: #a78bfa; }
+    .kpi-card.kpi-followup {
+      border-color: var(--accent-amber-border);
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, var(--bg-surface) 100%);
+    }
+    .kpi-card.kpi-followup .kpi-value { color: var(--accent-amber); }
+    .kpi-card.kpi-failed .kpi-value { color: var(--accent-rose); }
+    .kpi-card.kpi-recovery .kpi-value { color: #fb7185; }
+
+    /* Control Plane Card */
+    .control-plane {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .campaign-control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .campaign-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-medium);
+      color: var(--text-secondary);
+    }
+
+    .campaign-status-badge.status-running {
+      background: var(--accent-emerald-bg);
+      color: var(--accent-emerald);
+      border-color: var(--accent-emerald-border);
+    }
+
+    .campaign-status-badge.status-paused {
+      background: var(--accent-amber-bg);
+      color: var(--accent-amber);
+      border-color: var(--accent-amber-border);
+    }
+
+    .campaign-status-badge.status-completed {
+      background: var(--accent-blue-bg);
+      color: var(--accent-blue);
+      border-color: var(--accent-blue-border);
+    }
+
+    .campaign-progress-box {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 260px;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-surface-raised);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+      display: flex;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #0284c7, #10b981);
+      transition: width 0.3s ease;
+    }
+
+    .progress-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.725rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Filter & Search Bar */
+    .filters-bar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      font-size: 0.825rem;
+      padding: 0.45rem 0.75rem 0.45rem 2rem;
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.65rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .select-input {
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: var(--radius-sm);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s ease;
+    }
+
+    .select-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .priority-pills {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    .pill-btn {
+      background: var(--bg-surface-raised);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--radius-full);
+      font-size: 0.725rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pill-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-medium);
+    }
+
+    .pill-btn.active {
+      background: #0284c7;
+      color: white;
+      border-color: #0284c7;
+    }
+
+    .pill-btn.pill-followup.active {
+      background: var(--accent-amber);
+      color: #451a03;
+      border-color: var(--accent-amber);
+    }
+
+    /* Contacts Table & Hierarchy View Containers */
+    .table-card, .hierarchy-container {
+      width: 100%;
+      min-height: 420px;
+      transition: opacity 0.2s ease-in-out;
+    }
+
+    .table-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      max-height: calc(100vh - 340px);
+      min-height: 380px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      text-align: left;
+      font-size: 0.825rem;
+    }
+
+    thead th {
+      background: #0b1120;
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.75rem 0.9rem;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background-color 0.1s ease;
+    }
+
+    tbody tr:hover {
+      background-color: rgba(30, 41, 59, 0.5);
+    }
+
+    tbody td {
+      padding: 0.75rem 0.9rem;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    /* Row highlight based on status */
+    tr.row-interested {
+      background-color: rgba(16, 185, 129, 0.04);
+    }
+    tr.row-followup-due {
+      background-color: rgba(245, 158, 11, 0.06);
+    }
+    tr.row-not-interested {
+      opacity: 0.65;
+    }
+
+    .company-cell {
+      font-weight: 700;
+      color: var(--text-primary);
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .person-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .person-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .person-designation {
+      font-size: 0.725rem;
+      color: var(--text-muted);
+    }
+
+    .phone-text {
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+
+    .email-text {
+      color: var(--accent-blue);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      word-break: break-all;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-xs);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    .badge-sent {
+      background: var(--accent-emerald-bg);
+      color: var(--accent-emerald);
+      border: 1px solid var(--accent-emerald-border);
+    }
+
+    .badge-not-sent {
+      background: var(--bg-surface-raised);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .badge-failed {
+      background: var(--accent-rose-bg);
+      color: var(--accent-rose);
+      border: 1px solid var(--accent-rose-border);
+    }
+
+    .badge-interested {
+      background: var(--accent-emerald-bg);
+      color: var(--accent-emerald);
+      border: 1px solid var(--accent-emerald-border);
+      font-weight: 700;
+    }
+
+    .badge-not-interested {
+      background: var(--accent-rose-bg);
+      color: var(--accent-rose);
+      border: 1px solid var(--accent-rose-border);
+    }
+
+    .badge-pending-reply {
+      background: var(--accent-blue-bg);
+      color: var(--accent-blue);
+      border: 1px solid var(--accent-blue-border);
+    }
+
+    .badge-interview-scheduled {
+      background: var(--accent-indigo-bg);
+      color: var(--accent-indigo);
+      border: 1px solid var(--accent-indigo-border);
+      font-weight: 700;
+    }
+
+    .badge-interview-pending {
+      background: var(--bg-surface-raised);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-medium);
+    }
+
+    .follow-up-due-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: var(--accent-amber-bg);
+      color: var(--accent-amber);
+      border: 1px solid var(--accent-amber-border);
+      padding: 0.2rem 0.5rem;
+      border-radius: var(--radius-xs);
+      font-size: 0.675rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-top: 0.25rem;
+      animation: pulse-glow 2s infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
+      50% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+    }
+
+    .interested-since-text {
+      font-size: 0.7rem;
+      color: var(--accent-emerald);
+      font-weight: 500;
+      margin-top: 0.15rem;
+    }
+
+    .actions-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+
+    /* Modal / Drawer Overlays */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      transform: translateY(16px) scale(0.97);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+      opacity: 0;
+    }
+
+    .modal-overlay.open .modal-content {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .modal-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(30, 41, 59, 0.3);
+    }
+
+    .modal-header h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      line-height: 1;
+      transition: color 0.15s ease;
+    }
+
+    .modal-close-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 1.25rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .modal-footer {
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      background: rgba(30, 41, 59, 0.3);
+    }
+
+    /* Timeline in Modal */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      position: relative;
+      padding-left: 1.5rem;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: var(--border-medium);
+    }
+
+    .timeline-item {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: -1.5rem;
+      top: 4px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--bg-surface-raised);
+      border: 2px solid #0284c7;
+    }
+
+    .timeline-dot.dot-sent { border-color: var(--accent-emerald); background: var(--accent-emerald-bg); }
+    .timeline-dot.dot-interested { border-color: #34d399; background: var(--accent-emerald); }
+    .timeline-dot.dot-interview { border-color: var(--accent-indigo); background: var(--accent-indigo); }
+    .timeline-dot.dot-followup { border-color: var(--accent-amber); background: var(--accent-amber); }
+    .timeline-dot.dot-failed { border-color: var(--accent-rose); background: var(--accent-rose); }
+
+    .timeline-date {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .timeline-title {
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .timeline-body {
+      font-size: 0.775rem;
+      color: var(--text-secondary);
+      background: var(--bg-surface-raised);
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      white-space: pre-wrap;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Form Fields in Modals */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .form-control {
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      font-size: 0.825rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .form-control:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    /* Toast Notification Stacking */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.5rem;
+      pointer-events: none;
+      max-width: 400px;
+      width: calc(100% - 3rem);
+    }
+
+    .toast {
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-medium);
+      color: var(--text-primary);
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xl);
+      font-size: 0.825rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      pointer-events: auto;
+      animation: toast-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .toast.toast-success {
+      border-color: var(--accent-emerald-border);
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--bg-surface-raised) 100%);
+    }
+    .toast.toast-error {
+      border-color: var(--accent-rose-border);
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, var(--bg-surface-raised) 100%);
+    }
+    .toast.toast-info {
+      border-color: var(--accent-blue-border);
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, var(--bg-surface-raised) 100%);
+    }
+
+    @keyframes toast-slide-in {
+      from { transform: translateY(20px) scale(0.95); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    /* Phase 8 Hierarchy View Styles */
+    .view-mode-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .hierarchy-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .company-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .company-card-header {
+      background: var(--bg-surface-raised);
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+    }
+
+    .company-title-area {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .company-name-lg {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .company-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .status-not-contacted {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    .status-in-progress {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .status-contacted {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-closed {
+      background: rgba(100, 116, 139, 0.2);
+      color: #94a3b8;
+      border: 1px solid rgba(100, 116, 139, 0.4);
+    }
+
+    .company-meta-pills {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .hr-contacts-list {
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .hr-card {
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .hr-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .hr-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .hr-name-bold {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .hr-designation-text {
+      font-size: 0.775rem;
+      color: var(--text-secondary);
+    }
+
+    .endpoints-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .endpoint-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-xs);
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.775rem;
+    }
+
+    .endpoint-box.endpoint-covered {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.04);
+    }
+
+    .endpoint-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .endpoint-label {
+      font-size: 0.675rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .endpoint-addr {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-primary);
+      font-size: 0.8rem;
+    }
+
+    .endpoint-status-text {
+      font-size: 0.7rem;
+    }
+
+    /* Responsive Breakpoints */
+    @media (max-width: 1200px) {
+      header {
+        padding: 0.65rem 1.25rem;
+      }
+      .header-actions {
+        gap: 0.4rem;
+      }
+      .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.55rem;
+      }
+      .kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .control-plane {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+      }
+      .campaign-control-group {
+        justify-content: flex-start;
+      }
+      .campaign-progress-box {
+        width: 100%;
+        min-width: unset;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+        padding: 0.6rem 0.75rem;
+      }
+      .brand {
+        justify-content: space-between;
+        width: 100%;
+      }
+      .header-actions {
+        justify-content: flex-start;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+      }
+      main {
+        padding: 0.75rem 0.75rem 2rem;
+      }
+      .priority-pills {
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+        width: 100%;
+      }
+      .table-container {
+        max-height: calc(100vh - 280px);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand">
+      <div class="brand-badge">R</div>
+      <div class="brand-text">
+        <h1>Reachout CRM <span class="live-indicator"><span class="live-dot"></span> Live Control Plane</span></h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div id="header-senders-indicator" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.75rem; border-radius: var(--radius-full); background: var(--bg-surface-raised); border: 1px solid var(--border-medium); font-size: 0.75rem; font-weight: 600;">
+        <span id="hdr-wa-indicator" style="display: inline-flex; align-items: center; gap: 0.35rem; color: var(--accent-emerald);">
+          <span class="live-dot" style="background: var(--accent-emerald);"></span>
+          <span id="hdr-wa-text">WA: 0 Active</span>
+        </span>
+        <span style="color: var(--text-muted);">&bull;</span>
+        <span id="hdr-em-indicator" style="display: inline-flex; align-items: center; gap: 0.35rem; color: var(--accent-blue);">
+          <span class="live-dot" style="background: var(--accent-blue);"></span>
+          <span id="hdr-em-text">Email: 0 Active</span>
+        </span>
+      </div>
+      <button class="btn btn-outline btn-sm" id="senders-btn" onclick="openSendersDrawer()">
+        <span>👥 Senders &amp; Auth</span>
+      </button>
+      <button class="btn btn-outline btn-sm" id="templates-btn" onclick="openTemplatesDrawer()">
+        <span>📝 Templates</span>
+      </button>
+      <button class="btn btn-secondary btn-sm" id="sync-btn" onclick="triggerSync()">
+        <span>🔄 Sync Contacts</span>
+      </button>
+      <a href="/api/export" class="btn btn-outline btn-sm" id="export-csv-btn" download>
+        <span>📥 Export CSV</span>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Section 4: Operational KPI Metrics Dashboard -->
+    <section class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card" id="kpi-total">
+        <div class="kpi-label">Total Contacts</div>
+        <div class="kpi-value" id="val-total">0</div>
+        <div class="kpi-sub">Total database prospects</div>
+      </div>
+      <div class="kpi-card kpi-eligible" id="kpi-eligible">
+        <div class="kpi-label">Eligible</div>
+        <div class="kpi-value" id="val-eligible">0</div>
+        <div class="kpi-sub">Ready for outreach</div>
+      </div>
+      <div class="kpi-card kpi-contacted" id="kpi-contacted">
+        <div class="kpi-label">Contacted</div>
+        <div class="kpi-value" id="val-contacted">0</div>
+        <div class="kpi-sub">Outreached via WA/Email</div>
+      </div>
+      <div class="kpi-card kpi-wa" id="kpi-wa-sent">
+        <div class="kpi-label">WhatsApp Sent</div>
+        <div class="kpi-value" id="val-wa-sent">0</div>
+        <div class="kpi-sub">Delivered on WA</div>
+      </div>
+      <div class="kpi-card kpi-email" id="kpi-email-sent">
+        <div class="kpi-label">Email Sent</div>
+        <div class="kpi-value" id="val-email-sent">0</div>
+        <div class="kpi-sub">Dispatched via SMTP</div>
+      </div>
+      <div class="kpi-card kpi-interested" id="kpi-interested">
+        <div class="kpi-label">Interested</div>
+        <div class="kpi-value" id="val-interested">0</div>
+        <div class="kpi-sub">Positive responses</div>
+      </div>
+      <div class="kpi-card kpi-not-interested" id="kpi-not-interested">
+        <div class="kpi-label">Not Interested</div>
+        <div class="kpi-value" id="val-not-interested">0</div>
+        <div class="kpi-sub">No hiring / Declined</div>
+      </div>
+      <div class="kpi-card kpi-interview" id="kpi-interview">
+        <div class="kpi-label">Interview</div>
+        <div class="kpi-value" id="val-interview">0</div>
+        <div class="kpi-sub">Interviews scheduled</div>
+      </div>
+      <div class="kpi-card kpi-followup" id="kpi-followup">
+        <div class="kpi-label">Follow-up Due</div>
+        <div class="kpi-value" id="val-followup">0</div>
+        <div class="kpi-sub">Pending 7-day milestone</div>
+      </div>
+      <div class="kpi-card kpi-failed" id="kpi-failed">
+        <div class="kpi-label">Failed</div>
+        <div class="kpi-value" id="val-failed">0</div>
+        <div class="kpi-sub">Failed dispatches</div>
+      </div>
+      <div class="kpi-card kpi-recovery" id="kpi-recovery">
+        <div class="kpi-label">Recovery Required</div>
+        <div class="kpi-value" id="val-recovery">0</div>
+        <div class="kpi-sub">Blocked in recovery queue</div>
+      </div>
+    </section>
+
+    <!-- Section 7: Campaign Control Plane -->
+    <section class="control-plane" id="campaign-control-card">
+      <div class="campaign-control-group">
+        <div>
+          <span class="campaign-status-badge" id="campaign-status-pill">IDLE</span>
+        </div>
+        <button class="btn btn-emerald" id="start-remaining-btn" onclick="startRemainingOutreach()" title="Execute company-first outreach on remaining eligible contacts">
+          <span>▶ Start Remaining Outreach</span>
+        </button>
+        <div style="display: flex; align-items: center; gap: 0.35rem; margin: 0 0.25rem;">
+          <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Limit:</label>
+          <input type="number" id="campaign-limit-input" value="200" min="1" max="1000" title="Max contacts to outreach in this run" style="width: 68px; padding: 0.25rem 0.4rem; font-size: 0.8rem; background: var(--bg-surface-raised); border: 1px solid var(--border-color); border-radius: var(--radius-xs); color: var(--text-primary); text-align: center; font-weight: 600;">
+        </div>
+        <button class="btn btn-secondary btn-sm" id="start-campaign-btn" onclick="startCampaign()">
+          <span>▶ New Run</span>
+        </button>
+        <button class="btn btn-amber btn-sm" id="pause-campaign-btn" onclick="pauseCampaign()" disabled>
+          <span>⏸ Pause</span>
+        </button>
+        <button class="btn btn-primary btn-sm" id="resume-campaign-btn" onclick="resumeCampaign()" disabled>
+          <span>⏯ Resume</span>
+        </button>
+        <button class="btn btn-rose btn-sm" id="stop-campaign-btn" onclick="stopCampaign()" disabled>
+          <span>⏹ Stop</span>
+        </button>
+      </div>
+
+      <!-- Policy, Quota & Round Info Grid -->
+      <div style="display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: 0.775rem; color: var(--text-secondary); background: var(--bg-surface-raised); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); align-items: center;">
+        <div>Round: <strong id="prog-round" style="color: var(--accent-blue);">Round 1</strong></div>
+        <div>Companies: <strong id="prog-comp-cov" style="color: var(--text-primary);">0</strong> covered / <strong id="prog-comp-rem" style="color: var(--text-primary);">0</strong> remaining</div>
+        <div>Auto Quota: <strong id="prog-auto-used" style="color: var(--accent-emerald);">0</strong> / <span id="prog-quota">100</span> (Rem: <strong id="prog-auto-rem">100</strong>)</div>
+        <div>Manual Reserve: <strong id="prog-manual-used">0</strong> / <span id="prog-manual-res">20</span> (Rem: <strong id="prog-manual-rem">20</strong>)</div>
+        <div>Channel: <strong id="prog-curr-channel" style="color: var(--accent-blue);">WHATSAPP</strong></div>
+        <div>Sender: <strong id="prog-curr-sender">AUTO</strong></div>
+        <div>Template: <strong id="prog-curr-template">AUTO</strong></div>
+      </div>
+
+      <div class="campaign-progress-box">
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="campaign-progress-fill" style="width: 0%;"></div>
+        </div>
+        <div class="progress-stats">
+          <span>Progress: <strong id="prog-pct">0%</strong></span>
+          <span>Completed: <strong id="prog-completed">0</strong></span>
+          <span>Pending: <strong id="prog-pending">0</strong></span>
+          <span>Failed: <strong id="prog-failed">0</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 8: Search & Priority Filter Bar -->
+    <section class="filters-bar">
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="search-input" placeholder="Search company, name, phone, email, notes..." oninput="handleSearchChange()">
+      </div>
+
+      <select class="select-input" id="company-filter" onchange="applyFilters()">
+        <option value="ALL">All Companies</option>
+      </select>
+
+      <select class="select-input" id="crm-status-filter" onchange="applyFilters()">
+        <option value="ALL">All CRM Outcomes</option>
+        <option value="INTERESTED">Interested</option>
+        <option value="NOT_INTERESTED">Not Interested</option>
+        <option value="PENDING_REPLY">Pending Reply</option>
+        <option value="NONE">No Status / Uncontacted</option>
+      </select>
+
+      <select class="select-input" id="channel-filter" onchange="applyFilters()">
+        <option value="ALL">All Outreach Statuses</option>
+        <option value="SENT">Any Contacted</option>
+        <option value="NOT_SENT">Uncontacted</option>
+        <option value="WHATSAPP_SENT">WhatsApp Sent</option>
+        <option value="EMAIL_SENT">Email Sent</option>
+      </select>
+
+      <div class="priority-pills">
+        <button class="pill-btn active" data-filter="ALL" onclick="setPriorityFilter('ALL')">All</button>
+        <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" onclick="setPriorityFilter('FOLLOW_UP_DUE')">⚠️ Follow-up Due</button>
+        <button class="pill-btn" data-filter="INTERESTED" onclick="setPriorityFilter('INTERESTED')">★ Interested</button>
+        <button class="pill-btn" data-filter="RECENTLY_ACTIVE" onclick="setPriorityFilter('RECENTLY_ACTIVE')">⚡ Recently Active</button>
+        <button class="pill-btn" data-filter="UNCONTACTED" onclick="setPriorityFilter('UNCONTACTED')">Uncontacted</button>
+        <button class="pill-btn" data-filter="NOT_INTERESTED" onclick="setPriorityFilter('NOT_INTERESTED')">Not Interested</button>
+      </div>
+    </section>
+
+    <!-- View Switcher Bar -->
+    <div class="view-mode-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; margin-bottom: 0.75rem;">
+      <div style="display: flex; gap: 0.5rem;">
+        <button class="btn btn-primary btn-sm" id="view-mode-table-btn" onclick="setViewMode('table')">
+          📋 Flat Table View
+        </button>
+        <button class="btn btn-outline btn-sm" id="view-mode-hierarchy-btn" onclick="setViewMode('hierarchy')">
+          🏢 Company Hierarchy View
+        </button>
+      </div>
+      <div id="hierarchy-summary-text" style="font-size: 0.8rem; color: var(--text-secondary);">
+        Company-First progression &bull; Discrete Endpoint Tracking
+      </div>
+    </div>
+
+    <!-- Section 5 & 6: Contact Table -->
+    <section class="table-card" id="table-view-section">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>HR Name</th>
+              <th>Designation</th>
+              <th>Phone(s)</th>
+              <th>Email(s)</th>
+              <th>Contact Coverage</th>
+              <th>Last Contacted</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-table-body">
+            <tr>
+              <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                Loading contacts...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Phase 8: Company -> HR -> Endpoint -> History Hierarchy View -->
+    <section class="hierarchy-container" id="hierarchy-view-section" style="display: none;">
+      <div id="hierarchy-cards-list" style="display: flex; flex-direction: column; gap: 1rem;">
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+          Loading company hierarchies...
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modals & Drawers -->
+
+  <!-- 1. Send / Resend Custom Message Modal -->
+  <div class="modal-overlay" id="send-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="send-modal-title">Send Message</h3>
+        <button class="modal-close-btn" onclick="closeSendModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal-contact-id">
+        <input type="hidden" id="modal-channel">
+        <input type="hidden" id="modal-is-resend">
+
+        <div class="form-group">
+          <label class="form-label">Recipient Contact</label>
+          <div id="modal-recipient-preview" style="font-weight: 600; color: var(--text-primary);"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Target Endpoint / Destination</label>
+          <select class="form-control" id="modal-destination-select"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Sender Account</label>
+          <select class="form-control" id="modal-sender-select"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Template</label>
+          <select class="form-control" id="modal-template-select" onchange="handleTemplateSelectChange()"></select>
+        </div>
+
+        <div class="form-group" id="modal-subject-group" style="display: none;">
+          <label class="form-label">Email Subject</label>
+          <input type="text" class="form-control" id="modal-subject-input">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Message Body</label>
+          <textarea class="form-control" id="modal-body-input" rows="5"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeSendModal()">Cancel</button>
+        <button class="btn btn-primary" id="modal-submit-send-btn" onclick="submitSendMessage()">Send Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Contact Activity Timeline / History Modal (Section 15) -->
+  <div class="modal-overlay" id="history-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="history-modal-title">Activity Timeline</h3>
+        <button class="modal-close-btn" onclick="closeHistoryModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="history-contact-summary" style="margin-bottom: 0.5rem; font-size: 0.825rem; color: var(--text-secondary);"></div>
+        <div class="timeline" id="history-timeline-list">
+          <div style="color: var(--text-muted); font-size: 0.8rem;">Loading activity history...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeHistoryModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Senders & Authentication Control Drawer (Phase 8.2 & 8.3) -->
+  <div class="modal-overlay" id="senders-modal">
+    <div class="modal-content" style="max-width: 820px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div>
+          <h3 style="margin: 0;">Sender Accounts &amp; Authentication Control Plane</h3>
+          <div style="font-size: 0.775rem; color: var(--text-secondary); margin-top: 0.2rem;">
+            Real-time session state, WhatsApp QR linking, and SMTP connection verification.
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeSendersDrawer()">&times;</button>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 1.25rem;">
+        <div id="senders-list-container" style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <!-- Multi-Session WhatsApp Section -->
+          <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+              <div>
+                <h4 style="margin: 0; color: var(--accent-emerald); display: flex; align-items: center; gap: 0.4rem;">
+                  <span>📱 WhatsApp Senders</span>
+                  <span id="wa-active-badge" class="badge badge-emerald" style="font-size: 0.7rem;">0 Active</span>
+                </h4>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem;">
+                  Each session operates in an isolated browser context with dedicated QR code authentication.
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Number of Sessions:</label>
+                <input type="number" id="wa-session-count-input" value="2" min="1" max="10" style="width: 55px; padding: 0.25rem 0.4rem; font-size: 0.8rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-xs); color: var(--text-primary); text-align: center; font-weight: 600;">
+                <button class="btn btn-outline btn-xs" onclick="applyWhatsAppSessionCount()">Apply</button>
+              </div>
+            </div>
+
+            <div id="wa-senders-list-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.85rem;">
+              Loading WhatsApp sessions...
+            </div>
+          </div>
+
+          <!-- Email Senders Section -->
+          <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+              <div>
+                <h4 style="margin: 0; color: var(--accent-blue); display: flex; align-items: center; gap: 0.4rem;">
+                  <span>✉️ Email Senders</span>
+                  <span id="email-active-badge" class="badge badge-blue" style="font-size: 0.7rem;">0 Active</span>
+                </h4>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem;">
+                  Authenticated SMTP credentials and TLS delivery verification.
+                </div>
+              </div>
+              <button class="btn btn-outline btn-xs" onclick="openEmailConfigModal()">+ Add Email Sender</button>
+            </div>
+
+            <div id="email-senders-list-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.85rem;">
+              Loading Email sessions...
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <div id="senders-readiness-summary" style="font-size: 0.775rem; color: var(--text-secondary);">
+          Readiness: <strong id="overall-readiness-text" style="color: var(--accent-amber);">Checking...</strong>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-secondary" onclick="fetchSenders()">Refresh State</button>
+          <button class="btn btn-primary" onclick="closeSendersDrawer()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Email Configuration Modal -->
+  <div class="modal-overlay" id="email-config-modal">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="email-config-title">Configure Email Credentials</h3>
+        <button class="modal-close-btn" onclick="closeEmailConfigModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="form-group">
+            <label class="form-label">Session ID</label>
+            <input type="text" id="cfg-email-id" class="form-control" value="EMAIL_SESSION_1" placeholder="e.g. EMAIL_SESSION_1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Display Name</label>
+            <input type="text" id="cfg-email-name" class="form-control" value="Email Primary" placeholder="e.g. Email Primary (Gmail)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address (From Identity)</label>
+            <input type="email" id="cfg-email-addr" class="form-control" value="outreach.primary@domain.com" placeholder="name@domain.com">
+          </div>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem;">
+            <div class="form-group">
+              <label class="form-label">SMTP Host</label>
+              <input type="text" id="cfg-email-host" class="form-control" value="smtp.gmail.com" placeholder="smtp.gmail.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Port</label>
+              <input type="number" id="cfg-email-port" class="form-control" value="587">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">SMTP Username</label>
+            <input type="text" id="cfg-email-user" class="form-control" placeholder="SMTP Username / Email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">SMTP Password / App Password</label>
+            <input type="password" id="cfg-email-pwd" class="form-control" placeholder="••••••••••••">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeEmailConfigModal()">Cancel</button>
+        <button class="btn btn-primary" id="save-email-cfg-btn" onclick="saveAndVerifyEmailConfig()">
+          <span>Save &amp; Verify Connection</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Outreach Readiness Error Modal (Phase 8.4) -->
+  <div class="modal-overlay" id="readiness-modal">
+    <div class="modal-content" style="max-width: 520px; border-top: 4px solid var(--accent-rose);">
+      <div class="modal-header">
+        <h3 style="color: var(--accent-rose); display: flex; align-items: center; gap: 0.4rem;">
+          <span>⚠️ Outreach Cannot Start</span>
+        </h3>
+        <button class="modal-close-btn" onclick="closeReadinessModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.5rem;" id="readiness-error-reason">
+          NO_ACTIVE_WHATSAPP_SESSION
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem;" id="readiness-error-detail">
+          No active WhatsApp sender session available. Please authenticate at least one WhatsApp session before starting outreach.
+        </div>
+        <div style="background: var(--bg-surface-raised); border-radius: var(--radius-sm); padding: 0.75rem; border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-muted);">
+          <strong>Control Plane Policy:</strong> Automated campaign outreach is strictly blocked until legitimate sender sessions and channel prerequisites are actively verified.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeReadinessModal()">Dismiss</button>
+        <button class="btn btn-emerald" onclick="closeReadinessModal(); openSendersDrawer();">
+          <span>👥 Open Senders &amp; Authenticate</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Templates Management Drawer (Section 14) -->
+  <div class="modal-overlay" id="templates-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Message Templates</h3>
+        <button class="modal-close-btn" onclick="closeTemplatesDrawer()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="templates-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          Loading templates...
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeTemplatesDrawer()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Synchronization Summary Modal (Section 16 & Phase 8) -->
+  <div class="modal-overlay" id="sync-modal">
+    <div class="modal-content" style="max-width: 580px;">
+      <div class="modal-header">
+        <h3 id="sync-modal-title">Source Synchronization Summary</h3>
+        <button class="modal-close-btn" onclick="closeSyncModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="sync-modal-body">
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+          Source: <strong id="sync-source-filename" style="color: var(--accent-blue);">MNC_Final.xlsx</strong> &bull; Operational Truth: <strong style="color: var(--accent-emerald);">SQLite Relational Store</strong>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem;">
+          <div class="kpi-card"><div class="kpi-label">Total Read</div><div class="kpi-value" id="sync-total">0</div></div>
+          <div class="kpi-card kpi-wa"><div class="kpi-label">New Companies</div><div class="kpi-value" id="sync-new-comp">0</div></div>
+          <div class="kpi-card kpi-eligible"><div class="kpi-label">Updated Companies</div><div class="kpi-value" id="sync-upd-comp">0</div></div>
+          <div class="kpi-card kpi-wa"><div class="kpi-label">New Contacts</div><div class="kpi-value" id="sync-new">0</div></div>
+          <div class="kpi-card kpi-eligible"><div class="kpi-label">Updated Contacts</div><div class="kpi-value" id="sync-updated">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">Unchanged Contacts</div><div class="kpi-value" id="sync-unchanged">0</div></div>
+          <div class="kpi-card kpi-email"><div class="kpi-label">New Phone Endpoints</div><div class="kpi-value" id="sync-new-phones">0</div></div>
+          <div class="kpi-card kpi-email"><div class="kpi-label">New Email Endpoints</div><div class="kpi-value" id="sync-new-emails">0</div></div>
+          <div class="kpi-card kpi-failed"><div class="kpi-label">Skipped Invalid</div><div class="kpi-value" id="sync-skipped">0</div></div>
+          <div class="kpi-card kpi-interested"><div class="kpi-label">Outreach History</div><div class="kpi-value" style="font-size: 0.95rem; color: var(--accent-emerald);">PRESERVED</div></div>
+        </div>
+
+        <div id="sync-errors-box" style="margin-top: 0.75rem; display: none;">
+          <div style="color: var(--accent-rose); font-size: 0.75rem; font-weight: 700;">Errors Encountered:</div>
+          <ul id="sync-errors-list" style="color: var(--text-secondary); font-size: 0.75rem; margin-left: 1.2rem;"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeSyncModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Application Logic (Vanilla JS) -->
+  <script>
+    // Global State Management
+    let state = {
+      user: null,
+      contacts: [],
+      companies: [],
+      hierarchies: [],
+      kpis: {},
+      senders: [],
+      templates: [],
+      activeCampaign: null,
+      viewMode: 'table',
+      searchQuery: '',
+      selectedCompany: 'ALL',
+      selectedCrmStatus: 'ALL',
+      selectedChannelStatus: 'ALL',
+      selectedPriorityFilter: 'ALL',
+    };
+
+    let activeEventSource = null;
+    let activeWebSocket = null;
+
+    // 0. Central apiFetch() Helper Wrapper
+    async function apiFetch(url, options = {}) {
+      const headers = { ...(options.headers || {}) };
+
+      if (options.body && typeof options.body === 'string' && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      const config = {
+        ...options,
+        headers: headers,
+      };
+
+      try {
+        const response = await fetch(url, config);
+        return response;
+      } catch (err) {
+        console.error('API Fetch error:', err);
+        throw err;
+      }
+    }
+
+    // App Initialization
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadInitialData();
+      initEventStream();
+    });
+
+    async function loadInitialData() {
+      await Promise.all([
+        fetchKpis(),
+        fetchCompanies(),
+        fetchSenders(),
+        fetchTemplates(),
+        fetchCampaigns(),
+      ]);
+      await fetchHierarchies();
+      await fetchContacts();
+    }
+
+    function setViewMode(mode) {
+      state.viewMode = mode;
+      const hierBtn = document.getElementById('view-mode-hierarchy-btn');
+      const tableBtn = document.getElementById('view-mode-table-btn');
+      const hierSec = document.getElementById('hierarchy-view-section');
+      const tableSec = document.getElementById('table-view-section');
+
+      if (mode === 'hierarchy') {
+        hierBtn.className = 'btn btn-primary btn-sm';
+        tableBtn.className = 'btn btn-outline btn-sm';
+        hierSec.style.display = 'flex';
+        tableSec.style.display = 'none';
+        fetchHierarchies();
+      } else {
+        hierBtn.className = 'btn btn-outline btn-sm';
+        tableBtn.className = 'btn btn-primary btn-sm';
+        hierSec.style.display = 'none';
+        tableSec.style.display = 'block';
+        fetchContacts();
+      }
+    }
+
+    // 1. Fetch & Render KPIs
+    async function fetchKpis() {
+      try {
+        const res = await apiFetch('/api/crm/kpis');
+        if (res.ok) {
+          const data = await res.json();
+          state.kpis = data;
+          renderKpis(data);
+        }
+      } catch (err) {
+        console.error('Error loading KPIs:', err);
+      }
+    }
+
+    function renderKpis(k) {
+      document.getElementById('val-total').innerText = k.total_contacts || 0;
+      document.getElementById('val-eligible').innerText = k.eligible || 0;
+      document.getElementById('val-contacted').innerText = k.contacted || 0;
+      document.getElementById('val-wa-sent').innerText = k.whatsapp_sent || 0;
+      document.getElementById('val-email-sent').innerText = k.email_sent || 0;
+      document.getElementById('val-interested').innerText = k.interested || 0;
+      document.getElementById('val-not-interested').innerText = k.not_interested || 0;
+      document.getElementById('val-interview').innerText = k.interview || 0;
+      document.getElementById('val-followup').innerText = k.follow_up_due || 0;
+      document.getElementById('val-failed').innerText = k.failed || 0;
+      document.getElementById('val-recovery').innerText = k.recovery_required || 0;
+    }
+
+    // 2. Fetch Companies
+    async function fetchCompanies() {
+      try {
+        const res = await apiFetch('/api/companies');
+        if (res.ok) {
+          state.companies = await res.json();
+          const select = document.getElementById('company-filter');
+          select.innerHTML = '<option value="ALL">All Companies</option>';
+          state.companies.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${c.name} (${c.contact_count})`;
+            select.appendChild(opt);
+          });
+        }
+      } catch (err) {
+        console.error('Error loading companies:', err);
+      }
+    }
+
+    // 3. Fetch & Render Hierarchies (Company -> HR -> Endpoints -> History)
+    async function fetchHierarchies() {
+      try {
+        const params = new URLSearchParams();
+        if (state.searchQuery) params.set('search', state.searchQuery);
+        if (state.selectedCompany !== 'ALL') params.set('search', state.selectedCompany);
+        if (state.selectedChannelStatus !== 'ALL') params.set('status', state.selectedChannelStatus);
+
+        const res = await apiFetch(`/api/companies/hierarchy?${params.toString()}`);
+        if (res.ok) {
+          state.hierarchies = await res.json();
+          renderHierarchyView(state.hierarchies);
+        }
+      } catch (err) {
+        console.error('Error loading hierarchies:', err);
+      }
+    }
+
+    function renderHierarchyView(hierarchies) {
+      const container = document.getElementById('hierarchy-cards-list');
+      container.innerHTML = '';
+
+      if (!hierarchies || hierarchies.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+            No companies found matching the selected filter criteria.
+          </div>
+        `;
+        return;
+      }
+
+      hierarchies.forEach((comp, cIdx) => {
+        const card = document.createElement('div');
+        card.className = 'company-card';
+
+        let statusClass = 'status-not-contacted';
+        let statusIcon = '🔴';
+        let statusText = 'NOT CONTACTED';
+
+        if (comp.status === 'IN_PROGRESS') {
+          statusClass = 'status-in-progress';
+          statusIcon = '🟡';
+          statusText = 'IN PROGRESS';
+        } else if (comp.status === 'CONTACTED') {
+          statusClass = 'status-contacted';
+          statusIcon = '🟢';
+          statusText = 'CONTACTED';
+        } else if (comp.status === 'CLOSED') {
+          statusClass = 'status-closed';
+          statusIcon = '⚫';
+          statusText = 'CLOSED';
+        }
+
+        // Build HR Contacts HTML
+        let hrsHtml = '';
+        (comp.contacts || []).forEach((hr, hrIdx) => {
+          const curStatus = hr.crm_outcome || 'NOT_CONTACTED';
+          const statusSelect = `
+            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" onchange="updateContactStatus('${hr.contact_id}', this.value)">
+              <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
+              <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
+              <option value="REPLIED" ${curStatus === 'REPLIED' ? 'selected' : ''}>Replied</option>
+              <option value="FOLLOW_UP" ${curStatus === 'FOLLOW_UP' ? 'selected' : ''}>Follow-Up Due</option>
+              <option value="INTERESTED" ${curStatus === 'INTERESTED' ? 'selected' : ''}>Interested ★</option>
+              <option value="NOT_INTERESTED" ${curStatus === 'NOT_INTERESTED' ? 'selected' : ''}>Not Interested</option>
+              <option value="INTERVIEW" ${curStatus === 'INTERVIEW' ? 'selected' : ''}>Interview 📅</option>
+              <option value="OFFER" ${curStatus === 'OFFER' ? 'selected' : ''}>Offer 🏆</option>
+              <option value="REJECTED" ${curStatus === 'REJECTED' ? 'selected' : ''}>Rejected ✕</option>
+              <option value="CLOSED" ${curStatus === 'CLOSED' ? 'selected' : ''}>Closed ⚫</option>
+              <option value="DO_NOT_CONTACT" ${curStatus === 'DO_NOT_CONTACT' ? 'selected' : ''}>Do Not Contact ⛔</option>
+            </select>
+          `;
+
+          let endpointsHtml = '';
+          (hr.endpoints || []).forEach(ep => {
+            const isSent = ep.status === 'SENT';
+            const epClass = isSent ? 'endpoint-covered' : '';
+            const statusBadge = isSent 
+              ? `<span style="color: var(--accent-emerald); font-weight: 600;">✓ ${ep.channel} SENT</span>` 
+              : `<span style="color: var(--text-muted);">○ Not contacted</span>`;
+
+            let metaDetails = '';
+            if (isSent && ep.sender_account_id) {
+              metaDetails = `<div style="font-size: 0.675rem; color: var(--text-muted);">${escapeHtml(ep.sender_account_id)} &bull; ${escapeHtml(ep.template_id || 'Direct')} &bull; ${formatDate(ep.sent_at)}</div>`;
+            }
+
+            const sendBtn = ep.channel === 'WHATSAPP'
+              ? `<button class="btn btn-emerald btn-xs" onclick="openSendModal('${hr.contact_id}', 'WHATSAPP', ${isSent}, '${ep.address}')">${isSent ? 'Resend WA' : 'Send WA'}</button>`
+              : `<button class="btn btn-primary btn-xs" onclick="openSendModal('${hr.contact_id}', 'EMAIL', ${isSent}, '${ep.address}')">${isSent ? 'Resend Email' : 'Send Email'}</button>`;
+
+            endpointsHtml += `
+              <div class="endpoint-box ${epClass}">
+                <div class="endpoint-info">
+                  <span class="endpoint-label">${escapeHtml(ep.label)} &bull; ${statusBadge}</span>
+                  <span class="endpoint-addr">${escapeHtml(ep.address)}</span>
+                  ${metaDetails}
+                </div>
+                <div>${sendBtn}</div>
+              </div>
+            `;
+          });
+
+          hrsHtml += `
+            <div class="hr-card" data-contact-id="${hr.contact_id}">
+              <div class="hr-header">
+                <div class="hr-title-wrap">
+                  <span class="hr-name-bold">HR ${hrIdx + 1}: ${escapeHtml(hr.name)}</span>
+                  ${hr.designation ? `<span class="hr-designation-text">&bull; ${escapeHtml(hr.designation)}</span>` : ''}
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span>CRM Status:</span>
+                  ${statusSelect}
+                  <button class="btn btn-secondary btn-xs" onclick="openHistoryModal('${hr.contact_id}')">History</button>
+                  <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive / DNC" onclick="archiveContact('${hr.contact_id}')">🗑</button>
+                </div>
+              </div>
+              <div class="endpoints-container">
+                ${endpointsHtml || '<div style="color: var(--text-muted); font-size: 0.75rem;">No endpoints registered for this contact.</div>'}
+              </div>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="company-card-header">
+            <div class="company-title-area">
+              <span class="company-name-lg">C${cIdx + 1} — ${escapeHtml(comp.name)}</span>
+              <span class="company-status-badge ${statusClass}">${statusIcon} ${statusText}</span>
+            </div>
+            <div class="company-meta-pills">
+              <span>HRs: <strong>${comp.total_contacts || 0}</strong></span>
+              <span>Endpoints: <strong>${comp.covered_endpoints || 0} / ${comp.total_endpoints || 0} covered</strong></span>
+            </div>
+          </div>
+          <div class="hr-contacts-list">
+            ${hrsHtml || '<div style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem;">No HR contacts registered.</div>'}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // 4. Fetch Contacts & Render Table View
+    async function fetchContacts() {
+      try {
+        const params = new URLSearchParams();
+        if (state.searchQuery) params.set('search', state.searchQuery);
+        if (state.selectedCompany !== 'ALL') params.set('company', state.selectedCompany);
+        if (state.selectedCrmStatus !== 'ALL') params.set('crm_status', state.selectedCrmStatus);
+        if (state.selectedChannelStatus !== 'ALL') params.set('send_status', state.selectedChannelStatus);
+        if (state.selectedPriorityFilter !== 'ALL') params.set('priority_filter', state.selectedPriorityFilter);
+
+        const res = await apiFetch(`/api/contacts?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          state.contacts = data.contacts || [];
+          renderContactsTable(state.contacts);
+        }
+      } catch (err) {
+        console.error('Error loading contacts:', err);
+      }
+    }
+
+    function renderContactsTable(contacts) {
+      const tbody = document.getElementById('contacts-table-body');
+      tbody.innerHTML = '';
+
+      if (!contacts || contacts.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="9" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+              No contacts found matching the selected filter criteria.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      contacts.forEach(c => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-contact-id', c.contact_id);
+
+        if (c.crm_outcome === 'INTERESTED') tr.classList.add('row-interested');
+        if (c.follow_up_due) tr.classList.add('row-followup-due');
+        if (c.crm_outcome === 'NOT_INTERESTED' || c.crm_outcome === 'DO_NOT_CONTACT') tr.classList.add('row-not-interested');
+
+        const lastContactedDisplay = c.last_contacted ? formatDate(c.last_contacted) : '<span style="color: var(--text-muted);">-</span>';
+        
+        let interestedSinceBadge = '';
+        if (c.interested_at) {
+          interestedSinceBadge = `<div class="interested-since-text">Interested since: ${formatDate(c.interested_at)}</div>`;
+        }
+
+        let followUpDueBadge = '';
+        if (c.follow_up_due) {
+          const dueStr = c.follow_up_due_at ? formatDate(c.follow_up_due_at) : 'Due Now';
+          followUpDueBadge = `
+            <div class="follow-up-due-tag">
+              ⚠️ FOLLOW-UP DUE (${dueStr})
+            </div>
+          `;
+        }
+
+        const phonesList = c.phones && c.phones.length > 0 ? c.phones : (c.phone ? [c.phone] : []);
+        let phonesHtml = phonesList.length > 0 
+          ? phonesList.map((p, idx) => `<span class="phone-text" title="Phone ${idx+1}">P${idx+1}: ${escapeHtml(p)}</span>`).join('<br>')
+          : '<span style="color: var(--text-muted);">-</span>';
+
+        const emailsList = c.emails && c.emails.length > 0 ? c.emails : (c.email ? [c.email] : []);
+        let emailsHtml = emailsList.length > 0 
+          ? emailsList.map((e, idx) => `<span class="email-text" data-testid="contact-email" title="Email ${idx+1}">E${idx+1}: ${escapeHtml(e)}</span>`).join('<br>')
+          : '<span style="color: var(--text-muted);">-</span>';
+
+        const cov = c.coverage || { total_endpoints: 0, covered_endpoints: 0, is_fully_covered: false };
+        let coverageBadge = '';
+        if (cov.is_fully_covered && cov.total_endpoints > 0) {
+          coverageBadge = '<span class="badge badge-sent" style="font-size: 0.7rem;">✓ FULLY COVERED</span>';
+        } else if (cov.covered_endpoints > 0) {
+          coverageBadge = '<span class="badge badge-partial" style="font-size: 0.7rem;">PARTIAL</span>';
+        } else {
+          coverageBadge = '<span class="badge badge-uncovered" style="font-size: 0.7rem;">UNCOVERED</span>';
+        }
+        const coverageSub = `<div class="endpoint-coverage-text">${cov.covered_endpoints || 0} / ${cov.total_endpoints || 0} endpoints</div>`;
+
+        const curStatus = c.crm_outcome || 'NOT_CONTACTED';
+        const statusSelectHtml = `
+          <select class="form-control" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" onchange="updateContactStatus('${c.contact_id}', this.value)">
+            <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
+            <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
+            <option value="REPLIED" ${curStatus === 'REPLIED' ? 'selected' : ''}>Replied</option>
+            <option value="FOLLOW_UP" ${curStatus === 'FOLLOW_UP' ? 'selected' : ''}>Follow-Up</option>
+            <option value="INTERESTED" ${curStatus === 'INTERESTED' ? 'selected' : ''}>Interested ★</option>
+            <option value="NOT_INTERESTED" ${curStatus === 'NOT_INTERESTED' ? 'selected' : ''}>Not Interested</option>
+            <option value="INTERVIEW" ${curStatus === 'INTERVIEW' ? 'selected' : ''}>Interview 📅</option>
+            <option value="OFFER" ${curStatus === 'OFFER' ? 'selected' : ''}>Offer 🏆</option>
+            <option value="REJECTED" ${curStatus === 'REJECTED' ? 'selected' : ''}>Rejected ✕</option>
+            <option value="CLOSED" ${curStatus === 'CLOSED' ? 'selected' : ''}>Closed ⚫</option>
+            <option value="DO_NOT_CONTACT" ${curStatus === 'DO_NOT_CONTACT' ? 'selected' : ''}>Do Not Contact ⛔</option>
+          </select>
+        `;
+
+        tr.innerHTML = `
+          <td class="company-cell" title="${escapeHtml(c.company)}">${escapeHtml(c.company)}</td>
+          <td>
+            <div class="person-cell">
+              <span class="person-name">${escapeHtml(c.name)}</span>
+              ${followUpDueBadge}
+            </div>
+          </td>
+          <td><span class="person-designation">${escapeHtml(c.designation || '-')}</span></td>
+          <td>${phonesHtml}</td>
+          <td>${emailsHtml}</td>
+          <td>
+            <div>
+              ${coverageBadge}
+              ${coverageSub}
+            </div>
+          </td>
+          <td>${lastContactedDisplay}</td>
+          <td>
+            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+              ${statusSelectHtml}
+              ${interestedSinceBadge}
+            </div>
+          </td>
+          <td>
+            <div class="actions-cell" style="justify-content: flex-end;">
+              <button class="btn btn-emerald btn-xs" title="Send WhatsApp" onclick="openSendModal('${c.contact_id}', 'WHATSAPP', false)" ${phonesList.length === 0 ? 'disabled' : ''}>WA</button>
+              <button class="btn btn-primary btn-xs" title="Send Email" onclick="openSendModal('${c.contact_id}', 'EMAIL', false)" ${emailsList.length === 0 ? 'disabled' : ''}>Email</button>
+              <button class="btn btn-secondary btn-xs" title="View History Timeline" onclick="openHistoryModal('${c.contact_id}')">History</button>
+              <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive Contact" onclick="archiveContact('${c.contact_id}')">🗑</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 5. CRM Status Update Action
+    async function updateContactStatus(contactId, status) {
+      try {
+        const res = await apiFetch('/api/crm/status', {
+          method: 'POST',
+          body: JSON.stringify({ contact_id: contactId, status: status })
+        });
+        if (res.ok) {
+          showToast(`Contact status updated to ${status}`, 'success');
+          await fetchHierarchies();
+          await fetchContacts();
+          await fetchKpis();
+        } else {
+          const err = await res.json();
+          showToast(`Error: ${err.detail || 'Status update failed'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error updating status: ' + err.message, 'error');
+      }
+    }
+
+    async function archiveContact(contactId) {
+      if (!confirm('Are you sure you want to archive this contact? This marks suppression so synchronizer will not recreate it.')) {
+        return;
+      }
+      try {
+        const res = await apiFetch(`/api/contacts/${contactId}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Contact archived and suppressed.', 'info');
+          await fetchHierarchies();
+          await fetchContacts();
+          await fetchKpis();
+        }
+      } catch (err) {
+        showToast('Error archiving contact: ' + err.message, 'error');
+      }
+    }
+
+    // 6. Campaign Control Plane
+    async function fetchCampaigns() {
+      try {
+        const res = await apiFetch('/api/campaigns');
+        if (res.ok) {
+          const list = await res.json();
+          if (list && list.length > 0) {
+            updateCampaignControls(list[0]);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching campaigns:', err);
+      }
+    }
+
+    function updateCampaignControls(camp) {
+      state.activeCampaign = camp;
+      const statusPill = document.getElementById('campaign-status-pill');
+      const startBtn = document.getElementById('start-campaign-btn');
+      const pauseBtn = document.getElementById('pause-campaign-btn');
+      const resumeBtn = document.getElementById('resume-campaign-btn');
+      const stopBtn = document.getElementById('stop-campaign-btn');
+      const remainingBtn = document.getElementById('start-remaining-btn');
+
+      const st = camp ? camp.status : 'IDLE';
+      statusPill.innerText = st;
+      statusPill.className = 'campaign-status-badge';
+
+      if (st === 'RUNNING') {
+        statusPill.classList.add('status-running');
+        if (remainingBtn) remainingBtn.disabled = true;
+        startBtn.disabled = true;
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = false;
+      } else if (st === 'PAUSED') {
+        statusPill.classList.add('status-paused');
+        if (remainingBtn) remainingBtn.disabled = true;
+        startBtn.disabled = true;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = false;
+        stopBtn.disabled = false;
+      } else {
+        if (st === 'COMPLETED') statusPill.classList.add('status-completed');
+        if (remainingBtn) remainingBtn.disabled = false;
+        startBtn.disabled = false;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = true;
+        stopBtn.disabled = true;
+      }
+
+      if (camp) {
+        document.getElementById('prog-pct').innerText = `${camp.progress_percent}%`;
+        document.getElementById('prog-completed').innerText = camp.completed;
+        document.getElementById('prog-pending').innerText = camp.pending;
+        document.getElementById('prog-failed').innerText = camp.failed;
+        document.getElementById('campaign-progress-fill').style.width = `${camp.progress_percent}%`;
+
+        if (document.getElementById('prog-round')) document.getElementById('prog-round').innerText = `Round ${camp.current_round || 1}`;
+        if (document.getElementById('prog-comp-cov')) document.getElementById('prog-comp-cov').innerText = camp.companies_covered || 0;
+        if (document.getElementById('prog-comp-rem')) document.getElementById('prog-comp-rem').innerText = camp.companies_remaining || 0;
+        if (document.getElementById('prog-quota')) document.getElementById('prog-quota').innerText = camp.automatic_quota !== null && camp.automatic_quota !== undefined ? camp.automatic_quota : '∞';
+        if (document.getElementById('prog-auto-used')) document.getElementById('prog-auto-used').innerText = camp.automatic_used || 0;
+        if (document.getElementById('prog-auto-rem')) document.getElementById('prog-auto-rem').innerText = camp.remaining_automatic !== null && camp.remaining_automatic !== undefined ? camp.remaining_automatic : '∞';
+        if (document.getElementById('prog-manual-res')) document.getElementById('prog-manual-res').innerText = camp.manual_reserve || 20;
+        if (document.getElementById('prog-manual-used')) document.getElementById('prog-manual-used').innerText = camp.manual_used || 0;
+        if (document.getElementById('prog-manual-rem')) document.getElementById('prog-manual-rem').innerText = camp.remaining_manual !== undefined ? camp.remaining_manual : 20;
+        if (document.getElementById('prog-curr-channel')) document.getElementById('prog-curr-channel').innerText = camp.current_dispatch_channel || camp.channel || 'WHATSAPP';
+        if (document.getElementById('prog-curr-sender')) document.getElementById('prog-curr-sender').innerText = camp.current_sender || 'AUTO';
+        if (document.getElementById('prog-curr-template')) document.getElementById('prog-curr-template').innerText = camp.template_used || 'AUTO';
+      }
+    }
+
+    async function startRemainingOutreach() {
+      const limitInput = document.getElementById('campaign-limit-input');
+      const maxCount = limitInput ? (parseInt(limitInput.value, 10) || 200) : 200;
+      const startBtn = document.getElementById('start-remaining-btn');
+      const originalText = startBtn.innerHTML;
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<span class="spinner"></span> Starting...';
+
+      try {
+        const res = await apiFetch(`/api/campaigns/start-remaining?channel=WHATSAPP&max_count=${maxCount}`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Multi-channel outreach launched for up to ${maxCount} contacts in Round-Robin order!`, 'success');
+          updateCampaignControls(data);
+          await fetchHierarchies();
+          await fetchContacts();
+          await fetchKpis();
+        } else {
+          const detail = data.detail || {};
+          const reason = detail.reason || 'OUTREACH_NOT_READY';
+          const msg = detail.message || (typeof detail === 'string' ? detail : 'Prerequisites not met');
+          openReadinessModal(reason, msg);
+        }
+      } catch (err) {
+        showToast('Failed to start outreach: ' + err.message, 'error');
+      } finally {
+        startBtn.disabled = false;
+        startBtn.innerHTML = originalText;
+      }
+    }
+
+    async function startCampaign() {
+      const limitInput = document.getElementById('campaign-limit-input');
+      const maxCount = limitInput ? (parseInt(limitInput.value, 10) || 200) : 200;
+      const startBtn = document.getElementById('start-campaign-btn');
+      const originalText = startBtn.innerHTML;
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<span class="spinner"></span> Starting...';
+
+      try {
+        const res = await apiFetch('/api/campaigns/quick-start', {
+          method: 'POST',
+          body: JSON.stringify({ channel: 'WHATSAPP', max_count: maxCount, automatic_quota: maxCount })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Campaign started for up to ${maxCount} contacts!`, 'success');
+          updateCampaignControls(data);
+        } else {
+          const detail = data.detail || {};
+          const reason = detail.reason || 'OUTREACH_NOT_READY';
+          const msg = detail.message || (typeof detail === 'string' ? detail : 'Prerequisites not met');
+          openReadinessModal(reason, msg);
+        }
+      } catch (err) {
+        showToast('Failed to start campaign: ' + err.message, 'error');
+      } finally {
+        startBtn.disabled = false;
+        startBtn.innerHTML = originalText;
+      }
+    }
+
+    async function pauseCampaign() {
+      if (!state.activeCampaign) return;
+      try {
+        const res = await apiFetch(`/api/campaigns/${state.activeCampaign.id}/pause`, { method: 'POST' });
+        if (res.ok) {
+          const camp = await res.json();
+          showToast('Campaign paused.', 'info');
+          updateCampaignControls(camp);
+        }
+      } catch (err) {
+        showToast('Error pausing campaign: ' + err.message, 'error');
+      }
+    }
+
+    async function resumeCampaign() {
+      if (!state.activeCampaign) return;
+      try {
+        const res = await apiFetch(`/api/campaigns/${state.activeCampaign.id}/resume`, { method: 'POST' });
+        if (res.ok) {
+          const camp = await res.json();
+          showToast('Campaign resumed.', 'success');
+          updateCampaignControls(camp);
+        }
+      } catch (err) {
+        showToast('Error resuming campaign: ' + err.message, 'error');
+      }
+    }
+
+    async function stopCampaign() {
+      if (!state.activeCampaign) return;
+      if (!confirm('Are you sure you want to permanently stop the campaign?')) return;
+      try {
+        const res = await apiFetch(`/api/campaigns/${state.activeCampaign.id}/stop`, { method: 'POST' });
+        if (res.ok) {
+          const camp = await res.json();
+          showToast('Campaign stopped.', 'info');
+          updateCampaignControls(camp);
+        }
+      } catch (err) {
+        showToast('Error stopping campaign: ' + err.message, 'error');
+      }
+    }
+
+    // 7. Manual Send / Resend Modal Actions
+    function openSendModal(contactId, channel = 'WHATSAPP', isResend = false, targetEndpoint = null) {
+      let contact = state.contacts.find(c => c.contact_id === contactId);
+      if (!contact) {
+        for (const h of state.hierarchies || []) {
+          const found = (h.contacts || []).find(c => c.contact_id === contactId);
+          if (found) {
+            contact = { ...found, company: h.name };
+            break;
+          }
+        }
+      }
+      if (!contact) return;
+
+      document.getElementById('modal-contact-id').value = contactId;
+      document.getElementById('modal-channel').value = channel;
+      document.getElementById('modal-is-resend').value = isResend ? 'true' : 'false';
+
+      const title = isResend ? `Resend ${channel} Message` : `Send ${channel} Message`;
+      document.getElementById('send-modal-title').innerText = title;
+
+      const previewElem = document.getElementById('modal-recipient-preview');
+      if (previewElem) {
+        previewElem.innerText = `${contact.name} (${contact.company || contact.company_id || ''})`;
+      }
+
+      // Populate Endpoints / Destination dropdown
+      const destSelect = document.getElementById('modal-destination-select');
+      destSelect.innerHTML = '';
+
+      if (channel === 'WHATSAPP') {
+        const phones = contact.phones && contact.phones.length > 0 ? contact.phones : (contact.phone ? [contact.phone] : []);
+        if (phones.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'No phone number available';
+          destSelect.appendChild(opt);
+        } else {
+          phones.forEach((p, idx) => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = `Phone ${idx + 1}: ${p}`;
+            destSelect.appendChild(opt);
+          });
+        }
+      } else {
+        const emails = contact.emails && contact.emails.length > 0 ? contact.emails : (contact.email ? [contact.email] : []);
+        if (emails.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'No email address available';
+          destSelect.appendChild(opt);
+        } else {
+          emails.forEach((e, idx) => {
+            const opt = document.createElement('option');
+            opt.value = e;
+            opt.textContent = `Email ${idx + 1}: ${e}`;
+            destSelect.appendChild(opt);
+          });
+        }
+      }
+
+      // Populate Senders dropdown
+      const senderSelect = document.getElementById('modal-sender-select');
+      senderSelect.innerHTML = '';
+      const matchingSenders = state.senders.filter(s => s.channel === channel);
+      if (matchingSenders.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Auto-Select Active Sender';
+        senderSelect.appendChild(opt);
+      } else {
+        matchingSenders.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = `${s.id} (${s.display_name}) - ${s.identity} [${s.status}]`;
+          senderSelect.appendChild(opt);
+        });
+      }
+
+      // Populate Templates
+      const tplSelect = document.getElementById('modal-template-select');
+      tplSelect.innerHTML = '<option value="">Custom Message (No Template)</option>';
+      const matchingTpls = state.templates.filter(t => t.channel === channel);
+      matchingTpls.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = `${t.id} - ${t.name}`;
+        tplSelect.appendChild(opt);
+      });
+
+      // Subject field visibility
+      const subjGroup = document.getElementById('modal-subject-group');
+      if (channel === 'EMAIL') {
+        subjGroup.style.display = 'flex';
+        document.getElementById('modal-subject-input').value = `Exploring opportunities at ${contact.company || contact.company_id || ''}`;
+      } else {
+        subjGroup.style.display = 'none';
+      }
+
+      // Default body
+      const firstName = contact.first_name || (contact.name ? contact.name.split(' ')[0] : 'there');
+      document.getElementById('modal-body-input').value = `Hi ${firstName},\n\nI hope you are well. Reaching out regarding software engineering roles at ${contact.company || contact.company_id || ''}.\n\nBest regards,\nCandidate`;
+
+      document.getElementById('send-modal').classList.add('open');
+    }
+
+    function handleTemplateSelectChange() {
+      const tplId = document.getElementById('modal-template-select').value;
+      const contactId = document.getElementById('modal-contact-id').value;
+      const contact = state.contacts.find(c => c.contact_id === contactId) || {};
+
+      if (!tplId) return;
+
+      const tpl = state.templates.find(t => t.id === tplId);
+      if (tpl) {
+        let body = tpl.body;
+        const firstName = contact.first_name || (contact.name ? contact.name.split(' ')[0] : 'there');
+        body = body.replace(/{first_name}/g, firstName);
+        body = body.replace(/{name}/g, contact.name || 'there');
+        body = body.replace(/{company}/g, contact.company || contact.company_id || '');
+        document.getElementById('modal-body-input').value = body;
+        if (tpl.subject) {
+          document.getElementById('modal-subject-input').value = tpl.subject.replace(/{company}/g, contact.company || contact.company_id || '');
+        }
+      }
+    }
+
+    function closeSendModal() {
+      document.getElementById('send-modal').classList.remove('open');
+    }
+
+    async function submitSendMessage() {
+      const contactId = document.getElementById('modal-contact-id').value;
+      const channel = document.getElementById('modal-channel').value;
+      const isResend = document.getElementById('modal-is-resend').value === 'true';
+      
+      const destVal = document.getElementById('modal-destination-select').value;
+      const destination = (destVal && destVal.trim() !== '') ? destVal.trim() : null;
+
+      const senderVal = document.getElementById('modal-sender-select').value;
+      const senderId = (senderVal && senderVal.trim() !== '') ? senderVal.trim() : null;
+
+      const tplVal = document.getElementById('modal-template-select').value;
+      const templateId = (tplVal && tplVal.trim() !== '') ? tplVal.trim() : null;
+
+      const customBody = document.getElementById('modal-body-input').value || null;
+      const subject = document.getElementById('modal-subject-input').value || null;
+
+      if (isResend) {
+        if (!confirm(`This endpoint (${destination || 'contact'}) was already contacted. Are you sure you want to proceed with a manual resend?`)) {
+          return;
+        }
+      }
+
+      let endpoint = '';
+      if (channel === 'WHATSAPP') {
+        endpoint = isResend ? '/api/outreach/resend-whatsapp' : '/api/outreach/send-whatsapp';
+      } else {
+        endpoint = isResend ? '/api/outreach/resend-email' : '/api/outreach/send-email';
+      }
+
+      const payload = {
+        contact_id: contactId,
+        destination: destination,
+        sender_id: senderId,
+        template_id: templateId,
+        custom_body: customBody,
+        subject: subject,
+      };
+
+      const submitBtn = document.getElementById('modal-submit-send-btn');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span> Dispatching...';
+
+      try {
+        const res = await apiFetch(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast(`${channel} message dispatched to ${destination || 'contact'}!`, 'success');
+          closeSendModal();
+          await fetchHierarchies();
+          await fetchContacts();
+          await fetchKpis();
+        } else {
+          showToast(`Send failed: ${data.failure_detail || data.detail || 'Provider error'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error dispatching message: ' + err.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
+    }
+
+    // 8. Contact Activity Timeline / History Modal
+    async function openHistoryModal(contactId) {
+      const modal = document.getElementById('history-modal');
+      const timelineList = document.getElementById('history-timeline-list');
+      const summaryBox = document.getElementById('history-contact-summary');
+      
+      modal.classList.add('open');
+      timelineList.innerHTML = '<div style="color: var(--text-muted);">Loading activity history...</div>';
+
+      try {
+        const res = await apiFetch(`/api/contacts/${contactId}`);
+        if (res.ok) {
+          const detail = await res.json();
+          summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml((detail.phones || [detail.phone]).join(', ') || '-')} &bull; Email(s): ${escapeHtml((detail.emails || [detail.email]).join(', ') || '-')}`;
+
+          timelineList.innerHTML = '';
+          const history = detail.history || [];
+
+          if (history.length === 0 && !detail.interested_at) {
+            timelineList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No outreach attempts or CRM activities recorded yet.</div>';
+            return;
+          }
+
+          const events = [];
+
+          history.forEach(h => {
+            const destStr = h.destination ? ` &rarr; ${h.destination}` : '';
+            const tplStr = h.template_id ? ` &bull; Template: ${h.template_id}` : '';
+            const refStr = h.provider_reference ? ` &bull; Ref: ${h.provider_reference}` : '';
+            const failStr = h.failure_detail ? `<div style="color: var(--accent-rose); font-size: 0.725rem; margin-top: 0.25rem;">Failure: ${escapeHtml(h.failure_detail)} (${escapeHtml(h.failure_code || '')})</div>` : '';
+
+            events.push({
+              type: h.channel,
+              title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr} &bull; Sender: ${h.sender_account_id || 'AUTO'}${tplStr}${refStr}`,
+              status: h.status,
+              body: (h.message_body || '') + (failStr ? '\n' + failStr : ''),
+              date: h.completed_at || h.prepared_at,
+              dotClass: h.status === 'SENT' ? 'dot-sent' : 'dot-failed'
+            });
+          });
+
+          if (detail.interested_at) {
+            events.push({
+              type: 'CRM',
+              title: 'CRM - INTERESTED',
+              status: 'INTERESTED',
+              body: 'Contact marked as Interested.',
+              date: detail.interested_at,
+              dotClass: 'dot-interested'
+            });
+          }
+
+          if (detail.reminders) {
+            detail.reminders.forEach(r => {
+              events.push({
+                type: 'REMINDER',
+                title: `Follow-up Reminder (${r.status})`,
+                status: r.status,
+                body: r.reason,
+                date: r.due_at,
+                dotClass: 'dot-followup'
+              });
+            });
+          }
+
+          events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          events.forEach(ev => {
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.innerHTML = `
+              <div class="timeline-dot ${ev.dotClass}"></div>
+              <div class="timeline-date">${formatDate(ev.date)}</div>
+              <div class="timeline-title">${escapeHtml(ev.title)} <span class="badge ${ev.status === 'SENT' ? 'badge-sent' : 'badge-failed'}">${escapeHtml(ev.status)}</span></div>
+              <div class="timeline-body">${escapeHtml(ev.body || '')}</div>
+            `;
+            timelineList.appendChild(item);
+          });
+        }
+      } catch (err) {
+        timelineList.innerHTML = `<div style="color: var(--accent-rose);">Failed to load history: ${err.message}</div>`;
+      }
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('history-modal').classList.remove('open');
+    }
+
+    // 9. Senders & Authentication Control Plane (Phase 8.2 & 8.3)
+    async function fetchSenders() {
+      try {
+        const res = await apiFetch('/api/senders');
+        if (res.ok) {
+          state.senders = await res.json();
+          updateHeaderSendersIndicator();
+          renderSendersModal();
+        }
+      } catch (err) {
+        console.error('Error loading senders:', err);
+      }
+    }
+
+    function updateHeaderSendersIndicator() {
+      const waSenders = state.senders.filter(s => s.channel === 'WHATSAPP');
+      const emSenders = state.senders.filter(s => s.channel === 'EMAIL');
+      const activeWa = waSenders.filter(s => s.status === 'ACTIVE').length;
+      const activeEm = emSenders.filter(s => s.status === 'ACTIVE').length;
+
+      const waText = document.getElementById('hdr-wa-text');
+      const waDot = document.getElementById('hdr-wa-indicator')?.querySelector('.live-dot');
+      if (waText) waText.innerText = `WA: ${activeWa} Active`;
+      if (waDot) waDot.style.background = activeWa > 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+
+      const emText = document.getElementById('hdr-em-text');
+      const emDot = document.getElementById('hdr-em-indicator')?.querySelector('.live-dot');
+      if (emText) emText.innerText = `Email: ${activeEm} Active`;
+      if (emDot) emDot.style.background = activeEm > 0 ? 'var(--accent-blue)' : 'var(--accent-rose)';
+
+      const waBadge = document.getElementById('wa-active-badge');
+      if (waBadge) waBadge.innerText = `${activeWa} of ${waSenders.length} Active`;
+
+      const emBadge = document.getElementById('email-active-badge');
+      if (emBadge) emBadge.innerText = `${activeEm} of ${emSenders.length} Active`;
+
+      const readinessText = document.getElementById('overall-readiness-text');
+      if (readinessText) {
+        if (activeWa > 0 && activeEm > 0) {
+          readinessText.innerText = 'All Channels Ready (WhatsApp + Email Active)';
+          readinessText.style.color = 'var(--accent-emerald)';
+        } else if (activeWa > 0) {
+          readinessText.innerText = 'WhatsApp Channel Ready (Email inactive)';
+          readinessText.style.color = 'var(--accent-emerald)';
+        } else if (activeEm > 0) {
+          readinessText.innerText = 'Email Channel Ready (WhatsApp unauthenticated)';
+          readinessText.style.color = 'var(--accent-blue)';
+        } else {
+          readinessText.innerText = 'Not Ready (No active senders)';
+          readinessText.style.color = 'var(--accent-rose)';
+        }
+      }
+    }
+
+    function renderSendersModal() {
+      const waContainer = document.getElementById('wa-senders-list-container');
+      const emContainer = document.getElementById('email-senders-list-container');
+      if (!waContainer || !emContainer) return;
+
+      const waSenders = state.senders.filter(s => s.channel === 'WHATSAPP');
+      const emSenders = state.senders.filter(s => s.channel === 'EMAIL');
+
+      // 1. Render WhatsApp Sessions
+      waContainer.innerHTML = '';
+      if (waSenders.length === 0) {
+        waContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No WhatsApp sessions configured.</div>';
+      } else {
+        waSenders.forEach(s => {
+          const card = document.createElement('div');
+          card.className = 'kpi-card';
+          card.style.padding = '0.85rem';
+          card.style.display = 'flex';
+          card.style.flexDirection = 'column';
+          card.style.gap = '0.5rem';
+
+          let statusBadgeClass = 'badge-failed';
+          if (s.status === 'ACTIVE') statusBadgeClass = 'badge-sent';
+          else if (s.status === 'AUTHENTICATING') statusBadgeClass = 'badge-partial';
+          else if (s.status === 'QR_REQUIRED') statusBadgeClass = 'badge-partial';
+          else if (s.status === 'AUTH_REQUIRED' || s.status === 'NOT_CONFIGURED') statusBadgeClass = 'badge-uncovered';
+
+          let qrBoxHtml = '';
+          if (s.status === 'QR_REQUIRED' && s.qr_code) {
+            qrBoxHtml = `
+              <div style="background: var(--bg-surface); border: 2px dashed var(--accent-emerald); border-radius: var(--radius-sm); padding: 0.75rem; text-align: center; margin: 0.35rem 0;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-emerald); margin-bottom: 0.35rem;">
+                  Scan QR with WhatsApp on your Phone
+                </div>
+                <img src="${s.qr_code}" alt="WhatsApp QR" style="width: 170px; height: 170px; border-radius: 6px; display: block; margin: 0 auto;">
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.35rem;">
+                  WhatsApp &gt; Linked Devices &gt; Link a Device
+                </div>
+                <div style="display: flex; justify-content: center; gap: 0.4rem; margin-top: 0.4rem;">
+                  <button class="btn btn-emerald btn-xs" onclick="confirmWhatsAppAuth('${s.id}')">✓ Confirm Scan (Mock/Test)</button>
+                  <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')">Check Login</button>
+                </div>
+              </div>
+            `;
+          } else if (s.status === 'AUTHENTICATING') {
+            qrBoxHtml = `
+              <div style="background: var(--bg-surface); border-radius: var(--radius-sm); padding: 0.6rem; text-align: center; color: var(--accent-blue); font-size: 0.75rem;">
+                <span class="spinner"></span> Launching authentication context...
+              </div>
+            `;
+          }
+
+          const errorHtml = s.error_message ? `<div style="color: var(--accent-rose); font-size: 0.7rem;">⚠️ ${escapeHtml(s.error_message)}</div>` : '';
+          const lastCheckedHtml = s.last_checked ? `<div style="font-size: 0.675rem; color: var(--text-muted);">Last verified: ${formatDate(s.last_checked)}</div>` : '';
+
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <strong style="color: var(--text-primary);">${escapeHtml(s.display_name)}</strong>
+                <div style="font-size: 0.725rem; font-family: monospace; color: var(--text-secondary);">${escapeHtml(s.id)}</div>
+                <div style="font-size: 0.75rem; color: var(--accent-blue);">${escapeHtml(s.identity)}</div>
+              </div>
+              <span class="badge ${statusBadgeClass}">${s.status}</span>
+            </div>
+            ${qrBoxHtml}
+            ${errorHtml}
+            ${lastCheckedHtml}
+            <div style="display: flex; gap: 0.35rem; margin-top: auto; padding-top: 0.35rem; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
+              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${s.id}')" title="Start QR code authentication">
+                <span>📱 ${s.status === 'ACTIVE' ? 'Re-Authenticate' : 'Start Auth'}</span>
+              </button>
+              <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')" title="Check connection health">
+                <span>🔍 Check Status</span>
+              </button>
+              ${s.status !== 'ACTIVE' ? `<button class="btn btn-secondary btn-xs" onclick="confirmWhatsAppAuth('${s.id}')">Confirm (Mock)</button>` : ''}
+            </div>
+          `;
+          waContainer.appendChild(card);
+        });
+      }
+
+      // 2. Render Email Sessions
+      emContainer.innerHTML = '';
+      if (emSenders.length === 0) {
+        emContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No Email senders configured.</div>';
+      } else {
+        emSenders.forEach(s => {
+          const card = document.createElement('div');
+          card.className = 'kpi-card';
+          card.style.padding = '0.85rem';
+          card.style.display = 'flex';
+          card.style.flexDirection = 'column';
+          card.style.gap = '0.5rem';
+
+          let statusBadgeClass = s.status === 'ACTIVE' ? 'badge-sent' : 'badge-failed';
+          const errorHtml = s.error_message ? `<div style="color: var(--accent-rose); font-size: 0.7rem;">⚠️ ${escapeHtml(s.error_message)}</div>` : '';
+
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <strong style="color: var(--text-primary);">${escapeHtml(s.display_name)}</strong>
+                <div style="font-size: 0.725rem; font-family: monospace; color: var(--text-secondary);">${escapeHtml(s.id)}</div>
+                <div style="font-size: 0.75rem; color: var(--accent-blue);">${escapeHtml(s.identity)}</div>
+              </div>
+              <span class="badge ${statusBadgeClass}">${s.status}</span>
+            </div>
+            ${errorHtml}
+            <div style="font-size: 0.7rem; color: var(--text-muted);">
+              Limit: ${s.daily_limit || 100}/day &bull; Rate: ${s.hourly_limit || 20}/hr
+            </div>
+            <div style="display: flex; gap: 0.35rem; margin-top: auto; padding-top: 0.35rem; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
+              <button class="btn btn-primary btn-xs" onclick="openEmailConfigModal('${s.id}')">
+                <span>⚙️ Configure</span>
+              </button>
+              <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${s.id}')">
+                <span>🔌 Test &amp; Verify</span>
+              </button>
+            </div>
+          `;
+          emContainer.appendChild(card);
+        });
+      }
+    }
+
+    async function openSendersDrawer() {
+      await fetchSenders();
+      document.getElementById('senders-modal').classList.add('open');
+    }
+
+    function closeSendersDrawer() {
+      document.getElementById('senders-modal').classList.remove('open');
+    }
+
+    async function applyWhatsAppSessionCount() {
+      const countInput = document.getElementById('wa-session-count-input');
+      const count = parseInt(countInput.value, 10) || 1;
+      try {
+        const res = await apiFetch('/api/senders/whatsapp/configure', {
+          method: 'POST',
+          body: JSON.stringify({ count: count }),
+        });
+        if (res.ok) {
+          showToast(`Configured ${count} WhatsApp sessions.`, 'success');
+          await fetchSenders();
+        } else {
+          const err = await res.json();
+          showToast(`Failed to configure sessions: ${err.detail || 'Error'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error configuring WhatsApp sessions: ' + err.message, 'error');
+      }
+    }
+
+    async function startWhatsAppAuth(senderId) {
+      try {
+        showToast(`Starting authentication for ${senderId}...`, 'info');
+        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/start`, {
+          method: 'POST',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Authentication initiated for ${senderId}. Scan QR code.`, 'info');
+          await fetchSenders();
+        } else {
+          const err = await res.json();
+          showToast(`Auth error: ${err.detail || 'Failed'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error starting authentication: ' + err.message, 'error');
+      }
+    }
+
+    async function checkWhatsAppAuthStatus(senderId) {
+      try {
+        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/status`);
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Session ${senderId} status: ${data.status}`, data.status === 'ACTIVE' ? 'success' : 'info');
+          await fetchSenders();
+        }
+      } catch (err) {
+        showToast('Error checking status: ' + err.message, 'error');
+      }
+    }
+
+    async function confirmWhatsAppAuth(senderId) {
+      try {
+        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/confirm`, {
+          method: 'POST',
+        });
+        if (res.ok) {
+          showToast(`Session ${senderId} marked as ACTIVE!`, 'success');
+          await fetchSenders();
+        }
+      } catch (err) {
+        showToast('Error confirming auth: ' + err.message, 'error');
+      }
+    }
+
+    // Email Configuration & Verification Modals
+    function openEmailConfigModal(senderId = 'EMAIL_SESSION_1') {
+      const existing = state.senders.find(s => s.id === senderId);
+      document.getElementById('cfg-email-id').value = senderId;
+      document.getElementById('cfg-email-name').value = existing ? existing.display_name : 'Email Primary';
+      document.getElementById('cfg-email-addr').value = existing ? existing.identity : 'outreach.primary@domain.com';
+      document.getElementById('email-config-modal').classList.add('open');
+    }
+
+    function closeEmailConfigModal() {
+      document.getElementById('email-config-modal').classList.remove('open');
+    }
+
+    async function saveAndVerifyEmailConfig() {
+      const id = document.getElementById('cfg-email-id').value.trim();
+      const name = document.getElementById('cfg-email-name').value.trim();
+      const addr = document.getElementById('cfg-email-addr').value.trim();
+      const host = document.getElementById('cfg-email-host').value.trim();
+      const port = parseInt(document.getElementById('cfg-email-port').value, 10) || 587;
+      const user = document.getElementById('cfg-email-user').value.trim() || addr;
+      const pwd = document.getElementById('cfg-email-pwd').value;
+
+      const saveBtn = document.getElementById('save-email-cfg-btn');
+      const origText = saveBtn.innerHTML;
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner"></span> Verifying...';
+
+      try {
+        const res = await apiFetch('/api/senders/email/configure', {
+          method: 'POST',
+          body: JSON.stringify({
+            id: id,
+            identity: addr,
+            display_name: name,
+            host: host,
+            port: port,
+            user: user,
+            password: pwd,
+            verify_now: true,
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (data.verified) {
+            showToast(`Email sender ${id} verified and marked ACTIVE!`, 'success');
+          } else {
+            showToast(`Saved, but verification failed: ${data.error_message || 'Check credentials'}`, 'error');
+          }
+          closeEmailConfigModal();
+          await fetchSenders();
+        } else {
+          showToast(`Error: ${data.detail || 'Failed to configure'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error saving email config: ' + err.message, 'error');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = origText;
+      }
+    }
+
+    async function verifyEmailSender(senderId) {
+      try {
+        showToast(`Testing connection for ${senderId}...`, 'info');
+        const res = await apiFetch(`/api/senders/email/${senderId}/verify`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.verified) {
+          showToast(`Email sender ${senderId} verified successfully!`, 'success');
+        } else {
+          showToast(`Verification failed: ${data.error_message || 'SMTP Connection Error'}`, 'error');
+        }
+        await fetchSenders();
+      } catch (err) {
+        showToast('Error verifying email: ' + err.message, 'error');
+      }
+    }
+
+    // Outreach Readiness Modal
+    function openReadinessModal(reason, detail) {
+      const modal = document.getElementById('readiness-modal');
+      document.getElementById('readiness-error-reason').innerText = reason || 'OUTREACH_NOT_READY';
+      document.getElementById('readiness-error-detail').innerText = detail || 'Prerequisites for automated outreach are not satisfied.';
+      modal.classList.add('open');
+    }
+
+    function closeReadinessModal() {
+      document.getElementById('readiness-modal').classList.remove('open');
+    }
+
+    // 10. Templates Management Drawer
+    async function fetchTemplates() {
+      try {
+        const res = await apiFetch('/api/templates');
+        if (res.ok) state.templates = await res.json();
+      } catch (err) {
+        console.error('Error loading templates:', err);
+      }
+    }
+
+    async function openTemplatesDrawer() {
+      if (!state.templates || state.templates.length === 0) await fetchTemplates();
+      const container = document.getElementById('templates-list-container');
+      container.innerHTML = '';
+
+      state.templates.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'kpi-card';
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <strong>${t.id} - ${escapeHtml(t.name)}</strong>
+            <span class="badge badge-sent">${t.channel}</span>
+          </div>
+          ${t.subject ? `<div style="font-size: 0.75rem; color: var(--accent-blue); font-weight: 600;">Subject: ${escapeHtml(t.subject)}</div>` : ''}
+          <div style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-surface-raised); padding: 0.45rem; border-radius: var(--radius-xs); white-space: pre-wrap; font-family: 'JetBrains Mono', monospace;">${escapeHtml(t.body)}</div>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('templates-modal').classList.add('open');
+    }
+
+    function closeTemplatesDrawer() {
+      document.getElementById('templates-modal').classList.remove('open');
+    }
+
+    // 11. Source Synchronization
+    async function triggerSync() {
+      const syncBtn = document.getElementById('sync-btn');
+      syncBtn.disabled = true;
+      syncBtn.innerText = 'Syncing...';
+
+      try {
+        const res = await apiFetch('/api/sync', { method: 'POST', body: '{}' });
+        if (res.ok) {
+          const summary = await res.json();
+          if (document.getElementById('sync-source-filename')) document.getElementById('sync-source-filename').innerText = summary.source_file || 'External Source';
+          document.getElementById('sync-total').innerText = summary.total_read || 0;
+          if (document.getElementById('sync-new-comp')) document.getElementById('sync-new-comp').innerText = summary.new_companies || 0;
+          if (document.getElementById('sync-upd-comp')) document.getElementById('sync-upd-comp').innerText = summary.updated_companies || 0;
+          document.getElementById('sync-new').innerText = summary.new_contacts || 0;
+          document.getElementById('sync-updated').innerText = summary.updated_contacts || 0;
+          document.getElementById('sync-unchanged').innerText = summary.unchanged_contacts || 0;
+          if (document.getElementById('sync-new-phones')) document.getElementById('sync-new-phones').innerText = summary.new_phone_endpoints || 0;
+          if (document.getElementById('sync-new-emails')) document.getElementById('sync-new-emails').innerText = summary.new_email_endpoints || 0;
+          if (document.getElementById('sync-skipped')) document.getElementById('sync-skipped').innerText = summary.skipped_invalid || 0;
+
+          const errBox = document.getElementById('sync-errors-box');
+          const errList = document.getElementById('sync-errors-list');
+          errList.innerHTML = '';
+          if (summary.errors && summary.errors.length > 0) {
+            errBox.style.display = 'block';
+            summary.errors.forEach(e => {
+              const li = document.createElement('li');
+              li.textContent = e;
+              errList.appendChild(li);
+            });
+          } else {
+            errBox.style.display = 'none';
+          }
+
+          document.getElementById('sync-modal').classList.add('open');
+          showToast('Source synchronization completed! History preserved.', 'success');
+          await loadInitialData();
+        }
+      } catch (err) {
+        showToast('Sync error: ' + err.message, 'error');
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.innerText = '🔄 Sync Contacts';
+      }
+    }
+
+    function closeSyncModal() {
+      document.getElementById('sync-modal').classList.remove('open');
+    }
+
+    // 12. Real-Time Streaming (WebSocket with Automatic Reconnect & SSE Fallback)
+    function initEventStream() {
+      if (activeWebSocket) {
+        try { activeWebSocket.close(); } catch(e) {}
+        activeWebSocket = null;
+      }
+      if (activeEventSource) {
+        try { activeEventSource.close(); } catch(e) {}
+        activeEventSource = null;
+      }
+
+      try {
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${proto}//${window.location.host}/api/events/ws`;
+        activeWebSocket = new WebSocket(wsUrl);
+
+        activeWebSocket.onmessage = (e) => {
+          try {
+            const eventData = JSON.parse(e.data);
+            handleLiveEvent(eventData);
+          } catch (err) {}
+        };
+
+        activeWebSocket.onerror = () => {
+          fallbackToSSE();
+        };
+
+        activeWebSocket.onclose = () => {
+          setTimeout(initEventStream, 3000);
+        };
+      } catch (e) {
+        fallbackToSSE();
+      }
+    }
+
+    function fallbackToSSE() {
+      if (activeEventSource) return;
+      activeEventSource = new EventSource('/api/events/stream');
+
+      activeEventSource.onmessage = (e) => {
+        try {
+          const eventData = JSON.parse(e.data);
+          handleLiveEvent(eventData);
+        } catch (err) {}
+      };
+
+      const eventTypes = [
+        'CAMPAIGN_STARTED', 'CAMPAIGN_PAUSED', 'CAMPAIGN_RESUMED', 'CAMPAIGN_COMPLETED', 'CAMPAIGN_STOPPED', 'CAMPAIGN_FAILED',
+        'OUTREACH_PREPARED', 'OUTREACH_STARTED', 'OUTREACH_SENT', 'OUTREACH_FAILED', 'OUTREACH_RECOVERY_REQUIRED',
+        'MESSAGE_SENT', 'MESSAGE_FAILED', 'CONTACT_UPDATED', 'CRM_STATUS_CHANGED', 'CRM_OUTCOME_UPDATED',
+        'INTERVIEW_STATUS_UPDATED', 'FOLLOW_UP_DUE', 'EXCEL_SYNC_STARTED', 'EXCEL_SYNC_COMPLETED', 'SYNC_COMPLETED', 'EXCEL_SYNC_FAILED',
+        'SENDER_STATUS_CHANGED', 'SENDER_QR_RECEIVED', 'SENDER_AUTH_PROGRESS'
+      ];
+
+      eventTypes.forEach(evt => {
+        activeEventSource.addEventListener(evt, (e) => handleLiveEvent(JSON.parse(e.data)));
+      });
+
+      activeEventSource.onerror = () => {};
+    }
+
+    async function handleLiveEvent(ev) {
+      if (!ev) return;
+      const type = (ev.type || ev.event_type || '').toUpperCase();
+      const dotType = (ev.type || '').toLowerCase();
+      const p = ev.payload || {};
+
+      if (dotType === 'sender.status_changed' || type === 'SENDER_STATUS_CHANGED') {
+        await fetchSenders();
+        if (p.sender_id && p.status) {
+          showToast(`Sender ${p.sender_id} is now ${p.status}`, p.status === 'ACTIVE' ? 'success' : 'info');
+        }
+      } else if (dotType === 'sender.qr_received' || type === 'SENDER_QR_RECEIVED') {
+        await fetchSenders();
+        showToast(`QR Code received for ${p.sender_id}. Ready to scan!`, 'info');
+      } else if (dotType === 'sender.auth_progress' || type === 'SENDER_AUTH_PROGRESS') {
+        if (p.message) showToast(`[Auth] ${p.message}`, 'info');
+      } else if (dotType === 'outreach.sent' || type === 'OUTREACH_SENT' || type === 'MESSAGE_SENT') {
+        const dest = p.destination || p.recipient || 'recipient';
+        const ch = p.channel || 'Outreach';
+        showToast(`Sent ${ch} to ${dest}`, 'success');
+        await fetchKpis();
+        await fetchHierarchies();
+        await fetchContacts();
+        if (state.activeCampaign) await fetchCampaigns();
+      } else if (dotType === 'outreach.failed' || type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') {
+        showToast(`Message failed: ${p.failure_detail || p.failure_code || 'Error'}`, 'error');
+        await fetchKpis();
+        await fetchHierarchies();
+        await fetchContacts();
+      } else if (dotType === 'outreach.recovery_required' || type === 'OUTREACH_RECOVERY_REQUIRED') {
+        showToast(`⚠️ Outreach recovery required for ${p.destination || 'contact'}`, 'error');
+        await fetchKpis();
+        await fetchHierarchies();
+        await fetchContacts();
+      } else if (dotType === 'campaign.status_changed' || type.startsWith('CAMPAIGN_')) {
+        await fetchCampaigns();
+        await fetchKpis();
+      } else if (dotType === 'contact.status_changed' || type === 'CRM_STATUS_CHANGED' || type === 'CONTACT_UPDATED' || type === 'CRM_OUTCOME_UPDATED') {
+        await fetchKpis();
+        await fetchHierarchies();
+        await fetchContacts();
+      } else if (dotType === 'sync.completed' || type === 'EXCEL_SYNC_COMPLETED' || type === 'SYNC_COMPLETED') {
+        showToast('Source synchronization completed!', 'success');
+        await fetchKpis();
+        await fetchCompanies();
+        await fetchHierarchies();
+        await fetchContacts();
+      }
+    }
+
+    // Filter Helpers
+    let searchDebounce = null;
+    function handleSearchChange() {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        state.searchQuery = document.getElementById('search-input').value.trim();
+        if (state.viewMode === 'hierarchy') {
+          fetchHierarchies();
+        } else {
+          fetchContacts();
+        }
+      }, 200);
+    }
+
+    function applyFilters() {
+      state.selectedCompany = document.getElementById('company-filter').value;
+      state.selectedCrmStatus = document.getElementById('crm-status-filter').value;
+      state.selectedChannelStatus = document.getElementById('channel-filter').value;
+      if (state.viewMode === 'hierarchy') {
+        fetchHierarchies();
+      } else {
+        fetchContacts();
+      }
+    }
+
+    function setPriorityFilter(filterName) {
+      state.selectedPriorityFilter = filterName;
+      document.querySelectorAll('.priority-pills .pill-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-filter') === filterName);
+      });
+      if (state.viewMode === 'hierarchy') {
+        fetchHierarchies();
+      } else {
+        fetchContacts();
+      }
+    }
+
+    // Utility Helpers
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      try {
+        const d = new Date(dateStr);
+        const day = d.getDate().toString().padStart(2, '0');
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = months[d.getMonth()];
+        const year = d.getFullYear();
+        const hours = d.getHours().toString().padStart(2, '0');
+        const minutes = d.getMinutes().toString().padStart(2, '0');
+        return `${day} ${month} ${year} ${hours}:${minutes}`;
+      } catch {
+        return dateStr;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✓';
+      if (type === 'error') icon = '✕';
+
+      toast.innerHTML = `<span>${icon}</span><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+  </script>
+</body>
+</html>
