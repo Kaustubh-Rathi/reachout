@@ -39,13 +39,12 @@ from app.domain.policies.endpoint_coverage_policy import (
 from app.infrastructure.database import Base, SessionFactory, engine, init_db
 from app.infrastructure.events.event_bus import default_event_bus
 from app.infrastructure.providers.factory import (
-    MockEmailProvider,
-    MockWhatsAppProvider,
     get_email_provider,
     get_whatsapp_provider,
     set_email_provider,
     set_whatsapp_provider,
 )
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 from app.infrastructure.repositories import (
     SqliteCampaignRepository,
     SqliteCompanyRepository,

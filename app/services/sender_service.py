@@ -23,8 +23,6 @@ from app.services.event_bus import event_bus
 
 
 def get_default_senders() -> List[SenderAccount]:
-    is_live = os.environ.get("OUTREACH_MODE", "mock").strip().lower() == "live"
-    init_status = SenderStatus.AUTH_REQUIRED if is_live else SenderStatus.ACTIVE
     return [
         SenderAccount(
             id="WA_SESSION_1",
@@ -32,7 +30,7 @@ def get_default_senders() -> List[SenderAccount]:
             provider="playwright_whatsapp",
             identity="+91 98765 00001",
             display_name="WhatsApp Session 1",
-            status=init_status,
+            status=SenderStatus.AUTH_REQUIRED,
             daily_limit=50,
             hourly_limit=10,
         ),
@@ -42,7 +40,7 @@ def get_default_senders() -> List[SenderAccount]:
             provider="playwright_whatsapp",
             identity="+91 98765 00002",
             display_name="WhatsApp Session 2",
-            status=init_status,
+            status=SenderStatus.AUTH_REQUIRED,
             daily_limit=50,
             hourly_limit=10,
         ),
@@ -52,7 +50,7 @@ def get_default_senders() -> List[SenderAccount]:
             provider="smtp",
             identity="outreach.primary@domain.com",
             display_name="Email Session 1 (Primary)",
-            status=init_status,
+            status=SenderStatus.AUTH_REQUIRED,
             daily_limit=100,
             hourly_limit=20,
         ),
@@ -87,25 +85,18 @@ class SenderService:
     def reconcile_sender_states(self) -> None:
         """Reconcile stored sender statuses against persistent auth contexts and vaults on startup."""
         self.seed_defaults_if_empty()
-        is_live = os.environ.get("OUTREACH_MODE", "mock").strip().lower() == "live"
 
         # WhatsApp senders reconciliation
         wa_senders = self.repo.list_by_channel(Channel.WHATSAPP)
         for s in wa_senders:
-            if is_live:
-                live_status = self.session_manager.check_session_status(s.id)
-                if s.status != live_status:
-                    s.status = live_status
+            auth_info = self.session_manager.get_auth_state(s.id)
+            st_str = auth_info.get("status")
+            if st_str and st_str != s.status.value:
+                try:
+                    s.status = SenderStatus(st_str)
                     self.repo.save(s)
-            else:
-                auth_info = self.session_manager.get_auth_state(s.id)
-                st_str = auth_info.get("status")
-                if st_str and st_str != s.status.value:
-                    try:
-                        s.status = SenderStatus(st_str)
-                        self.repo.save(s)
-                    except ValueError:
-                        pass
+                except ValueError:
+                    pass
 
         # Email senders reconciliation
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
@@ -290,28 +281,6 @@ class SenderService:
             "qr_code": auth_state.get("qr_code"),
             "last_checked": auth_state.get("last_checked"),
             "error_message": auth_state.get("error_message"),
-        }
-
-    def confirm_whatsapp_auth(self, sender_id: str) -> Dict[str, Any]:
-        """Confirm WhatsApp authentication (test/mock mode or manual verification)."""
-        sender = self.repo.get_by_id(sender_id)
-        if not sender:
-            raise ValueError(f"Sender '{sender_id}' not found")
-
-        sender.status = SenderStatus.ACTIVE
-        self.repo.save(sender)
-        self.session.commit()
-
-        self.session_manager.confirm_mock_auth(
-            sender_id=sender_id,
-            on_event_callback=lambda evt, p: event_bus.publish_event(evt, p),
-        )
-
-        return {
-            "sender_id": sender.id,
-            "status": SenderStatus.ACTIVE.value,
-            "channel": sender.channel.value,
-            "message": "Session confirmed as ACTIVE",
         }
 
     def configure_email_sender(

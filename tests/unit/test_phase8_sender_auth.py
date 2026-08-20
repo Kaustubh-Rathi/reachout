@@ -20,7 +20,7 @@ def test_sender_status_enum_values():
 
 
 def test_whatsapp_session_manager_state_machine():
-    """Verify in-memory state tracking and mock QR generation in WhatsAppSessionManager."""
+    """Verify in-memory state tracking and transitions in WhatsAppSessionManager."""
     mgr = WhatsAppSessionManager()
     
     # 1. Default initial state
@@ -28,26 +28,20 @@ def test_whatsapp_session_manager_state_machine():
     assert st["status"] == SenderStatus.NOT_CONFIGURED.value
     assert st["qr_code"] is None
 
-    # 2. Start mock QR authentication
+    # 2. Start authentication transitions state to AUTHENTICATING
     events_captured = []
     def callback(evt, payload):
         events_captured.append((evt, payload))
 
     res = mgr.start_qr_authentication("WA_SESSION_TEST", on_event_callback=callback)
     assert res["status"] in (SenderStatus.AUTHENTICATING.value, SenderStatus.QR_REQUIRED.value)
+    assert len(events_captured) >= 1
 
-    # In mock mode, wait or poll state
-    import time
-    time.sleep(0.4)
-    st_after = mgr.get_auth_state("WA_SESSION_TEST")
-    assert st_after["status"] == SenderStatus.QR_REQUIRED.value
-    assert st_after["qr_code"] is not None
-    assert st_after["qr_code"].startswith("data:image/svg+xml;base64,")
-
-    # 3. Confirm authentication
-    confirm_res = mgr.confirm_mock_auth("WA_SESSION_TEST", on_event_callback=callback)
-    assert confirm_res["status"] == SenderStatus.ACTIVE.value
-    assert confirm_res["qr_code"] is None
+    # 3. Setting authenticated state updates state to ACTIVE
+    mgr.set_auth_state("WA_SESSION_TEST", SenderStatus.ACTIVE)
+    st_active = mgr.get_auth_state("WA_SESSION_TEST")
+    assert st_active["status"] == SenderStatus.ACTIVE.value
+    assert st_active["qr_code"] is None
 
 
 def test_sender_service_configure_sessions():

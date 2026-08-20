@@ -35,18 +35,15 @@ from app.infrastructure.models import (
     SenderAccountModel,
 )
 from app.infrastructure.providers.factory import (
-    MockEmailProvider,
-    MockWhatsAppProvider,
     create_email_provider,
     create_whatsapp_provider,
     get_email_provider,
-    get_outreach_mode,
     get_whatsapp_provider,
     reset_provider_overrides,
     set_email_provider,
-    set_outreach_mode,
     set_whatsapp_provider,
 )
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 from app.ports.providers import ProviderSendResult, ProviderStatusResult
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
@@ -321,42 +318,20 @@ class TestP0OutreachServiceSendAndResend:
 
 
 class TestProviderConfigurationAndFactory:
-    """Test explicit OUTREACH_MODE configuration and provider factory."""
+    """Test production provider resolution and programmatic test dependency injection."""
 
-    def test_default_mode_is_mock_without_env_var(self):
-        if "OUTREACH_MODE" in os.environ:
-            del os.environ["OUTREACH_MODE"]
-        assert get_outreach_mode() == "mock"
-        wa_provider = create_whatsapp_provider()
-        em_provider = create_email_provider()
-        assert isinstance(wa_provider, MockWhatsAppProvider)
-        assert isinstance(em_provider, MockEmailProvider)
-
-    def test_explicit_live_mode_resolves_playwright_and_smtp(self):
-        os.environ["OUTREACH_MODE"] = "live"
-        assert get_outreach_mode() == "live"
+    def test_production_factory_resolves_playwright_and_smtp(self):
         wa_provider = create_whatsapp_provider()
         em_provider = create_email_provider()
         assert isinstance(wa_provider, PlaywrightWhatsAppProvider)
         assert isinstance(em_provider, SmtpEmailProvider)
-
-    def test_credentials_exist_without_live_mode_never_infers_live(self):
-        # Even if EMAIL_USER or SMTP credentials exist in env, OUTREACH_MODE=mock stays mock
-        os.environ["OUTREACH_MODE"] = "mock"
-        os.environ["EMAIL_USER"] = "secret_real_account@gmail.com"
-        os.environ["EMAIL_PASSWORD"] = "super_secret_app_password"
-
-        wa = get_whatsapp_provider()
-        em = get_email_provider()
-        assert isinstance(wa, MockWhatsAppProvider)
-        assert isinstance(em, MockEmailProvider)
 
     def test_programmatic_provider_overrides(self):
         custom_wa = MockWhatsAppProvider(should_fail=True)
         set_whatsapp_provider(custom_wa)
         assert get_whatsapp_provider() is custom_wa
         reset_provider_overrides()
-        assert get_whatsapp_provider() is not custom_wa
+        assert isinstance(get_whatsapp_provider(), PlaywrightWhatsAppProvider)
 
 
 class TestSchedulerUnificationAndDelegation:

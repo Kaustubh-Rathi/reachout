@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import CampaignStatus, Channel, OutreachStatus
+from app.domain.enums import CampaignStatus, Channel, OutreachStatus, SenderStatus
 from app.infrastructure.database import Base
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
@@ -25,7 +25,13 @@ def isolated_session_factory(tmp_path):
     SessionFactory = sessionmaker(bind=engine)
     with SessionFactory() as session:
         TemplateService(session).seed_defaults_if_empty()
-        SenderService(session).seed_defaults_if_empty()
+        sender_svc = SenderService(session)
+        sender_svc.seed_defaults_if_empty()
+        for ch in (Channel.WHATSAPP, Channel.EMAIL):
+            for s in sender_svc.repo.list_by_channel(ch):
+                s.status = SenderStatus.ACTIVE
+                sender_svc.repo.save(s)
+        session.commit()
     return SessionFactory
 
 

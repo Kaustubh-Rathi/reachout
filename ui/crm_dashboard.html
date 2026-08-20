@@ -2744,8 +2744,7 @@
                   WhatsApp &gt; Linked Devices &gt; Link a Device
                 </div>
                 <div style="display: flex; justify-content: center; gap: 0.4rem; margin-top: 0.4rem;">
-                  <button class="btn btn-emerald btn-xs" onclick="confirmWhatsAppAuth('${s.id}')">✓ Confirm Scan (Mock/Test)</button>
-                  <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')">Check Login</button>
+                  <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')">🔍 Check Login Status</button>
                 </div>
               </div>
             `;
@@ -2779,7 +2778,6 @@
               <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')" title="Check connection health">
                 <span>🔍 Check Status</span>
               </button>
-              ${s.status !== 'ACTIVE' ? `<button class="btn btn-secondary btn-xs" onclick="confirmWhatsAppAuth('${s.id}')">Confirm (Mock)</button>` : ''}
             </div>
           `;
           waContainer.appendChild(card);
@@ -2887,20 +2885,6 @@
         }
       } catch (err) {
         showToast('Error checking status: ' + err.message, 'error');
-      }
-    }
-
-    async function confirmWhatsAppAuth(senderId) {
-      try {
-        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/confirm`, {
-          method: 'POST',
-        });
-        if (res.ok) {
-          showToast(`Session ${senderId} marked as ACTIVE!`, 'success');
-          await fetchSenders();
-        }
-      } catch (err) {
-        showToast('Error confirming auth: ' + err.message, 'error');
       }
     }
 

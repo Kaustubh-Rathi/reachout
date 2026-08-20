@@ -2,6 +2,9 @@
 
 Enforces provider-compliant dispatch delays, sender-level concurrency isolation,
 hourly/daily usage caps, and exponential error backoff without evasion mechanics.
+Authoritative production pacing:
+  WhatsApp = 120 seconds
+  Email    = 60 seconds
 """
 
 from __future__ import annotations
@@ -27,12 +30,9 @@ class RateLimiter:
         if default_channel_delay is not None:
             self.default_channel_delay = default_channel_delay
         else:
-            is_live = os.environ.get("OUTREACH_MODE", "mock").strip().lower() == "live"
-            wa_default = 120.0 if is_live else 0.01
-            em_default = 60.0 if is_live else 0.01
             self.default_channel_delay = {
-                "WHATSAPP": float(os.environ.get("OUTREACH_CHANNEL_DELAY_WA", str(wa_default))),
-                "EMAIL": float(os.environ.get("OUTREACH_CHANNEL_DELAY_EM", str(em_default))),
+                "WHATSAPP": float(os.environ.get("OUTREACH_CHANNEL_DELAY_WA", "120.0")),
+                "EMAIL": float(os.environ.get("OUTREACH_CHANNEL_DELAY_EM", "60.0")),
             }
         self.base_backoff_seconds = base_backoff_seconds
         self.max_backoff_seconds = max_backoff_seconds
@@ -153,3 +153,16 @@ class RateLimiter:
                 return True
             time.sleep(sleep_step)
         return False
+
+    def reset_sender(self, sender_id: str) -> None:
+        """Reset internal rate limiter state for a sender."""
+        with self._lock:
+            self._last_send_time.pop(sender_id, None)
+            self._sender_busy.pop(sender_id, None)
+            self._consecutive_failures.pop(sender_id, None)
+            self._backoff_until.pop(sender_id, None)
+            self._dispatch_history.pop(sender_id, None)
+
+    def is_sender_busy(self, sender_id: str) -> bool:
+        with self._lock:
+            return self._sender_busy[sender_id]
