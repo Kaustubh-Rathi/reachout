@@ -294,9 +294,12 @@ class TestDynamicNSendersAndCooldown:
             wa_list = sender_svc.configure_whatsapp_sessions(count=10)
             assert len([s for s in wa_list if s["channel"] == "WHATSAPP"]) == 10
 
-            # Add dynamically via add_whatsapp_session (Session 11)
+            # Add dynamically via add_whatsapp_session: now returns an in-memory temp id
+            # that is NOT persisted (sessions only reach the DB once authenticated).
             wa11 = sender_svc.add_whatsapp_session(display_name="WhatsApp Session 11")
-            assert wa11["id"] == "WA_SESSION_11"
+            assert wa11["id"].startswith("tmp_auth_")
+            assert wa11["status"] == "AUTH_REQUIRED"
+            assert sender_svc.repo.get_by_id(wa11["id"]) is None
 
             # Create 10 Email senders
             for i in range(1, 11):
