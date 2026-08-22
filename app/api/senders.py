@@ -50,7 +50,7 @@ class AddSenderRequest(BaseModel):
 
 class ConfigureEmailRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    id: str = Field(..., min_length=1)
+    id: Optional[str] = None
     identity: str = Field(..., min_length=1)
     display_name: str = Field(..., min_length=1)
     host: Optional[str] = None
@@ -109,16 +109,6 @@ def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_sess
         raise HTTPException(status_code=404, detail=str(exc))
 
 
-
-
-@router.post("/email/add")
-def add_email_session(
-    payload: AddSenderRequest = AddSenderRequest(),
-    session: Session = Depends(get_session),
-) -> Dict[str, Any]:
-    """Dynamically add a new Email sender in AUTH_REQUIRED status."""
-    svc = SenderService(session)
-    return svc.add_email_session(display_name=payload.display_name, identity=payload.identity)
 
 
 @router.post("/email/configure")

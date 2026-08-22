@@ -1,13 +1,13 @@
-"""Playwright WhatsApp Web Provider Adapter.
+"""Camoufox / Playwright WhatsApp Web Provider Adapter.
 
-Implements the WhatsAppProvider port using isolated Playwright browser contexts
-per sender account. Reuses proven WhatsApp Web automation selectors while enhancing
-error classification and delivery verification.
+Implements the WhatsAppProvider port using isolated Camoufox browser contexts
+per sender account with realistic anti-detection, humanized typing, and delivery verification.
 """
 
 from __future__ import annotations
 
 import os
+import random
 import re
 import time
 import urllib.parse
@@ -17,25 +17,32 @@ from typing import Optional
 from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.infrastructure.providers.session_manager import (
-    BROWSER_ARGS,
-    REALISTIC_CHROME_UA,
     WhatsAppSessionManager,
     default_session_manager,
 )
 from app.ports.providers import ProviderSendResult, ProviderStatusResult, WhatsAppProvider
 
 
+def _human_type(composer, text: str) -> None:
+    """Type message into composer character by character with realistic jitter and punctuation pauses."""
+    for char in text:
+        composer.press_sequentially(char)
+        time.sleep(random.uniform(0.04, 0.12))
+        if char in {".", ",", "!", "?", "\n"}:
+            time.sleep(random.uniform(0.25, 0.6))
+
+
 class PlaywrightWhatsAppProvider:
-    """WhatsAppProvider adapter driving WhatsApp Web via Playwright."""
+    """WhatsAppProvider adapter driving WhatsApp Web via Camoufox with human-like interaction."""
 
     def __init__(
         self,
         session_manager: Optional[WhatsAppSessionManager] = None,
-        headless: bool = True,
+        headless: bool = False,
         timeout_seconds: int = 60,
     ) -> None:
         self.session_manager = session_manager or default_session_manager
-        self.headless = headless
+        self.headless = False
         self.timeout_seconds = timeout_seconds
 
     def send_message(
@@ -60,30 +67,37 @@ class PlaywrightWhatsAppProvider:
             )
 
         try:
-            from playwright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]
+            from camoufox.sync_api import Camoufox
         except ImportError:
             return ProviderSendResult.failed(
                 failure_code="ERR_PLAYWRIGHT_NOT_INSTALLED",
-                failure_detail="Playwright is not installed in the environment",
+                failure_detail="Camoufox is not installed in the environment",
             )
 
         session_dir = self.session_manager.get_session_dir(attempt.sender_account_id)
         timeout_ms = self.timeout_seconds * 1000
 
+        session_dir.mkdir(parents=True, exist_ok=True)
+        with open(session_dir / "user.js", "a") as f:
+            f.write('user_pref("privacy.trackingprotection.enabled", false);\n')
+            f.write('user_pref("privacy.trackingprotection.pbmode.enabled", false);\n')
+            f.write('user_pref("privacy.partition.network_state", false);\n')
+            f.write('user_pref("media.peerconnection.enabled", true);\n')
+            f.write('user_pref("permissions.default.image", 1);\n')
+
         try:
-            with sync_playwright() as pw:
-                context = pw.chromium.launch_persistent_context(
-                    str(session_dir),
-                    headless=self.headless,
-                    viewport={"width": 1280, "height": 900},
-                    user_agent=REALISTIC_CHROME_UA,
-                    args=BROWSER_ARGS,
-                )
+            with Camoufox(
+                persistent_context=True,
+                user_data_dir=str(session_dir),
+                headless=False,
+                humanize=True,
+                os="windows",
+                window=(1280, 900),
+            ) as context:
                 page = context.pages[0] if context.pages else context.new_page()
 
                 # Step 1: Navigate to chat url
-                encoded_msg = urllib.parse.quote(message_body)
-                url = f"https://web.whatsapp.com/send?phone={clean_phone}&text={encoded_msg}"
+                url = f"https://web.whatsapp.com/send?phone={clean_phone}"
                 page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
 
                 invalid_text = page.get_by_text(
@@ -97,37 +111,46 @@ class PlaywrightWhatsAppProvider:
                 )
 
                 # Check if logged out or auth required
-                if page.locator('canvas[aria-label="Scan this QR code to link a device"]').count() > 0:
-                    context.close()
+                if page.locator('canvas[aria-label="Scan this QR code to link a device"], canvas').count() > 0:
                     return ProviderSendResult.failed(
                         failure_code="ERR_AUTH_REQUIRED",
                         failure_detail="WhatsApp session requires QR code scan authentication",
                     )
 
-                # Wait for send button or composer
+                # Wait for composer to be visible and ready
                 deadline = time.monotonic() + self.timeout_seconds
                 text_sent = False
                 while time.monotonic() < deadline:
                     if invalid_text.count() and invalid_text.first.is_visible():
-                        context.close()
                         return ProviderSendResult.failed(
                             failure_code="ERR_NOT_ON_WHATSAPP",
                             failure_detail="WhatsApp rejected phone number as invalid or not registered",
                         )
-                    if send_button.count() and send_button.first.is_visible():
-                        send_button.first.click()
-                        page.wait_for_timeout(1500)
-                        text_sent = True
-                        break
+
                     if composer.count() and composer.first.is_visible():
-                        composer.first.press("Enter")
-                        page.wait_for_timeout(1500)
+                        # Natural pre-typing cognitive delay
+                        time.sleep(random.uniform(1.2, 2.5))
+                        composer.first.click()
+
+                        # Human-like sequential typing
+                        _human_type(composer.first, message_body)
+
+                        # Post-typing review pause before dispatch
+                        time.sleep(random.uniform(1.0, 2.0))
+
+                        # Dispatch via Enter or Send button
+                        if send_button.count() and send_button.first.is_visible():
+                            send_button.first.click()
+                        else:
+                            composer.first.press("Enter")
+
+                        time.sleep(random.uniform(1.5, 2.5))
                         text_sent = True
                         break
-                    page.wait_for_timeout(500)
+
+                    time.sleep(0.5)
 
                 if not text_sent:
-                    context.close()
                     return ProviderSendResult.unknown(
                         reason="Message composer did not become ready within timeout period"
                     )
@@ -136,6 +159,7 @@ class PlaywrightWhatsAppProvider:
                 att_file = Path(attachment_path) if attachment_path else None
                 if att_file and att_file.exists():
                     try:
+                        time.sleep(random.uniform(0.8, 1.5))
                         attach_btn = page.locator(
                             'button[aria-label="Attach"], [title="Attach"], span[data-icon="plus-rounded"], span[data-icon="clip"], span[data-icon="plus"]'
                         ).first
@@ -152,7 +176,7 @@ class PlaywrightWhatsAppProvider:
                         file_chooser = fc_info.value
                         file_chooser.set_files(str(att_file))
 
-                        page.wait_for_timeout(1500)
+                        time.sleep(random.uniform(1.2, 2.0))
 
                         send_doc_btn = page.locator(
                             'div[role="button"][aria-label^="Send"], div[role="button"][aria-label="Send"], span[data-icon="wds-ic-send-filled"], [data-testid="send"]'
@@ -161,11 +185,10 @@ class PlaywrightWhatsAppProvider:
                         send_doc_btn.click()
                         page.keyboard.press("Enter")
                         send_doc_btn.wait_for(state="hidden", timeout=15000)
-                        page.wait_for_timeout(2000)
+                        time.sleep(random.uniform(1.5, 2.5))
                     except Exception as attach_exc:
                         # Text was sent successfully, but attachment failed
                         ref_id = f"wa_{clean_phone}_{int(time.time())}"
-                        context.close()
                         return ProviderSendResult(
                             success=True,
                             status=OutreachStatus.SENT,
@@ -175,13 +198,12 @@ class PlaywrightWhatsAppProvider:
                         )
 
                 ref_id = f"wa_{clean_phone}_{int(time.time())}"
-                page.wait_for_timeout(1000)
-                context.close()
+                time.sleep(1.0)
                 return ProviderSendResult.sent(provider_reference=ref_id)
 
         except Exception as exc:
             return ProviderSendResult.unknown(
-                reason=f"Playwright automation encountered unexpected exception: {exc}"
+                reason=f"Camoufox automation encountered unexpected exception: {exc}"
             )
 
     def check_status(self, provider_reference: str) -> ProviderStatusResult:

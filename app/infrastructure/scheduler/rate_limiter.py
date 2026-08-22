@@ -10,6 +10,7 @@ Authoritative production pacing:
 from __future__ import annotations
 
 import os
+import random
 import threading
 import time
 from collections import defaultdict, deque
@@ -47,6 +48,8 @@ class RateLimiter:
         self._backoff_until: Dict[str, float] = {}
         # sender_id -> timestamps of dispatches in last 24h
         self._dispatch_history: Dict[str, Deque[float]] = defaultdict(deque)
+        # sender_id -> dynamic randomized target pacing delay
+        self._target_delay: Dict[str, float] = {}
 
     def can_send(
         self,
@@ -69,8 +72,14 @@ class RateLimiter:
                 wait_sec = round(self._backoff_until[sender_id] - now_mono, 1)
                 return False, f"RATE_LIMITED_BACKOFF_{wait_sec}S"
 
-            # 3. Check inter-message spacing delay
-            min_delay = self.default_channel_delay.get(channel.upper(), 2.0)
+            # 3. Check inter-message spacing delay with human jitter
+            base_delay = self.default_channel_delay.get(channel.upper(), 2.0)
+            if sender_id not in self._target_delay:
+                self._target_delay[sender_id] = (
+                    random.uniform(base_delay * 0.8, base_delay * 1.25) if base_delay > 10 else base_delay
+                )
+
+            min_delay = self._target_delay[sender_id]
             last_time = self._last_send_time.get(sender_id, 0.0)
             elapsed = now_mono - last_time
             if elapsed < min_delay:
@@ -116,6 +125,7 @@ class RateLimiter:
             self._sender_busy[sender_id] = False
             self._consecutive_failures[sender_id] = 0
             self._backoff_until.pop(sender_id, None)
+            self._target_delay.pop(sender_id, None)
             self._dispatch_history[sender_id].append(now_epoch)
 
     def record_dispatch_failure(self, sender_id: str, is_rate_limit: bool = False) -> float:
@@ -161,6 +171,7 @@ class RateLimiter:
             self._sender_busy.pop(sender_id, None)
             self._consecutive_failures.pop(sender_id, None)
             self._backoff_until.pop(sender_id, None)
+            self._target_delay.pop(sender_id, None)
             self._dispatch_history.pop(sender_id, None)
 
     def is_sender_busy(self, sender_id: str) -> bool:

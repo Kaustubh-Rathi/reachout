@@ -1489,6 +1489,25 @@
     </div>
   </div>
 
+  <!-- 4a. WhatsApp QR Link Modal -->
+  <div class="modal-overlay" id="wa-qr-modal">
+    <div class="modal-content" style="max-width: 460px;">
+      <div class="modal-header">
+        <h3 id="wa-qr-title">Link WhatsApp Device</h3>
+        <button class="modal-close-btn" onclick="closeWhatsAppQrModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 0.9rem; padding: 1.5rem 1.25rem;">
+        <div id="wa-qr-subtitle" style="font-size: 0.8rem; color: var(--text-secondary); text-align: center;">Waiting for QR code...</div>
+        <img id="wa-qr-img" src="" alt="WhatsApp QR Code"
+             style="width: 210px; height: 210px; border-radius: 8px; display: none; border: 1px solid var(--border-medium); object-fit: contain; background: #fff;">
+        <div id="wa-qr-status" style="font-size: 0.82rem; color: var(--text-secondary); text-align: center; min-height: 1.2rem;">Launching secure browser...</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeWhatsAppQrModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 4b. Data Discrepancies Drawer -->
   <div class="modal-overlay" id="discrepancies-modal">
     <div class="modal-content" style="max-width: 720px; border-top: 4px solid var(--accent-amber);">
@@ -2489,30 +2508,6 @@
           else if (s.status === 'AUTH_REQUIRED' || s.status === 'NOT_CONFIGURED') statusBadgeClass = 'badge-uncovered';
           else if (s.status === 'INACTIVE') statusBadgeClass = 'badge-not-sent';
 
-          let qrBoxHtml = '';
-          if (s.status === 'QR_REQUIRED' && s.qr_code) {
-            qrBoxHtml = `
-              <div style="background: var(--bg-surface); border: 2px dashed var(--accent-emerald); border-radius: var(--radius-sm); padding: 0.75rem; text-align: center; margin: 0.35rem 0;">
-                <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-emerald); margin-bottom: 0.35rem;">
-                  Scan QR with WhatsApp on your Phone
-                </div>
-                <img src="${s.qr_code}" alt="WhatsApp QR" style="width: 170px; height: 170px; border-radius: 6px; display: block; margin: 0 auto;">
-                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.35rem;">
-                  WhatsApp &gt; Linked Devices &gt; Link a Device
-                </div>
-                <div style="display: flex; justify-content: center; gap: 0.4rem; margin-top: 0.4rem;">
-                  <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')">🔍 Check Login Status</button>
-                </div>
-              </div>
-            `;
-          } else if (s.status === 'AUTHENTICATING') {
-            qrBoxHtml = `
-              <div style="background: var(--bg-surface); border-radius: var(--radius-sm); padding: 0.6rem; text-align: center; color: var(--accent-blue); font-size: 0.75rem;">
-                <span class="spinner"></span> Launching authentication context...
-              </div>
-            `;
-          }
-
           const errorHtml = s.error_message ? `<div style="color: var(--accent-rose); font-size: 0.7rem;">⚠️ ${escapeHtml(s.error_message)}</div>` : '';
           const lastCheckedHtml = s.last_checked ? `<div style="font-size: 0.675rem; color: var(--text-muted);">Last verified: ${formatDate(s.last_checked)}</div>` : '';
           const lastUsedHtml = s.last_used_at ? `<div style="font-size: 0.675rem; color: var(--text-secondary);">Last used: ${formatDate(s.last_used_at)}</div>` : '';
@@ -2529,8 +2524,8 @@
             `;
           } else {
             actionButtons = `
-              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${s.id}')" title="Start QR code authentication">
-                <span>📱 ${s.status === 'ACTIVE' ? 'Re-Authenticate' : 'Start Auth'}</span>
+              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${s.id}')" title="Re-authenticate this WhatsApp sender (re-scan QR)">
+                <span>📱 Re-Authenticate</span>
               </button>
               <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')" title="Check connection health">
                 <span>🔍 Status</span>
@@ -2556,7 +2551,6 @@
             <div style="font-size: 0.7rem; color: var(--text-muted);">
               Limit: ${s.daily_limit || 50}/day &bull; Rate: ${s.hourly_limit || 10}/hr
             </div>
-            ${qrBoxHtml}
             ${errorHtml}
             ${lastCheckedHtml}
             ${lastUsedHtml}
@@ -2602,7 +2596,7 @@
           } else {
             actionButtons = `
               <button class="btn btn-primary btn-xs" onclick="openEmailConfigModal('${s.id}')">
-                <span>⚙️ Configure</span>
+                <span>⚙️ Re-configure</span>
               </button>
               <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${s.id}')">
                 <span>🔌 Test &amp; Verify</span>
@@ -2651,42 +2645,130 @@
 
     async function addWhatsAppSession() {
       try {
-        showToast('Adding new WhatsApp session...', 'info');
+        showToast('Launching WhatsApp authentication...', 'info');
         const res = await apiFetch('/api/senders/whatsapp/add', {
           method: 'POST',
           body: JSON.stringify({}),
         });
         if (res.ok) {
           const data = await res.json();
-          showToast(`Added ${data.id}. Click Start Auth to scan QR.`, 'success');
-          await fetchSenders();
+          const tempId = data.id;
+          // Start QR auth immediately (launches the Camoufox browser + captures QR).
+          await startWhatsAppAuth(tempId);
         } else {
           const err = await res.json();
-          showToast(`Failed to add session: ${err.detail || 'Error'}`, 'error');
+          showToast(`Failed to start WhatsApp session: ${err.detail || 'Error'}`, 'error');
         }
       } catch (err) {
-        showToast('Error adding WhatsApp session: ' + err.message, 'error');
+        showToast('Error starting WhatsApp session: ' + err.message, 'error');
       }
     }
 
-    async function addEmailSession() {
+    // ---- WhatsApp QR authentication modal ----
+    // Used for both brand-new sessions (temp id) and re-authentication of an existing
+    // sender (real wa_<phone> id). Polls auth/status until logged in, errored, or expired.
+    async function openWhatsAppQrModal(senderId, existingName) {
+      const modal = document.getElementById('wa-qr-modal');
+      if (!modal) return;
+      document.getElementById('wa-qr-title').textContent = 'Link WhatsApp Device';
+      document.getElementById('wa-qr-subtitle').textContent = existingName
+        ? `Re-authenticating ${existingName}`
+        : 'Waiting for QR code...';
+      document.getElementById('wa-qr-img').style.display = 'none';
+      document.getElementById('wa-qr-status').innerHTML =
+        '<span class="spinner"></span> Launching secure browser...';
+      modal.classList.add('open');
+      modal._waPollId = senderId;
+      modal._waStopped = false;
+      modal._waLastStatus = null;
+      await pollWhatsAppAuth(senderId, existingName);
+    }
+
+    function closeWhatsAppQrModal() {
+      const modal = document.getElementById('wa-qr-modal');
+      if (!modal) return;
+      modal._waStopped = true;
+      modal.classList.remove('open');
+    }
+
+    async function pollWhatsAppAuth(senderId, existingName) {
+      const modal = document.getElementById('wa-qr-modal');
+      if (!modal || modal._waStopped || modal._waPollId !== senderId) return;
+
+      let res;
       try {
-        showToast('Adding new Email session...', 'info');
-        const res = await apiFetch('/api/senders/email/add', {
-          method: 'POST',
-          body: JSON.stringify({}),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          showToast(`Added ${data.id}. Click Configure to set SMTP.`, 'success');
-          await fetchSenders();
-        } else {
-          const err = await res.json();
-          showToast(`Failed to add session: ${err.detail || 'Error'}`, 'error');
-        }
+        res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/status`);
       } catch (err) {
-        showToast('Error adding Email session: ' + err.message, 'error');
+        // Network error: keep polling.
+        setTimeout(() => pollWhatsAppAuth(senderId, existingName), 2000);
+        return;
       }
+
+      if (!res.ok) {
+        // Strict 404 -> temp expired / cleaned up / unknown.
+        if (res.status === 404) {
+          document.getElementById('wa-qr-status').innerHTML =
+            '<span style="color: var(--accent-rose);">Session expired. Please try again.</span>';
+          modal._waStopped = true;
+          setTimeout(() => closeWhatsAppQrModal(), 1500);
+          showToast('Authentication session expired.', 'error');
+        } else {
+          try {
+            const err = await res.json();
+            document.getElementById('wa-qr-status').innerHTML =
+              `<span style="color: var(--accent-rose);">${escapeHtml(err.detail || 'Unknown error')}</span>`;
+          } catch (e) {
+            document.getElementById('wa-qr-status').innerHTML = '<span style="color: var(--accent-rose);">Unknown error</span>';
+          }
+          modal._waStopped = true;
+          setTimeout(() => closeWhatsAppQrModal(), 2000);
+        }
+        await fetchSenders();
+        return;
+      }
+
+      const data = await res.json();
+      modal._waLastStatus = data.status;
+      const statusEl = document.getElementById('wa-qr-status');
+      const imgEl = document.getElementById('wa-qr-img');
+
+      if (data.status === 'ACTIVE') {
+        imgEl.style.display = 'none';
+        statusEl.innerHTML = '<span style="color: var(--accent-emerald); font-weight: 700;">✓ WhatsApp linked successfully!</span>';
+        modal._waStopped = true;
+        setTimeout(() => closeWhatsAppQrModal(), 1200);
+        showToast('WhatsApp session authenticated and saved!', 'success');
+        await fetchSenders();
+        return;
+      }
+
+      if (data.status === 'QR_REQUIRED' && data.qr_code) {
+        imgEl.src = data.qr_code;
+        imgEl.style.display = 'block';
+        statusEl.innerHTML = 'Scan with WhatsApp &gt; Linked Devices &gt; Link a Device';
+      } else if (data.status === 'AUTHENTICATING') {
+        imgEl.style.display = 'none';
+        statusEl.innerHTML = '<span class="spinner"></span> Launching authentication context...';
+      } else if (data.status === 'ERROR') {
+        imgEl.style.display = 'none';
+        statusEl.innerHTML = `<span style="color: var(--accent-rose);">${escapeHtml(data.error_message || 'Authentication failed')}</span>`;
+        modal._waStopped = true;
+        setTimeout(() => closeWhatsAppQrModal(), 2500);
+        showToast(`Authentication failed: ${data.error_message || 'Error'}`, 'error');
+        await fetchSenders();
+        return;
+      } else if (data.status === 'AUTH_REQUIRED') {
+        imgEl.style.display = 'none';
+        statusEl.innerHTML = '<span style="color: var(--accent-amber);">Waiting for QR code...</span>';
+      }
+
+      // Continue polling.
+      setTimeout(() => pollWhatsAppAuth(senderId, existingName), 2000);
+    }
+
+    async function addEmailSession() {
+      // Immediately open the SMTP configuration form. There is no intermediate dummy row.
+      openEmailConfigModal('');
     }
 
     async function deactivateSender(senderId) {
@@ -2742,9 +2824,8 @@
           method: 'POST',
         });
         if (res.ok) {
-          const data = await res.json();
-          showToast(`Authentication initiated for ${senderId}. Scan QR code.`, 'info');
-          await fetchSenders();
+          const existing = state.senders.find(s => s.id === senderId);
+          openWhatsAppQrModal(senderId, existing ? existing.display_name : senderId);
         } else {
           const err = await res.json();
           showToast(`Auth error: ${err.detail || 'Failed'}`, 'error');
@@ -2768,11 +2849,18 @@
     }
 
     // Email Configuration & Verification Modals
-    function openEmailConfigModal(senderId = 'EMAIL_SESSION_1') {
-      const existing = state.senders.find(s => s.id === senderId);
-      document.getElementById('cfg-email-id').value = senderId;
-      document.getElementById('cfg-email-name').value = existing ? existing.display_name : 'Email Primary';
-      document.getElementById('cfg-email-addr').value = existing ? existing.identity : 'outreach.primary@domain.com';
+    function openEmailConfigModal(senderId = '') {
+      const existing = senderId ? state.senders.find(s => s.id === senderId) : null;
+      document.getElementById('email-config-title').textContent =
+        existing ? `Configure ${existing.display_name}` : 'Add Email Sender';
+      // For a brand-new session, leave the id blank so the backend auto-assigns EMAIL_SESSION_N.
+      document.getElementById('cfg-email-id').value = existing ? existing.id : '';
+      document.getElementById('cfg-email-name').value = existing ? existing.display_name : '';
+      document.getElementById('cfg-email-addr').value = existing ? existing.identity : '';
+      document.getElementById('cfg-email-host').value = '';
+      document.getElementById('cfg-email-port').value = 587;
+      document.getElementById('cfg-email-user').value = existing ? existing.identity : '';
+      document.getElementById('cfg-email-pwd').value = '';
       document.getElementById('email-config-modal').classList.add('open');
     }
 
@@ -2810,15 +2898,12 @@
         });
         const data = await res.json();
         if (res.ok) {
-          if (data.verified) {
-            showToast(`Email sender ${id} verified and marked ACTIVE!`, 'success');
-          } else {
-            showToast(`Saved, but verification failed: ${data.error_message || 'Check credentials'}`, 'error');
-          }
+          showToast(`Email sender ${data.id} verified and marked ACTIVE!`, 'success');
           closeEmailConfigModal();
           await fetchSenders();
         } else {
-          showToast(`Error: ${data.detail || 'Failed to configure'}`, 'error');
+          // Connection failed -> backend saved nothing.
+          showToast(`Verification failed: ${data.detail || 'SMTP connection error'}`, 'error');
         }
       } catch (err) {
         showToast('Error saving email config: ' + err.message, 'error');
