@@ -95,7 +95,7 @@ class TestPhase6Templates:
             assert "https://www.linkedin.com/in/Kaustubh-Rathi-9228ab255" in tmpl.body
             assert "https://github.com/Kaustubh-Rathi" in tmpl.body
             assert "+917499718082" in tmpl.body
-            assert tmpl.attachment_ref == "resume.pdf"
+            assert tmpl.attachment_ref is None
             assert tmpl.active is True
 
     def test_all_4_email_templates_exist_and_match_specs(self):
@@ -111,7 +111,7 @@ class TestPhase6Templates:
             assert "https://www.linkedin.com/in/Kaustubh-Rathi-9228ab255" in tmpl.body
             assert "https://github.com/Kaustubh-Rathi" in tmpl.body
             assert "+917499718082" in tmpl.body
-            assert tmpl.attachment_ref == "resume.pdf"
+            assert tmpl.attachment_ref is None
             assert tmpl.active is True
 
     def test_template_variable_interpolation(self):

@@ -208,7 +208,7 @@ OFFICIAL_WHATSAPP_TEMPLATES = [
             "GitHub: https://github.com/Kaustubh-Rathi\n\n"
             "Phone: +917499718082"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),
@@ -225,7 +225,7 @@ OFFICIAL_WHATSAPP_TEMPLATES = [
             "GitHub: https://github.com/Kaustubh-Rathi\n\n"
             "Phone: +917499718082"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),
@@ -242,7 +242,7 @@ OFFICIAL_WHATSAPP_TEMPLATES = [
             "GitHub: https://github.com/Kaustubh-Rathi\n\n"
             "Phone: +917499718082"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),
@@ -260,7 +260,7 @@ OFFICIAL_WHATSAPP_TEMPLATES = [
             "Phone: +917499718082\n\n"
             "Thanks for reading!"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),
@@ -285,7 +285,7 @@ OFFICIAL_EMAIL_TEMPLATES = [
             "My resume is attached.\n\n"
             "Best regards,\nKaustubh Rathi"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),
@@ -310,7 +310,7 @@ OFFICIAL_EMAIL_TEMPLATES = [
             "Resume attached.\n\n"
             "Best,\nKaustubh Rathi"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),
@@ -332,7 +332,7 @@ OFFICIAL_EMAIL_TEMPLATES = [
             "Resume attached.\n\n"
             "Regards,\nKaustubh Rathi"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),
@@ -354,7 +354,7 @@ OFFICIAL_EMAIL_TEMPLATES = [
             "Thank you for your time.\n\n"
             "Best regards,\nKaustubh Rathi"
         ),
-        attachment_ref="resume.pdf",
+        attachment_ref=None,
         phone_number="+917499718082",
         active=True,
     ),

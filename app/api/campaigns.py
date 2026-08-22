@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.domain.enums import CampaignStatus, Channel
+from app.domain.enums import Channel
+from app.config import DEFAULT_OUTREACH_LIMIT
 from app.infrastructure.database import get_session
 from app.services.campaign_service import CampaignService
 
@@ -25,8 +26,6 @@ class CampaignCreateRequest(BaseModel):
     channel: str = Field(..., description="'WHATSAPP' or 'EMAIL'")
     template_ids: Optional[List[str]] = Field(default_factory=list)
     sender_account_ids: Optional[List[str]] = Field(default_factory=list)
-    automatic_quota: Optional[int] = Field(None, description="Optional cap on automated sends")
-    manual_reserve: Optional[int] = Field(20, description="Reserved quota for manual operator sends")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -35,9 +34,7 @@ class QuickStartRequest(BaseModel):
 
     channel: Optional[str] = Field("WHATSAPP", description="'WHATSAPP' or 'EMAIL'")
     name: Optional[str] = Field(None)
-    max_count: Optional[int] = Field(None)
-    automatic_quota: Optional[int] = Field(None)
-    manual_reserve: Optional[int] = Field(20)
+    max_count: Optional[int] = Field(default=DEFAULT_OUTREACH_LIMIT, ge=1)
 
 
 @router.get("")
@@ -62,8 +59,6 @@ def create_campaign(payload: CampaignCreateRequest, session: Session = Depends(g
         template_ids=payload.template_ids,
         sender_account_ids=payload.sender_account_ids,
         metadata=payload.metadata,
-        automatic_quota=payload.automatic_quota,
-        manual_reserve=payload.manual_reserve if payload.manual_reserve is not None else 20,
     )
     return svc.get_campaign_progress(campaign.id)
 
@@ -109,60 +104,9 @@ def quick_start_campaign(payload: QuickStartRequest = QuickStartRequest(), sessi
     campaign = svc.create_campaign(
         name=name,
         channel=ch,
-        automatic_quota=payload.automatic_quota,
-        manual_reserve=payload.manual_reserve if payload.manual_reserve is not None else 20,
     )
     try:
         return svc.start_campaign(campaign.id, max_count=payload.max_count)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "OUTREACH_NOT_READY",
-                "reason": "VALIDATION_FAILED",
-                "message": str(exc),
-            },
-        )
-
-
-@router.post("/start-remaining")
-def start_remaining_outreach(
-    channel: Optional[str] = Query("WHATSAPP", description="Target outreach channel"),
-    max_count: Optional[int] = Query(None),
-    session: Session = Depends(get_session),
-) -> Dict[str, Any]:
-    """Start remaining automated outreach for all eligible contacts against current DB state."""
-    svc = CampaignService(session)
-    try:
-        ch = Channel(channel.upper() if channel else "WHATSAPP")
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel '{channel}'")
-
-    # Upfront readiness validation
-    readiness = svc.validate_outreach_readiness(channel=ch)
-    if not readiness["ready"]:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "OUTREACH_NOT_READY",
-                "reason": readiness["reason"],
-                "message": readiness["detail"],
-            },
-        )
-
-    # Find any existing IDLE or PAUSED campaign, or create a new campaign
-    campaigns = svc.campaign_repo.list_all()
-    target_camp = None
-    for c in reversed(campaigns):
-        if c.channel == ch and not c.status.is_terminal:
-            target_camp = c
-            break
-
-    if not target_camp:
-        target_camp = svc.create_campaign(name=f"{ch.value.title()} Remaining Outreach", channel=ch)
-
-    try:
-        return svc.start_campaign(target_camp.id, max_count=max_count)
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -218,12 +162,27 @@ def pause_campaign(campaign_id: str, session: Session = Depends(get_session)) ->
 
 @router.post("/{campaign_id}/resume")
 def resume_campaign(campaign_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
-    """Resume a paused campaign."""
+    """Resume a paused campaign with readiness check."""
     svc = CampaignService(session)
     try:
         return svc.resume_campaign(campaign_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        msg = str(exc)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=404, detail=msg)
+        if "OUTREACH_NOT_READY" in msg:
+            parts = msg.split(":", 1)
+            reason_detail = parts[1].strip() if len(parts) > 1 else msg
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "OUTREACH_NOT_READY",
+                    "reason": reason_detail.split(" - ")[0] if " - " in reason_detail else "VALIDATION_FAILED",
+                    "message": reason_detail,
+                },
+            )
+        raise HTTPException(status_code=400, detail=msg)
+
 
 
 @router.post("/{campaign_id}/stop")

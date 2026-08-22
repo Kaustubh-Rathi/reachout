@@ -533,113 +533,14 @@
       border-color: var(--accent-amber);
     }
 
-    /* Contacts Table & Hierarchy View Containers */
-    .table-card, .hierarchy-container {
+    /* Hierarchy View Container */
+    .hierarchy-container {
       width: 100%;
       min-height: 420px;
       transition: opacity 0.2s ease-in-out;
-    }
-
-    .table-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .table-container {
-      width: 100%;
-      overflow-x: auto;
-      max-height: calc(100vh - 340px);
-      min-height: 380px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      text-align: left;
-      font-size: 0.825rem;
-    }
-
-    thead th {
-      background: #0b1120;
-      color: var(--text-muted);
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 0.75rem 0.9rem;
-      border-bottom: 1px solid var(--border-subtle);
-      white-space: nowrap;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    tbody tr {
-      border-bottom: 1px solid var(--border-subtle);
-      transition: background-color 0.1s ease;
-    }
-
-    tbody tr:hover {
-      background-color: rgba(30, 41, 59, 0.5);
-    }
-
-    tbody td {
-      padding: 0.75rem 0.9rem;
-      vertical-align: middle;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-
-    /* Row highlight based on status */
-    tr.row-interested {
-      background-color: rgba(16, 185, 129, 0.04);
-    }
-    tr.row-followup-due {
-      background-color: rgba(245, 158, 11, 0.06);
-    }
-    tr.row-not-interested {
-      opacity: 0.65;
-    }
-
-    .company-cell {
-      font-weight: 700;
-      color: var(--text-primary);
-      max-width: 160px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .person-cell {
       display: flex;
       flex-direction: column;
-      gap: 0.1rem;
-    }
-
-    .person-name {
-      font-weight: 600;
-      color: var(--text-primary);
-    }
-
-    .person-designation {
-      font-size: 0.725rem;
-      color: var(--text-muted);
-    }
-
-    .phone-text {
-      color: var(--text-secondary);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-    }
-
-    .email-text {
-      color: var(--accent-blue);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      word-break: break-all;
+      gap: 1rem;
     }
 
     .badge {
@@ -732,13 +633,6 @@
       color: var(--accent-emerald);
       font-weight: 500;
       margin-top: 0.15rem;
-    }
-
-    .actions-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      flex-wrap: wrap;
     }
 
     /* Modal / Drawer Overlays */
@@ -984,19 +878,6 @@
     }
 
     /* Phase 8 Hierarchy View Styles */
-    .view-mode-bar {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .hierarchy-container {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
     .company-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-medium);
@@ -1214,9 +1095,6 @@
         padding-bottom: 0.25rem;
         width: 100%;
       }
-      .table-container {
-        max-height: calc(100vh - 280px);
-      }
     }
   </style>
 </head>
@@ -1251,9 +1129,12 @@
       <button class="btn btn-secondary btn-sm" id="sync-btn" onclick="triggerSync()">
         <span>🔄 Sync Contacts</span>
       </button>
-      <a href="/api/export" class="btn btn-outline btn-sm" id="export-csv-btn" download>
+      <a href="/api/contacts/export/csv" class="btn btn-outline btn-sm" id="export-csv-btn" download>
         <span>📥 Export CSV</span>
       </a>
+      <button class="btn btn-outline btn-sm" id="discrepancies-btn" onclick="openDiscrepanciesDrawer()">
+        <span>⚠️ Data Discrepancies</span>
+      </button>
     </div>
   </header>
 
@@ -1323,12 +1204,9 @@
         <div>
           <span class="campaign-status-badge" id="campaign-status-pill">IDLE</span>
         </div>
-        <button class="btn btn-emerald" id="start-remaining-btn" onclick="startRemainingOutreach()" title="Execute company-first outreach on remaining eligible contacts">
-          <span>▶ Start Remaining Outreach</span>
-        </button>
         <div style="display: flex; align-items: center; gap: 0.35rem; margin: 0 0.25rem;">
           <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Limit:</label>
-          <input type="number" id="campaign-limit-input" value="200" min="1" max="1000" title="Max contacts to outreach in this run" style="width: 68px; padding: 0.25rem 0.4rem; font-size: 0.8rem; background: var(--bg-surface-raised); border: 1px solid var(--border-color); border-radius: var(--radius-xs); color: var(--text-primary); text-align: center; font-weight: 600;">
+          <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Max contacts to outreach in this run" style="width: 68px; padding: 0.25rem 0.4rem; font-size: 0.8rem; background: var(--bg-surface-raised); border: 1px solid var(--border-color); border-radius: var(--radius-xs); color: var(--text-primary); text-align: center; font-weight: 600;">
         </div>
         <button class="btn btn-secondary btn-sm" id="start-campaign-btn" onclick="startCampaign()">
           <span>▶ New Run</span>
@@ -1344,12 +1222,17 @@
         </button>
       </div>
 
+      <!-- Paused Notice Banner (Phase 12) -->
+      <div id="campaign-paused-banner" style="display: none; width: 100%; color: var(--accent-amber); font-weight: 600; font-size: 0.8rem; padding: 0.45rem 0.85rem; background: var(--accent-amber-bg); border: 1px solid var(--accent-amber-border); border-radius: var(--radius-sm); align-items: center; gap: 0.5rem;">
+        <span>⏸️</span>
+        <span><strong>Campaign Paused:</strong> No automatic outreach is being dispatched. You can add, authenticate, or reconfigure senders below. Click <strong>Resume</strong> when ready to continue from the current candidate position.</span>
+      </div>
+
       <!-- Policy, Quota & Round Info Grid -->
       <div style="display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: 0.775rem; color: var(--text-secondary); background: var(--bg-surface-raised); padding: 0.5rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); align-items: center;">
+
         <div>Round: <strong id="prog-round" style="color: var(--accent-blue);">Round 1</strong></div>
         <div>Companies: <strong id="prog-comp-cov" style="color: var(--text-primary);">0</strong> covered / <strong id="prog-comp-rem" style="color: var(--text-primary);">0</strong> remaining</div>
-        <div>Auto Quota: <strong id="prog-auto-used" style="color: var(--accent-emerald);">0</strong> / <span id="prog-quota">100</span> (Rem: <strong id="prog-auto-rem">100</strong>)</div>
-        <div>Manual Reserve: <strong id="prog-manual-used">0</strong> / <span id="prog-manual-res">20</span> (Rem: <strong id="prog-manual-rem">20</strong>)</div>
         <div>Channel: <strong id="prog-curr-channel" style="color: var(--accent-blue);">WHATSAPP</strong></div>
         <div>Sender: <strong id="prog-curr-sender">AUTO</strong></div>
         <div>Template: <strong id="prog-curr-template">AUTO</strong></div>
@@ -1405,51 +1288,11 @@
       </div>
     </section>
 
-    <!-- View Switcher Bar -->
-    <div class="view-mode-bar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; margin-bottom: 0.75rem;">
-      <div style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-primary btn-sm" id="view-mode-table-btn" onclick="setViewMode('table')">
-          📋 Flat Table View
-        </button>
-        <button class="btn btn-outline btn-sm" id="view-mode-hierarchy-btn" onclick="setViewMode('hierarchy')">
-          🏢 Company Hierarchy View
-        </button>
-      </div>
-      <div id="hierarchy-summary-text" style="font-size: 0.8rem; color: var(--text-secondary);">
-        Company-First progression &bull; Discrete Endpoint Tracking
-      </div>
+    <!-- Company Hierarchy View (single view) -->
+    <div id="hierarchy-summary-text" style="font-size: 0.8rem; color: var(--text-secondary); margin: 1rem 0 0.5rem;">
+      Company-First progression &bull; Discrete Endpoint Tracking
     </div>
-
-    <!-- Section 5 & 6: Contact Table -->
-    <section class="table-card" id="table-view-section">
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>HR Name</th>
-              <th>Designation</th>
-              <th>Phone(s)</th>
-              <th>Email(s)</th>
-              <th>Contact Coverage</th>
-              <th>Last Contacted</th>
-              <th>Status</th>
-              <th style="text-align: right;">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="contacts-table-body">
-            <tr>
-              <td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-muted);">
-                Loading contacts...
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Phase 8: Company -> HR -> Endpoint -> History Hierarchy View -->
-    <section class="hierarchy-container" id="hierarchy-view-section" style="display: none;">
+    <section class="hierarchy-container" id="hierarchy-view-section">
       <div id="hierarchy-cards-list" style="display: flex; flex-direction: column; gap: 1rem;">
         <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
           Loading company hierarchies...
@@ -1554,12 +1397,9 @@
                   Each session operates in an isolated browser context with dedicated QR code authentication.
                 </div>
               </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Number of Sessions:</label>
-                <input type="number" id="wa-session-count-input" value="2" min="1" max="10" style="width: 55px; padding: 0.25rem 0.4rem; font-size: 0.8rem; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-xs); color: var(--text-primary); text-align: center; font-weight: 600;">
-                <button class="btn btn-outline btn-xs" onclick="applyWhatsAppSessionCount()">Apply</button>
-              </div>
+              <button class="btn btn-emerald btn-xs" onclick="addWhatsAppSession()">+ Add WhatsApp Session</button>
             </div>
+
 
             <div id="wa-senders-list-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.85rem;">
               Loading WhatsApp sessions...
@@ -1578,7 +1418,7 @@
                   Authenticated SMTP credentials and TLS delivery verification.
                 </div>
               </div>
-              <button class="btn btn-outline btn-xs" onclick="openEmailConfigModal()">+ Add Email Sender</button>
+              <button class="btn btn-outline btn-xs" onclick="addEmailSession()">+ Add Email Sender</button>
             </div>
 
             <div id="email-senders-list-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.85rem;">
@@ -1649,6 +1489,30 @@
     </div>
   </div>
 
+  <!-- 4b. Data Discrepancies Drawer -->
+  <div class="modal-overlay" id="discrepancies-modal">
+    <div class="modal-content" style="max-width: 720px; border-top: 4px solid var(--accent-amber);">
+      <div class="modal-header">
+        <h3 style="color: var(--accent-amber); display: flex; align-items: center; gap: 0.4rem;">
+          <span>⚠️ Data Discrepancies</span>
+        </h3>
+        <button class="modal-close-btn" onclick="closeDiscrepanciesDrawer()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+          Contacts sharing the same phone or email across different companies (potential duplicate people). Review and reconcile.
+        </div>
+        <div id="discrepancies-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="color: var(--text-muted); font-size: 0.85rem;">Loading discrepancies...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="fetchDiscrepancies()">Refresh</button>
+        <button class="btn btn-primary" onclick="closeDiscrepanciesDrawer()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 5. Outreach Readiness Error Modal (Phase 8.4) -->
   <div class="modal-overlay" id="readiness-modal">
     <div class="modal-content" style="max-width: 520px; border-top: 4px solid var(--accent-rose);">
@@ -1686,6 +1550,47 @@
         <button class="modal-close-btn" onclick="closeTemplatesDrawer()">&times;</button>
       </div>
       <div class="modal-body">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 0.75rem;">
+          <button class="btn btn-emerald btn-xs" id="add-template-btn" onclick="openTemplateForm(null)">+ Add Template</button>
+        </div>
+        <div id="template-form-container" style="display: none; flex-direction: column; gap: 0.75rem; margin-bottom: 0.75rem; padding: 0.85rem; background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-md);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong id="template-form-title" style="color: var(--accent-blue);">Add Template</strong>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Template ID</label>
+            <input type="text" id="tpl-id" class="form-control" placeholder="e.g. TEMPLATE_1">
+          </div>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem;">
+            <div class="form-group">
+              <label class="form-label">Name</label>
+              <input type="text" id="tpl-name" class="form-control" placeholder="e.g. Initial Outreach">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Channel</label>
+              <select id="tpl-channel" class="form-control">
+                <option value="WHATSAPP">WHATSAPP</option>
+                <option value="EMAIL">EMAIL</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Subject (optional)</label>
+            <input type="text" id="tpl-subject" class="form-control" placeholder="Email subject line">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Body</label>
+            <textarea id="tpl-body" class="form-control" rows="4" placeholder="Message body / content"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Resume / Attachment Path</label>
+            <input type="text" id="tpl-attachment-ref" class="form-control" placeholder="Path to resume or attachment (optional)">
+          </div>
+          <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button class="btn btn-secondary btn-xs" onclick="closeTemplateForm()">Cancel</button>
+            <button class="btn btn-primary btn-xs" onclick="saveTemplate()">Save Template</button>
+          </div>
+        </div>
         <div id="templates-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
           Loading templates...
         </div>
@@ -1740,14 +1645,12 @@
     // Global State Management
     let state = {
       user: null,
-      contacts: [],
       companies: [],
       hierarchies: [],
       kpis: {},
       senders: [],
       templates: [],
       activeCampaign: null,
-      viewMode: 'table',
       searchQuery: '',
       selectedCompany: 'ALL',
       selectedCrmStatus: 'ALL',
@@ -1795,29 +1698,6 @@
         fetchCampaigns(),
       ]);
       await fetchHierarchies();
-      await fetchContacts();
-    }
-
-    function setViewMode(mode) {
-      state.viewMode = mode;
-      const hierBtn = document.getElementById('view-mode-hierarchy-btn');
-      const tableBtn = document.getElementById('view-mode-table-btn');
-      const hierSec = document.getElementById('hierarchy-view-section');
-      const tableSec = document.getElementById('table-view-section');
-
-      if (mode === 'hierarchy') {
-        hierBtn.className = 'btn btn-primary btn-sm';
-        tableBtn.className = 'btn btn-outline btn-sm';
-        hierSec.style.display = 'flex';
-        tableSec.style.display = 'none';
-        fetchHierarchies();
-      } else {
-        hierBtn.className = 'btn btn-outline btn-sm';
-        tableBtn.className = 'btn btn-primary btn-sm';
-        hierSec.style.display = 'none';
-        tableSec.style.display = 'block';
-        fetchContacts();
-      }
     }
 
     // 1. Fetch & Render KPIs
@@ -1873,8 +1753,10 @@
       try {
         const params = new URLSearchParams();
         if (state.searchQuery) params.set('search', state.searchQuery);
-        if (state.selectedCompany !== 'ALL') params.set('search', state.selectedCompany);
-        if (state.selectedChannelStatus !== 'ALL') params.set('status', state.selectedChannelStatus);
+        if (state.selectedCompany !== 'ALL') params.set('company', state.selectedCompany);
+        if (state.selectedCrmStatus !== 'ALL') params.set('crm_status', state.selectedCrmStatus);
+        if (state.selectedPriorityFilter !== 'ALL') params.set('priority_filter', state.selectedPriorityFilter);
+        if (state.selectedChannelStatus !== 'ALL') params.set('channel_status', state.selectedChannelStatus);
 
         const res = await apiFetch(`/api/companies/hierarchy?${params.toString()}`);
         if (res.ok) {
@@ -1899,9 +1781,10 @@
         return;
       }
 
-      hierarchies.forEach((comp, cIdx) => {
+      hierarchies.forEach(comp => {
         const card = document.createElement('div');
         card.className = 'company-card';
+        card.setAttribute('data-company-id', comp.id);
 
         let statusClass = 'status-not-contacted';
         let statusIcon = '🔴';
@@ -1928,6 +1811,7 @@
           const statusSelect = `
             <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" onchange="updateContactStatus('${hr.contact_id}', this.value)">
               <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
+              <option value="PENDING_REPLY" ${curStatus === 'PENDING_REPLY' ? 'selected' : ''}>Pending Reply</option>
               <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
               <option value="REPLIED" ${curStatus === 'REPLIED' ? 'selected' : ''}>Replied</option>
               <option value="FOLLOW_UP" ${curStatus === 'FOLLOW_UP' ? 'selected' : ''}>Follow-Up Due</option>
@@ -1970,12 +1854,40 @@
             `;
           });
 
+          // Contact history timeline (from backend attempts)
+          const followUpBadge = hr.follow_up_due
+            ? `<span class="badge badge-pending-reply" style="font-size: 0.68rem;">⚠️ FOLLOW-UP DUE${hr.follow_up_due_at ? ' ' + formatDate(hr.follow_up_due_at) : ''}</span>`
+            : '';
+          let historyHtml = '<div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.25rem 0;">No message history yet.</div>';
+          if ((hr.history || []).length > 0) {
+            historyHtml = (hr.history || []).map(att => {
+              const ok = att.status === 'SENT';
+              const icon = ok ? '✓' : '✕';
+              const color = ok ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+              const when = att.completed_at || att.prepared_at;
+              return `
+                <div style="display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.72rem; padding: 0.2rem 0; border-bottom: 1px solid var(--border-subtle);">
+                  <span style="color: ${color}; font-weight: 700;">${icon}</span>
+                  <div style="flex: 1;">
+                    <div><strong>${escapeHtml(att.channel)}</strong> ${escapeHtml(att.attempt_type || '')} &rarr; <span style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(att.destination || '')}</span></div>
+                    <div style="color: var(--text-muted);">${when ? formatDate(when) : '--'} &bull; ${escapeHtml(att.sender_account_id || 'auto')} &bull; ${escapeHtml(att.template_id || 'Direct')}</div>
+                    ${att.failure_detail ? `<div style="color: var(--accent-rose);">${escapeHtml(att.failure_detail)}</div>` : ''}
+                  </div>
+                </div>
+              `;
+            }).join('');
+          }
+
+          const phoneDisplay = hr.phone || '-';
+          const emailDisplay = hr.email || '-';
+
           hrsHtml += `
             <div class="hr-card" data-contact-id="${hr.contact_id}">
               <div class="hr-header">
                 <div class="hr-title-wrap">
                   <span class="hr-name-bold">HR ${hrIdx + 1}: ${escapeHtml(hr.name)}</span>
                   ${hr.designation ? `<span class="hr-designation-text">&bull; ${escapeHtml(hr.designation)}</span>` : ''}
+                  ${followUpBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                   <span>CRM Status:</span>
@@ -1984,17 +1896,27 @@
                   <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive / DNC" onclick="archiveContact('${hr.contact_id}')">🗑</button>
                 </div>
               </div>
+              <div class="hr-contact-meta" style="font-size: 0.72rem; color: var(--text-secondary); padding: 0.35rem 0.9rem 0; display: flex; gap: 1rem; flex-wrap: wrap;">
+                <span>📞 ${escapeHtml(phoneDisplay)}</span>
+                <span>✉️ ${escapeHtml(emailDisplay)}</span>
+                ${hr.last_activity_at ? `<span>🕒 Last activity: ${formatDate(hr.last_activity_at)}</span>` : ''}
+              </div>
               <div class="endpoints-container">
                 ${endpointsHtml || '<div style="color: var(--text-muted); font-size: 0.75rem;">No endpoints registered for this contact.</div>'}
+              </div>
+              <div class="hr-history-block" style="border-top: 1px dashed var(--border-subtle); padding: 0.5rem 0.9rem;">
+                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.25rem;">Interaction History</div>
+                ${historyHtml}
               </div>
             </div>
           `;
         });
 
         card.innerHTML = `
-          <div class="company-card-header">
+          <div class="company-card-header" onclick="toggleCompany('${comp.id}')" title="Click to expand / collapse HR contacts">
             <div class="company-title-area">
-              <span class="company-name-lg">C${cIdx + 1} — ${escapeHtml(comp.name)}</span>
+              <span class="company-expand-caret" id="caret-${comp.id}">▸</span>
+              <span class="company-name-lg">${escapeHtml(comp.name)}</span>
               <span class="company-status-badge ${statusClass}">${statusIcon} ${statusText}</span>
             </div>
             <div class="company-meta-pills">
@@ -2002,7 +1924,7 @@
               <span>Endpoints: <strong>${comp.covered_endpoints || 0} / ${comp.total_endpoints || 0} covered</strong></span>
             </div>
           </div>
-          <div class="hr-contacts-list">
+          <div class="hr-contacts-list" id="hrlist-${comp.id}" style="display: none;">
             ${hrsHtml || '<div style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem;">No HR contacts registered.</div>'}
           </div>
         `;
@@ -2010,140 +1932,13 @@
       });
     }
 
-    // 4. Fetch Contacts & Render Table View
-    async function fetchContacts() {
-      try {
-        const params = new URLSearchParams();
-        if (state.searchQuery) params.set('search', state.searchQuery);
-        if (state.selectedCompany !== 'ALL') params.set('company', state.selectedCompany);
-        if (state.selectedCrmStatus !== 'ALL') params.set('crm_status', state.selectedCrmStatus);
-        if (state.selectedChannelStatus !== 'ALL') params.set('send_status', state.selectedChannelStatus);
-        if (state.selectedPriorityFilter !== 'ALL') params.set('priority_filter', state.selectedPriorityFilter);
-
-        const res = await apiFetch(`/api/contacts?${params.toString()}`);
-        if (res.ok) {
-          const data = await res.json();
-          state.contacts = data.contacts || [];
-          renderContactsTable(state.contacts);
-        }
-      } catch (err) {
-        console.error('Error loading contacts:', err);
-      }
-    }
-
-    function renderContactsTable(contacts) {
-      const tbody = document.getElementById('contacts-table-body');
-      tbody.innerHTML = '';
-
-      if (!contacts || contacts.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="9" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-              No contacts found matching the selected filter criteria.
-            </td>
-          </tr>
-        `;
-        return;
-      }
-
-      contacts.forEach(c => {
-        const tr = document.createElement('tr');
-        tr.setAttribute('data-contact-id', c.contact_id);
-
-        if (c.crm_outcome === 'INTERESTED') tr.classList.add('row-interested');
-        if (c.follow_up_due) tr.classList.add('row-followup-due');
-        if (c.crm_outcome === 'NOT_INTERESTED' || c.crm_outcome === 'DO_NOT_CONTACT') tr.classList.add('row-not-interested');
-
-        const lastContactedDisplay = c.last_contacted ? formatDate(c.last_contacted) : '<span style="color: var(--text-muted);">-</span>';
-        
-        let interestedSinceBadge = '';
-        if (c.interested_at) {
-          interestedSinceBadge = `<div class="interested-since-text">Interested since: ${formatDate(c.interested_at)}</div>`;
-        }
-
-        let followUpDueBadge = '';
-        if (c.follow_up_due) {
-          const dueStr = c.follow_up_due_at ? formatDate(c.follow_up_due_at) : 'Due Now';
-          followUpDueBadge = `
-            <div class="follow-up-due-tag">
-              ⚠️ FOLLOW-UP DUE (${dueStr})
-            </div>
-          `;
-        }
-
-        const phonesList = c.phones && c.phones.length > 0 ? c.phones : (c.phone ? [c.phone] : []);
-        let phonesHtml = phonesList.length > 0 
-          ? phonesList.map((p, idx) => `<span class="phone-text" title="Phone ${idx+1}">P${idx+1}: ${escapeHtml(p)}</span>`).join('<br>')
-          : '<span style="color: var(--text-muted);">-</span>';
-
-        const emailsList = c.emails && c.emails.length > 0 ? c.emails : (c.email ? [c.email] : []);
-        let emailsHtml = emailsList.length > 0 
-          ? emailsList.map((e, idx) => `<span class="email-text" data-testid="contact-email" title="Email ${idx+1}">E${idx+1}: ${escapeHtml(e)}</span>`).join('<br>')
-          : '<span style="color: var(--text-muted);">-</span>';
-
-        const cov = c.coverage || { total_endpoints: 0, covered_endpoints: 0, is_fully_covered: false };
-        let coverageBadge = '';
-        if (cov.is_fully_covered && cov.total_endpoints > 0) {
-          coverageBadge = '<span class="badge badge-sent" style="font-size: 0.7rem;">✓ FULLY COVERED</span>';
-        } else if (cov.covered_endpoints > 0) {
-          coverageBadge = '<span class="badge badge-partial" style="font-size: 0.7rem;">PARTIAL</span>';
-        } else {
-          coverageBadge = '<span class="badge badge-uncovered" style="font-size: 0.7rem;">UNCOVERED</span>';
-        }
-        const coverageSub = `<div class="endpoint-coverage-text">${cov.covered_endpoints || 0} / ${cov.total_endpoints || 0} endpoints</div>`;
-
-        const curStatus = c.crm_outcome || 'NOT_CONTACTED';
-        const statusSelectHtml = `
-          <select class="form-control" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" onchange="updateContactStatus('${c.contact_id}', this.value)">
-            <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
-            <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
-            <option value="REPLIED" ${curStatus === 'REPLIED' ? 'selected' : ''}>Replied</option>
-            <option value="FOLLOW_UP" ${curStatus === 'FOLLOW_UP' ? 'selected' : ''}>Follow-Up</option>
-            <option value="INTERESTED" ${curStatus === 'INTERESTED' ? 'selected' : ''}>Interested ★</option>
-            <option value="NOT_INTERESTED" ${curStatus === 'NOT_INTERESTED' ? 'selected' : ''}>Not Interested</option>
-            <option value="INTERVIEW" ${curStatus === 'INTERVIEW' ? 'selected' : ''}>Interview 📅</option>
-            <option value="OFFER" ${curStatus === 'OFFER' ? 'selected' : ''}>Offer 🏆</option>
-            <option value="REJECTED" ${curStatus === 'REJECTED' ? 'selected' : ''}>Rejected ✕</option>
-            <option value="CLOSED" ${curStatus === 'CLOSED' ? 'selected' : ''}>Closed ⚫</option>
-            <option value="DO_NOT_CONTACT" ${curStatus === 'DO_NOT_CONTACT' ? 'selected' : ''}>Do Not Contact ⛔</option>
-          </select>
-        `;
-
-        tr.innerHTML = `
-          <td class="company-cell" title="${escapeHtml(c.company)}">${escapeHtml(c.company)}</td>
-          <td>
-            <div class="person-cell">
-              <span class="person-name">${escapeHtml(c.name)}</span>
-              ${followUpDueBadge}
-            </div>
-          </td>
-          <td><span class="person-designation">${escapeHtml(c.designation || '-')}</span></td>
-          <td>${phonesHtml}</td>
-          <td>${emailsHtml}</td>
-          <td>
-            <div>
-              ${coverageBadge}
-              ${coverageSub}
-            </div>
-          </td>
-          <td>${lastContactedDisplay}</td>
-          <td>
-            <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-              ${statusSelectHtml}
-              ${interestedSinceBadge}
-            </div>
-          </td>
-          <td>
-            <div class="actions-cell" style="justify-content: flex-end;">
-              <button class="btn btn-emerald btn-xs" title="Send WhatsApp" onclick="openSendModal('${c.contact_id}', 'WHATSAPP', false)" ${phonesList.length === 0 ? 'disabled' : ''}>WA</button>
-              <button class="btn btn-primary btn-xs" title="Send Email" onclick="openSendModal('${c.contact_id}', 'EMAIL', false)" ${emailsList.length === 0 ? 'disabled' : ''}>Email</button>
-              <button class="btn btn-secondary btn-xs" title="View History Timeline" onclick="openHistoryModal('${c.contact_id}')">History</button>
-              <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive Contact" onclick="archiveContact('${c.contact_id}')">🗑</button>
-            </div>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+    function toggleCompany(companyId) {
+      const list = document.getElementById('hrlist-' + companyId);
+      const caret = document.getElementById('caret-' + companyId);
+      if (!list) return;
+      const isHidden = list.style.display === 'none';
+      list.style.display = isHidden ? 'block' : 'none';
+      if (caret) caret.textContent = isHidden ? '▾' : '▸';
     }
 
     // 5. CRM Status Update Action
@@ -2156,7 +1951,6 @@
         if (res.ok) {
           showToast(`Contact status updated to ${status}`, 'success');
           await fetchHierarchies();
-          await fetchContacts();
           await fetchKpis();
         } else {
           const err = await res.json();
@@ -2176,7 +1970,6 @@
         if (res.ok) {
           showToast('Contact archived and suppressed.', 'info');
           await fetchHierarchies();
-          await fetchContacts();
           await fetchKpis();
         }
       } catch (err) {
@@ -2206,34 +1999,35 @@
       const pauseBtn = document.getElementById('pause-campaign-btn');
       const resumeBtn = document.getElementById('resume-campaign-btn');
       const stopBtn = document.getElementById('stop-campaign-btn');
-      const remainingBtn = document.getElementById('start-remaining-btn');
 
       const st = camp ? camp.status : 'IDLE';
       statusPill.innerText = st;
       statusPill.className = 'campaign-status-badge';
 
+      const banner = document.getElementById('campaign-paused-banner');
       if (st === 'RUNNING') {
         statusPill.classList.add('status-running');
-        if (remainingBtn) remainingBtn.disabled = true;
         startBtn.disabled = true;
         pauseBtn.disabled = false;
         resumeBtn.disabled = true;
         stopBtn.disabled = false;
+        if (banner) banner.style.display = 'none';
       } else if (st === 'PAUSED') {
         statusPill.classList.add('status-paused');
-        if (remainingBtn) remainingBtn.disabled = true;
         startBtn.disabled = true;
         pauseBtn.disabled = true;
         resumeBtn.disabled = false;
         stopBtn.disabled = false;
+        if (banner) banner.style.display = 'flex';
       } else {
         if (st === 'COMPLETED') statusPill.classList.add('status-completed');
-        if (remainingBtn) remainingBtn.disabled = false;
         startBtn.disabled = false;
         pauseBtn.disabled = true;
         resumeBtn.disabled = true;
         stopBtn.disabled = true;
+        if (banner) banner.style.display = 'none';
       }
+
 
       if (camp) {
         document.getElementById('prog-pct').innerText = `${camp.progress_percent}%`;
@@ -2245,54 +2039,15 @@
         if (document.getElementById('prog-round')) document.getElementById('prog-round').innerText = `Round ${camp.current_round || 1}`;
         if (document.getElementById('prog-comp-cov')) document.getElementById('prog-comp-cov').innerText = camp.companies_covered || 0;
         if (document.getElementById('prog-comp-rem')) document.getElementById('prog-comp-rem').innerText = camp.companies_remaining || 0;
-        if (document.getElementById('prog-quota')) document.getElementById('prog-quota').innerText = camp.automatic_quota !== null && camp.automatic_quota !== undefined ? camp.automatic_quota : '∞';
-        if (document.getElementById('prog-auto-used')) document.getElementById('prog-auto-used').innerText = camp.automatic_used || 0;
-        if (document.getElementById('prog-auto-rem')) document.getElementById('prog-auto-rem').innerText = camp.remaining_automatic !== null && camp.remaining_automatic !== undefined ? camp.remaining_automatic : '∞';
-        if (document.getElementById('prog-manual-res')) document.getElementById('prog-manual-res').innerText = camp.manual_reserve || 20;
-        if (document.getElementById('prog-manual-used')) document.getElementById('prog-manual-used').innerText = camp.manual_used || 0;
-        if (document.getElementById('prog-manual-rem')) document.getElementById('prog-manual-rem').innerText = camp.remaining_manual !== undefined ? camp.remaining_manual : 20;
         if (document.getElementById('prog-curr-channel')) document.getElementById('prog-curr-channel').innerText = camp.current_dispatch_channel || camp.channel || 'WHATSAPP';
         if (document.getElementById('prog-curr-sender')) document.getElementById('prog-curr-sender').innerText = camp.current_sender || 'AUTO';
         if (document.getElementById('prog-curr-template')) document.getElementById('prog-curr-template').innerText = camp.template_used || 'AUTO';
       }
     }
 
-    async function startRemainingOutreach() {
-      const limitInput = document.getElementById('campaign-limit-input');
-      const maxCount = limitInput ? (parseInt(limitInput.value, 10) || 200) : 200;
-      const startBtn = document.getElementById('start-remaining-btn');
-      const originalText = startBtn.innerHTML;
-      startBtn.disabled = true;
-      startBtn.innerHTML = '<span class="spinner"></span> Starting...';
-
-      try {
-        const res = await apiFetch(`/api/campaigns/start-remaining?channel=WHATSAPP&max_count=${maxCount}`, {
-          method: 'POST',
-        });
-        const data = await res.json();
-        if (res.ok) {
-          showToast(`Multi-channel outreach launched for up to ${maxCount} contacts in Round-Robin order!`, 'success');
-          updateCampaignControls(data);
-          await fetchHierarchies();
-          await fetchContacts();
-          await fetchKpis();
-        } else {
-          const detail = data.detail || {};
-          const reason = detail.reason || 'OUTREACH_NOT_READY';
-          const msg = detail.message || (typeof detail === 'string' ? detail : 'Prerequisites not met');
-          openReadinessModal(reason, msg);
-        }
-      } catch (err) {
-        showToast('Failed to start outreach: ' + err.message, 'error');
-      } finally {
-        startBtn.disabled = false;
-        startBtn.innerHTML = originalText;
-      }
-    }
-
     async function startCampaign() {
       const limitInput = document.getElementById('campaign-limit-input');
-      const maxCount = limitInput ? (parseInt(limitInput.value, 10) || 200) : 200;
+      const maxCount = limitInput ? (parseInt(limitInput.value, 10) || __DEFAULT_OUTREACH_LIMIT__) : __DEFAULT_OUTREACH_LIMIT__;
       const startBtn = document.getElementById('start-campaign-btn');
       const originalText = startBtn.innerHTML;
       startBtn.disabled = true;
@@ -2301,7 +2056,7 @@
       try {
         const res = await apiFetch('/api/campaigns/quick-start', {
           method: 'POST',
-          body: JSON.stringify({ channel: 'WHATSAPP', max_count: maxCount, automatic_quota: maxCount })
+          body: JSON.stringify({ channel: 'WHATSAPP', max_count: maxCount })
         });
         const data = await res.json();
         if (res.ok) {
@@ -2366,14 +2121,12 @@
 
     // 7. Manual Send / Resend Modal Actions
     function openSendModal(contactId, channel = 'WHATSAPP', isResend = false, targetEndpoint = null) {
-      let contact = state.contacts.find(c => c.contact_id === contactId);
-      if (!contact) {
-        for (const h of state.hierarchies || []) {
-          const found = (h.contacts || []).find(c => c.contact_id === contactId);
-          if (found) {
-            contact = { ...found, company: h.name };
-            break;
-          }
+      let contact = null;
+      for (const h of state.hierarchies || []) {
+        const found = (h.contacts || []).find(c => c.contact_id === contactId);
+        if (found) {
+          contact = { ...found, company: h.name };
+          break;
         }
       }
       if (!contact) return;
@@ -2474,7 +2227,11 @@
     function handleTemplateSelectChange() {
       const tplId = document.getElementById('modal-template-select').value;
       const contactId = document.getElementById('modal-contact-id').value;
-      const contact = state.contacts.find(c => c.contact_id === contactId) || {};
+      let contact = {};
+      for (const h of state.hierarchies || []) {
+        const found = (h.contacts || []).find(c => c.contact_id === contactId);
+        if (found) { contact = { ...found, company: h.name }; break; }
+      }
 
       if (!tplId) return;
 
@@ -2550,7 +2307,6 @@
           showToast(`${channel} message dispatched to ${destination || 'contact'}!`, 'success');
           closeSendModal();
           await fetchHierarchies();
-          await fetchContacts();
           await fetchKpis();
         } else {
           showToast(`Send failed: ${data.failure_detail || data.detail || 'Provider error'}`, 'error');
@@ -2576,7 +2332,7 @@
         const res = await apiFetch(`/api/contacts/${contactId}`);
         if (res.ok) {
           const detail = await res.json();
-          summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml((detail.phones || [detail.phone]).join(', ') || '-')} &bull; Email(s): ${escapeHtml((detail.emails || [detail.email]).join(', ') || '-')}`;
+          summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml(((detail.phones && detail.phones.length ? detail.phones : (detail.phone ? [detail.phone] : [])).join(', ') || '-'))} &bull; Email(s): ${escapeHtml(((detail.emails && detail.emails.length ? detail.emails : (detail.email ? [detail.email] : [])).join(', ') || '-'))}`;
 
           timelineList.innerHTML = '';
           const history = detail.history || [];
@@ -2716,7 +2472,7 @@
       // 1. Render WhatsApp Sessions
       waContainer.innerHTML = '';
       if (waSenders.length === 0) {
-        waContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No WhatsApp sessions configured.</div>';
+        waContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No WhatsApp sessions configured. Click "+ Add WhatsApp Session" to create one.</div>';
       } else {
         waSenders.forEach(s => {
           const card = document.createElement('div');
@@ -2731,6 +2487,7 @@
           else if (s.status === 'AUTHENTICATING') statusBadgeClass = 'badge-partial';
           else if (s.status === 'QR_REQUIRED') statusBadgeClass = 'badge-partial';
           else if (s.status === 'AUTH_REQUIRED' || s.status === 'NOT_CONFIGURED') statusBadgeClass = 'badge-uncovered';
+          else if (s.status === 'INACTIVE') statusBadgeClass = 'badge-not-sent';
 
           let qrBoxHtml = '';
           if (s.status === 'QR_REQUIRED' && s.qr_code) {
@@ -2758,6 +2515,34 @@
 
           const errorHtml = s.error_message ? `<div style="color: var(--accent-rose); font-size: 0.7rem;">⚠️ ${escapeHtml(s.error_message)}</div>` : '';
           const lastCheckedHtml = s.last_checked ? `<div style="font-size: 0.675rem; color: var(--text-muted);">Last verified: ${formatDate(s.last_checked)}</div>` : '';
+          const lastUsedHtml = s.last_used_at ? `<div style="font-size: 0.675rem; color: var(--text-secondary);">Last used: ${formatDate(s.last_used_at)}</div>` : '';
+
+          let actionButtons = '';
+          if (s.status === 'INACTIVE') {
+            actionButtons = `
+              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${s.id}')" title="Reactivate sender into rotation">
+                <span>⚡ Reactivate</span>
+              </button>
+              <button class="btn btn-rose btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+                <span>🗑️ Remove</span>
+              </button>
+            `;
+          } else {
+            actionButtons = `
+              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${s.id}')" title="Start QR code authentication">
+                <span>📱 ${s.status === 'ACTIVE' ? 'Re-Authenticate' : 'Start Auth'}</span>
+              </button>
+              <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')" title="Check connection health">
+                <span>🔍 Status</span>
+              </button>
+              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${s.id}')" title="Deactivate and pause from rotation">
+                <span>⏸️ Deactivate</span>
+              </button>
+              <button class="btn btn-outline btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+                <span>🗑️</span>
+              </button>
+            `;
+          }
 
           card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -2768,16 +2553,15 @@
               </div>
               <span class="badge ${statusBadgeClass}">${s.status}</span>
             </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">
+              Limit: ${s.daily_limit || 50}/day &bull; Rate: ${s.hourly_limit || 10}/hr
+            </div>
             ${qrBoxHtml}
             ${errorHtml}
             ${lastCheckedHtml}
+            ${lastUsedHtml}
             <div style="display: flex; gap: 0.35rem; margin-top: auto; padding-top: 0.35rem; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
-              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${s.id}')" title="Start QR code authentication">
-                <span>📱 ${s.status === 'ACTIVE' ? 'Re-Authenticate' : 'Start Auth'}</span>
-              </button>
-              <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')" title="Check connection health">
-                <span>🔍 Check Status</span>
-              </button>
+              ${actionButtons}
             </div>
           `;
           waContainer.appendChild(card);
@@ -2787,7 +2571,7 @@
       // 2. Render Email Sessions
       emContainer.innerHTML = '';
       if (emSenders.length === 0) {
-        emContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No Email senders configured.</div>';
+        emContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No Email senders configured. Click "+ Add Email Sender" to add one.</div>';
       } else {
         emSenders.forEach(s => {
           const card = document.createElement('div');
@@ -2797,8 +2581,40 @@
           card.style.flexDirection = 'column';
           card.style.gap = '0.5rem';
 
-          let statusBadgeClass = s.status === 'ACTIVE' ? 'badge-sent' : 'badge-failed';
+          let statusBadgeClass = 'badge-failed';
+          if (s.status === 'ACTIVE') statusBadgeClass = 'badge-sent';
+          else if (s.status === 'INACTIVE') statusBadgeClass = 'badge-not-sent';
+          else if (s.status === 'AUTH_REQUIRED') statusBadgeClass = 'badge-uncovered';
+
           const errorHtml = s.error_message ? `<div style="color: var(--accent-rose); font-size: 0.7rem;">⚠️ ${escapeHtml(s.error_message)}</div>` : '';
+          const lastUsedHtml = s.last_used_at ? `<div style="font-size: 0.675rem; color: var(--text-secondary);">Last used: ${formatDate(s.last_used_at)}</div>` : '';
+
+          let actionButtons = '';
+          if (s.status === 'INACTIVE') {
+            actionButtons = `
+              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${s.id}')" title="Reactivate sender">
+                <span>⚡ Reactivate</span>
+              </button>
+              <button class="btn btn-rose btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+                <span>🗑️ Remove</span>
+              </button>
+            `;
+          } else {
+            actionButtons = `
+              <button class="btn btn-primary btn-xs" onclick="openEmailConfigModal('${s.id}')">
+                <span>⚙️ Configure</span>
+              </button>
+              <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${s.id}')">
+                <span>🔌 Test &amp; Verify</span>
+              </button>
+              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${s.id}')" title="Deactivate and pause from rotation">
+                <span>⏸️ Deactivate</span>
+              </button>
+              <button class="btn btn-outline btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+                <span>🗑️</span>
+              </button>
+            `;
+          }
 
           card.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -2810,22 +2626,19 @@
               <span class="badge ${statusBadgeClass}">${s.status}</span>
             </div>
             ${errorHtml}
+            ${lastUsedHtml}
             <div style="font-size: 0.7rem; color: var(--text-muted);">
               Limit: ${s.daily_limit || 100}/day &bull; Rate: ${s.hourly_limit || 20}/hr
             </div>
             <div style="display: flex; gap: 0.35rem; margin-top: auto; padding-top: 0.35rem; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
-              <button class="btn btn-primary btn-xs" onclick="openEmailConfigModal('${s.id}')">
-                <span>⚙️ Configure</span>
-              </button>
-              <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${s.id}')">
-                <span>🔌 Test &amp; Verify</span>
-              </button>
+              ${actionButtons}
             </div>
           `;
           emContainer.appendChild(card);
         });
       }
     }
+
 
     async function openSendersDrawer() {
       await fetchSenders();
@@ -2836,23 +2649,89 @@
       document.getElementById('senders-modal').classList.remove('open');
     }
 
-    async function applyWhatsAppSessionCount() {
-      const countInput = document.getElementById('wa-session-count-input');
-      const count = parseInt(countInput.value, 10) || 1;
+    async function addWhatsAppSession() {
       try {
-        const res = await apiFetch('/api/senders/whatsapp/configure', {
+        showToast('Adding new WhatsApp session...', 'info');
+        const res = await apiFetch('/api/senders/whatsapp/add', {
           method: 'POST',
-          body: JSON.stringify({ count: count }),
+          body: JSON.stringify({}),
         });
         if (res.ok) {
-          showToast(`Configured ${count} WhatsApp sessions.`, 'success');
+          const data = await res.json();
+          showToast(`Added ${data.id}. Click Start Auth to scan QR.`, 'success');
           await fetchSenders();
         } else {
           const err = await res.json();
-          showToast(`Failed to configure sessions: ${err.detail || 'Error'}`, 'error');
+          showToast(`Failed to add session: ${err.detail || 'Error'}`, 'error');
         }
       } catch (err) {
-        showToast('Error configuring WhatsApp sessions: ' + err.message, 'error');
+        showToast('Error adding WhatsApp session: ' + err.message, 'error');
+      }
+    }
+
+    async function addEmailSession() {
+      try {
+        showToast('Adding new Email session...', 'info');
+        const res = await apiFetch('/api/senders/email/add', {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Added ${data.id}. Click Configure to set SMTP.`, 'success');
+          await fetchSenders();
+        } else {
+          const err = await res.json();
+          showToast(`Failed to add session: ${err.detail || 'Error'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error adding Email session: ' + err.message, 'error');
+      }
+    }
+
+    async function deactivateSender(senderId) {
+      try {
+        const res = await apiFetch(`/api/senders/${senderId}/deactivate`, { method: 'POST' });
+        if (res.ok) {
+          showToast(`Sender ${senderId} deactivated (paused from rotation).`, 'info');
+          await fetchSenders();
+        } else {
+          const err = await res.json();
+          showToast(`Failed: ${err.detail || 'Error'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error deactivating sender: ' + err.message, 'error');
+      }
+    }
+
+    async function reactivateSender(senderId) {
+      try {
+        const res = await apiFetch(`/api/senders/${senderId}/reactivate`, { method: 'POST' });
+        if (res.ok) {
+          showToast(`Sender ${senderId} reactivated.`, 'success');
+          await fetchSenders();
+        } else {
+          const err = await res.json();
+          showToast(`Failed: ${err.detail || 'Error'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error reactivating sender: ' + err.message, 'error');
+      }
+    }
+
+    async function removeSender(senderId) {
+      if (!confirm(`Are you sure you want to remove/deactivate sender '${senderId}'? Historical logs will be preserved.`)) return;
+      try {
+        const res = await apiFetch(`/api/senders/${senderId}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast(`Sender ${senderId} removed from active rotation.`, 'info');
+          await fetchSenders();
+        } else {
+          const err = await res.json();
+          showToast(`Failed: ${err.detail || 'Error'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error removing sender: ' + err.message, 'error');
       }
     }
 
@@ -2998,9 +2877,13 @@
         card.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
             <strong>${t.id} - ${escapeHtml(t.name)}</strong>
-            <span class="badge badge-sent">${t.channel}</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span class="badge badge-sent">${t.channel}</span>
+              <button class="btn btn-outline btn-xs" onclick="openTemplateFormById('${t.id}')">Edit</button>
+            </div>
           </div>
           ${t.subject ? `<div style="font-size: 0.75rem; color: var(--accent-blue); font-weight: 600;">Subject: ${escapeHtml(t.subject)}</div>` : ''}
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.3rem;">Resume: ${t.attachment_ref ? escapeHtml(t.attachment_ref) : 'not set'}</div>
           <div style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-surface-raised); padding: 0.45rem; border-radius: var(--radius-xs); white-space: pre-wrap; font-family: 'JetBrains Mono', monospace;">${escapeHtml(t.body)}</div>
         `;
         container.appendChild(card);
@@ -3011,6 +2894,82 @@
 
     function closeTemplatesDrawer() {
       document.getElementById('templates-modal').classList.remove('open');
+    }
+
+    // Template Add/Edit Inline Form (shared for create and edit)
+    let editingTemplate = null;
+
+    function renderTemplateForm(template) {
+      editingTemplate = template || null;
+      const isEdit = !!template;
+      document.getElementById('template-form-title').innerText = isEdit ? 'Edit Template' : 'Add Template';
+      document.getElementById('tpl-id').value = template ? (template.id || '') : '';
+      document.getElementById('tpl-id').readOnly = isEdit;
+      document.getElementById('tpl-name').value = template ? (template.name || '') : '';
+      document.getElementById('tpl-channel').disabled = isEdit;
+      document.getElementById('tpl-channel').value = (template && template.channel) ? template.channel : 'WHATSAPP';
+      document.getElementById('tpl-subject').value = template ? (template.subject || '') : '';
+      document.getElementById('tpl-body').value = template ? (template.body || '') : '';
+      document.getElementById('tpl-attachment-ref').value = template ? (template.attachment_ref || '') : '';
+    }
+
+    function openTemplateFormById(templateId) {
+      const t = state.templates.find(x => x.id === templateId);
+      openTemplateForm(t || null);
+    }
+
+    function openTemplateForm(template) {
+      renderTemplateForm(template);
+      document.getElementById('template-form-container').style.display = 'flex';
+    }
+
+    function closeTemplateForm() {
+      document.getElementById('template-form-container').style.display = 'none';
+    }
+
+    async function saveTemplate() {
+      const id = document.getElementById('tpl-id').value.trim();
+      const name = document.getElementById('tpl-name').value.trim();
+      const channel = document.getElementById('tpl-channel').value;
+      const subject = document.getElementById('tpl-subject').value.trim();
+      const body = document.getElementById('tpl-body').value;
+      const attachmentRef = document.getElementById('tpl-attachment-ref').value.trim();
+
+      if (!id || !name || !body) {
+        showToast('Template ID, Name and Body are required.', 'error');
+        return;
+      }
+
+      const isEdit = !!editingTemplate;
+      let payload;
+      if (isEdit) {
+        payload = {};
+        if (name !== (editingTemplate.name || '')) payload.name = name;
+        if (subject !== (editingTemplate.subject || '')) payload.subject = subject;
+        if (body !== (editingTemplate.body || '')) payload.body = body;
+        if (attachmentRef !== (editingTemplate.attachment_ref || '')) payload.attachment_ref = attachmentRef;
+      } else {
+        payload = { id: id, name: name, channel: channel, body: body, subject: subject, attachment_ref: attachmentRef };
+      }
+
+      try {
+        showToast(isEdit ? `Saving template ${id}...` : 'Creating template...', 'info');
+        const res = await apiFetch(isEdit ? `/api/templates/${encodeURIComponent(editingTemplate.id)}` : '/api/templates', {
+          method: isEdit ? 'PUT' : 'POST',
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          showToast(`Template ${id} saved.`, 'success');
+          closeTemplateForm();
+          await fetchTemplates();
+          await openTemplatesDrawer();
+        } else {
+          const err = await res.json();
+          showToast(`Failed to save template: ${err.detail || 'Error'}`, 'error');
+        }
+      } catch (err) {
+        showToast('Error saving template: ' + err.message, 'error');
+      }
     }
 
     // 11. Source Synchronization
@@ -3147,31 +3106,26 @@
         showToast(`Sent ${ch} to ${dest}`, 'success');
         await fetchKpis();
         await fetchHierarchies();
-        await fetchContacts();
         if (state.activeCampaign) await fetchCampaigns();
       } else if (dotType === 'outreach.failed' || type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') {
         showToast(`Message failed: ${p.failure_detail || p.failure_code || 'Error'}`, 'error');
         await fetchKpis();
         await fetchHierarchies();
-        await fetchContacts();
       } else if (dotType === 'outreach.recovery_required' || type === 'OUTREACH_RECOVERY_REQUIRED') {
         showToast(`⚠️ Outreach recovery required for ${p.destination || 'contact'}`, 'error');
         await fetchKpis();
         await fetchHierarchies();
-        await fetchContacts();
       } else if (dotType === 'campaign.status_changed' || type.startsWith('CAMPAIGN_')) {
         await fetchCampaigns();
         await fetchKpis();
       } else if (dotType === 'contact.status_changed' || type === 'CRM_STATUS_CHANGED' || type === 'CONTACT_UPDATED' || type === 'CRM_OUTCOME_UPDATED') {
         await fetchKpis();
         await fetchHierarchies();
-        await fetchContacts();
       } else if (dotType === 'sync.completed' || type === 'EXCEL_SYNC_COMPLETED' || type === 'SYNC_COMPLETED') {
         showToast('Source synchronization completed!', 'success');
         await fetchKpis();
         await fetchCompanies();
         await fetchHierarchies();
-        await fetchContacts();
       }
     }
 
@@ -3181,11 +3135,7 @@
       clearTimeout(searchDebounce);
       searchDebounce = setTimeout(() => {
         state.searchQuery = document.getElementById('search-input').value.trim();
-        if (state.viewMode === 'hierarchy') {
-          fetchHierarchies();
-        } else {
-          fetchContacts();
-        }
+        fetchHierarchies();
       }, 200);
     }
 
@@ -3193,11 +3143,7 @@
       state.selectedCompany = document.getElementById('company-filter').value;
       state.selectedCrmStatus = document.getElementById('crm-status-filter').value;
       state.selectedChannelStatus = document.getElementById('channel-filter').value;
-      if (state.viewMode === 'hierarchy') {
-        fetchHierarchies();
-      } else {
-        fetchContacts();
-      }
+      fetchHierarchies();
     }
 
     function setPriorityFilter(filterName) {
@@ -3205,11 +3151,7 @@
       document.querySelectorAll('.priority-pills .pill-btn').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-filter') === filterName);
       });
-      if (state.viewMode === 'hierarchy') {
-        fetchHierarchies();
-      } else {
-        fetchContacts();
-      }
+      fetchHierarchies();
     }
 
     // Utility Helpers
@@ -3257,6 +3199,39 @@
         setTimeout(() => toast.remove(), 300);
       }, 4000);
     }
-  </script>
+  
+    function _discEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function openDiscrepanciesDrawer() {
+      document.getElementById('discrepancies-modal').classList.add('open');
+      fetchDiscrepancies();
+    }
+    function closeDiscrepanciesDrawer() {
+      document.getElementById('discrepancies-modal').classList.remove('open');
+    }
+    async function fetchDiscrepancies() {
+      const container = document.getElementById('discrepancies-list-container');
+      container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Loading discrepancies...</div>';
+      try {
+        const res = await apiFetch('/api/contacts/discrepancies');
+        const data = await res.json();
+        if (!data || !data.groups || data.groups.length === 0) {
+          container.innerHTML = '<div style="color:var(--accent-emerald);font-size:0.85rem;">&#10003; No data discrepancies found.</div>';
+          return;
+        }
+        let html = '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem;">Found ' + data.groups.length + ' discrepancy group(s).</div>';
+        data.groups.forEach(function(g, i) {
+          html += '<div style="border:1px solid var(--border-medium);border-left:3px solid var(--accent-amber);border-radius:var(--radius-sm);padding:0.6rem 0.75rem;">';
+          html += '<div style="font-weight:600;font-size:0.8rem;margin-bottom:0.35rem;">' + (i + 1) + '. ' + _discEsc(g.kind) + ': <span style="color:var(--accent-amber);">' + _discEsc(g.identifier) + '</span></div>';
+          g.contacts.forEach(function(c) {
+            html += '<div style="font-size:0.8rem;padding:0.15rem 0;">&#8226; <strong>' + _discEsc(c.name) + '</strong> @ ' + _discEsc(c.company) + ' <span style="color:var(--text-muted);">(' + _discEsc(c.phone || c.email) + ')</span>' + (c.last_whatsapp_at ? ' &mdash; last WA ' + _discEsc(String(c.last_whatsapp_at).slice(0,10)) : '') + '</div>';
+          });
+          html += '</div>';
+        });
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading discrepancies: ' + _discEsc(err.message) + '</div>';
+      }
+    }
+</script>
 </body>
 </html>

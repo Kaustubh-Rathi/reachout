@@ -52,7 +52,8 @@ def upgrade() -> None:
         sa.Column('notes', sa.Text(), server_default='', nullable=False),
         sa.Column('tags_json', sa.Text(), server_default='[]', nullable=False),
         sa.ForeignKeyConstraint(['company_id'], ['companies.id'], ondelete='CASCADE'),
-        sa.PrimaryKeyConstraint('contact_id')
+        sa.PrimaryKeyConstraint('contact_id'),
+        sa.CheckConstraint('phone IS NOT NULL OR email IS NOT NULL', name='ck_contacts_reachable')
     )
     op.create_index('ix_contacts_company_id', 'contacts', ['company_id'], unique=False)
     op.create_index('ix_contacts_phone', 'contacts', ['phone'], unique=False)
@@ -94,7 +95,8 @@ def upgrade() -> None:
         sa.Column('last_used_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('daily_limit', sa.Integer(), nullable=True),
         sa.Column('hourly_limit', sa.Integer(), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('channel', 'identity', name='uq_sender_channel_identity')
     )
     op.create_index('ix_sender_accounts_channel', 'sender_accounts', ['channel'], unique=False)
 
@@ -133,7 +135,7 @@ def upgrade() -> None:
         'outreach_attempts',
         sa.Column('id', sa.String(length=64), nullable=False),
         sa.Column('contact_id', sa.String(length=64), nullable=False),
-        sa.Column('sender_account_id', sa.String(length=64), nullable=False),
+        sa.Column('sender_account_id', sa.String(length=64), nullable=True),
         sa.Column('channel', sa.String(length=32), nullable=False),
         sa.Column('attempt_type', sa.String(length=32), nullable=False),
         sa.Column('status', sa.String(length=32), nullable=False),
@@ -152,6 +154,8 @@ def upgrade() -> None:
         sa.Column('recovery_notes', sa.Text(), nullable=True),
         sa.ForeignKeyConstraint(['campaign_id'], ['campaigns.id'], ondelete='SET NULL'),
         sa.ForeignKeyConstraint(['contact_id'], ['contacts.contact_id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['sender_account_id'], ['sender_accounts.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['template_id'], ['message_templates.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('idempotency_key')
     )
@@ -201,7 +205,8 @@ def upgrade() -> None:
         sa.Column('identifier', sa.String(length=255), nullable=False),
         sa.Column('reason', sa.String(length=500), server_default='MANUAL_CRM_DELETION', nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('suppression_type', 'identifier', name='uq_suppression_type_identifier')
     )
     op.create_index('ix_suppression_records_identifier', 'suppression_records', ['identifier'], unique=False)
 

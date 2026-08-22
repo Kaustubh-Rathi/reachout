@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.domain.campaign import Campaign
 from app.domain.company import Company
@@ -70,7 +71,7 @@ from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.ports.providers import ProviderSendResult
 from app.ports.source import SourceRow
 from app.services.crm_service import CrmService
-from app.services.sender_service import SenderService, get_default_senders
+from app.services.sender_service import SenderService
 
 
 # ==============================================================================
@@ -510,11 +511,23 @@ class TestFinding4DefinitiveFailureAndFallback:
 class TestFinding6WhatsAppAuthentication:
     """Audit Finding 6: WhatsApp live vs mock authentication state machine."""
 
-    def test_fresh_live_mode_senders_seeded_as_auth_required(self):
-        """In production, seeded senders start as AUTH_REQUIRED."""
-        senders = get_default_senders()
-        for s in senders:
-            assert s.status == SenderStatus.AUTH_REQUIRED
+    def test_fresh_baseline_starts_with_zero_senders(self):
+        """Baseline: a fresh repository seeds no senders (operator adds sessions).
+
+        Replaces the old behavior where default senders were pre-seeded. The
+        operator adds the required number of WhatsApp and Email sessions.
+        """
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        Base.metadata.create_all(bind=engine)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        with SessionLocal() as session:
+            svc = SenderService(session)
+            svc.seed_defaults_if_empty()
+            assert svc.list_senders() == []
 
     def test_whatsapp_auth_flow_qr_to_active(self):
         """Starting QR auth returns AUTHENTICATING and set_auth_state transitions to ACTIVE."""

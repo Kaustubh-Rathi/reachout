@@ -260,3 +260,41 @@ class TestArchitecturalBoundaries:
         # Ensure no embedded backend database connection strings or secret tokens in UI
         assert "sqlite:" not in content
         assert "DATABASE_URL" not in content
+
+    def test_production_code_never_imports_from_tests_directory(self):
+        """Production code under app/ must never import from tests/ or tests.doubles."""
+        app_files = list(APP_DIR.rglob("*.py"))
+        assert len(app_files) > 0
+
+        violations = []
+        for file_path in app_files:
+            if file_path.name.startswith("__pycache__"):
+                continue
+            imported_modules = extract_imported_modules(file_path)
+            for mod in imported_modules:
+                if mod.startswith("tests") or mod.startswith("tests.doubles"):
+                    violations.append(
+                        f"VIOLATION: Production file {file_path.name} imports test module '{mod}'"
+                    )
+
+        assert not violations, "\n".join(violations)
+
+    def test_production_code_has_no_test_doubles_references(self):
+        """Production code under app/ must not reference test double classes."""
+        app_files = list(APP_DIR.rglob("*.py"))
+        assert len(app_files) > 0
+
+        forbidden_tokens = ["FakeWhatsAppProvider", "FakeEmailProvider"]
+        violations = []
+        for file_path in app_files:
+            if file_path.name.startswith("__pycache__"):
+                continue
+            content = file_path.read_text(encoding="utf-8")
+            for token in forbidden_tokens:
+                if token in content:
+                    violations.append(
+                        f"VIOLATION: Production file {file_path.name} references test double '{token}'"
+                    )
+
+        assert not violations, "\n".join(violations)
+

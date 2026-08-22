@@ -98,11 +98,17 @@ class SmtpEmailProvider:
 
         try:
             context = ssl.create_default_context()
-            with smtplib.SMTP(host, port, timeout=15) as server:
-                server.ehlo()
-                server.starttls(context=context)
-                server.ehlo()
-                server.login(user, pwd)
+            if port == 465:
+                # Implicit TLS (SMTPS) — no STARTTLS handshake.
+                with smtplib.SMTP_SSL(host, port, timeout=15, context=context) as server:
+                    server.login(user, pwd)
+            else:
+                # Explicit TLS via STARTTLS (e.g. 587).
+                with smtplib.SMTP(host, port, timeout=15) as server:
+                    server.ehlo()
+                    server.starttls(context=context)
+                    server.ehlo()
+                    server.login(user, pwd)
             return True, None
         except smtplib.SMTPAuthenticationError as auth_err:
             return False, f"SMTP authentication rejected: {auth_err}"
@@ -171,12 +177,17 @@ class SmtpEmailProvider:
 
         try:
             context = ssl.create_default_context()
-            with smtplib.SMTP(host, port, timeout=30) as server:
-                server.ehlo()
-                server.starttls(context=context)
-                server.ehlo()
-                server.login(user, pwd)
-                server.send_message(msg)
+            if port == 465:
+                with smtplib.SMTP_SSL(host, port, timeout=30, context=context) as server:
+                    server.login(user, pwd)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(host, port, timeout=30) as server:
+                    server.ehlo()
+                    server.starttls(context=context)
+                    server.ehlo()
+                    server.login(user, pwd)
+                    server.send_message(msg)
 
             ref_id = f"email_{uuid.uuid4().hex[:16]}"
             return ProviderSendResult.sent(provider_reference=ref_id)

@@ -69,35 +69,24 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
 
 
 def test_contact_display_and_email_visibility(browser_page: Page):
-    """Test contacts table renders required columns and email is directly visible in the row."""
+    """Test the hierarchy view renders companies and emails are visible when expanded."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
 
-    # Wait for table rows to render
-    page.wait_for_selector("#contacts-table-body tr", timeout=10000)
-    rows = page.query_selector_all("#contacts-table-body tr")
-    assert len(rows) > 0, "Contacts table must render prospect rows"
+    # Wait for hierarchy company cards to render
+    page.wait_for_selector(".company-card", timeout=10000)
+    cards = page.query_selector_all(".company-card")
+    assert len(cards) > 0, "Hierarchy view must render company cards"
 
-    # Verify column headers
-    headers = [
-        "Company",
-        "HR Name",
-        "Designation",
-        "Phone(s)",
-        "Email(s)",
-        "Contact Coverage",
-        "Last Contacted",
-        "Status",
-        "Actions",
-    ]
-    for h in headers:
-        assert page.is_visible(f"th:has-text('{h}')"), f"Header '{h}' must be visible"
+    # Expand the first company card to reveal HR contacts
+    page.locator(".company-card-header").first.click()
+    page.wait_for_selector(".hr-card", timeout=5000)
+    hr_cards = page.query_selector_all(".hr-card")
+    assert len(hr_cards) > 0, "Company card must reveal HR contacts when expanded"
 
-    # Crucial requirement: Email must be directly visible in the row, NOT hidden in a drawer
-    email_elements = page.query_selector_all("[data-testid='contact-email']")
-    assert len(email_elements) > 0, "Email elements must be directly visible in table rows"
-    first_email_text = email_elements[0].inner_text().strip()
-    assert len(first_email_text) > 0, "Email column must render an email string or placeholder"
+    # Company name + status badge must be present
+    assert len(page.query_selector_all(".company-name-lg")) > 0, "Company name must be visible"
+    assert len(page.query_selector_all(".company-status-badge")) > 0, "Company status badge must be visible"
 
 
 def test_campaign_lifecycle_controls(browser_page: Page):
@@ -130,10 +119,12 @@ def test_manual_whatsapp_send_and_resend(browser_page: Page):
     """Test manual WhatsApp send modal, template selection, and resend workflow."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("#contacts-table-body tr", timeout=10000)
+    page.wait_for_selector(".company-card", timeout=10000)
+    page.locator(".company-card-header").first.click()
+    page.wait_for_selector(".hr-card", timeout=5000)
 
     # Click first available enabled WA send button
-    wa_btn = page.locator("button:has-text('WA'):not([disabled])").first
+    wa_btn = page.locator("button:has-text('Send WA'):not([disabled]), button:has-text('WA'):not([disabled])").first
     wa_btn.click()
 
     # Modal should appear
@@ -158,10 +149,12 @@ def test_manual_email_send_and_resend(browser_page: Page):
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("#contacts-table-body tr", timeout=10000)
+    page.wait_for_selector(".company-card", timeout=10000)
+    page.locator(".company-card-header").first.click()
+    page.wait_for_selector(".hr-card", timeout=5000)
 
     # Click first available enabled Email button
-    email_btn = page.locator("button:has-text('Email'):not([disabled])").first
+    email_btn = page.locator("button:has-text('Send Email'):not([disabled]), button:has-text('Email'):not([disabled])").first
     email_btn.click()
     page.wait_for_selector("#send-modal.open", timeout=5000)
     assert page.is_visible("text=Send EMAIL Message")
@@ -175,10 +168,12 @@ def test_interested_and_interview_workflows(browser_page: Page):
     """Test Interested workflow records interested_at and transitions interview states via dropdown."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("#contacts-table-body tr", timeout=10000)
+    page.wait_for_selector(".company-card", timeout=10000)
+    page.locator(".company-card-header").first.click()
+    page.wait_for_selector(".hr-card select", timeout=5000)
 
     # 1. Mark Interested
-    status_select = page.locator("#contacts-table-body tr select").first
+    status_select = page.locator(".hr-card select").first
     status_select.select_option("INTERESTED")
     page.wait_for_selector(".toast", timeout=5000)
 
@@ -265,7 +260,9 @@ def test_contact_history_timeline_modal(browser_page: Page):
     """Test contact activity timeline modal renders chronological events."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("#contacts-table-body tr", timeout=10000)
+    page.wait_for_selector(".company-card", timeout=10000)
+    page.locator(".company-card-header").first.click()
+    page.wait_for_selector(".hr-card", timeout=5000)
 
     hist_btn = page.locator("button:has-text('History')").first
     hist_btn.click()

@@ -171,8 +171,7 @@ class PersistentCampaignScheduler:
                 campaign_repo = SqliteCampaignRepository(session)
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if campaign and campaign.status in (CampaignStatus.STARTING, CampaignStatus.RUNNING):
-                    campaign.pause()
-                    campaign_repo.save(campaign)
+                    campaign_repo.set_status(campaign_id, CampaignStatus.PAUSED)
                     session.commit()
 
             self.event_publisher.publish(
@@ -192,8 +191,7 @@ class PersistentCampaignScheduler:
                     raise ValueError(f"Campaign '{campaign_id}' not found")
 
                 if campaign.status == CampaignStatus.PAUSED:
-                    campaign.resume()
-                    campaign_repo.save(campaign)
+                    campaign_repo.set_status(campaign_id, CampaignStatus.RUNNING)
                     session.commit()
 
             t = self._active_threads.get(campaign_id)
@@ -231,8 +229,11 @@ class PersistentCampaignScheduler:
                 campaign_repo = SqliteCampaignRepository(session)
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if campaign and not campaign.status.is_terminal:
-                    campaign.stop()
-                    campaign_repo.save(campaign)
+                    campaign_repo.set_status(
+                        campaign_id,
+                        CampaignStatus.STOPPED,
+                        ended_at=datetime.now(timezone.utc),
+                    )
                     session.commit()
 
             self.event_publisher.publish(
@@ -387,8 +388,7 @@ class PersistentCampaignScheduler:
                     else:
                         # Advance channel cursor if preferred channel has no targets in this step
                         rot_state["channel_cursor"] = next_channel_cursor
-                        campaign.metadata["rotation_state"] = rot_state
-                        campaign_repo.save(campaign)
+                        campaign_repo.set_rotation_state(campaign_id, rot_state)
                         session.commit()
                         time.sleep(0.2)
                         continue
@@ -407,8 +407,7 @@ class PersistentCampaignScheduler:
                 if not decision.is_eligible or decision.channel is None:
                     # Contact not eligible for dispatch; advance rotation
                     rot_state["channel_cursor"] = next_channel_cursor
-                    campaign.metadata["rotation_state"] = rot_state
-                    campaign_repo.save(campaign)
+                    campaign_repo.set_rotation_state(campaign_id, rot_state)
                     session.commit()
                     time.sleep(0.1)
                     continue
@@ -442,8 +441,7 @@ class PersistentCampaignScheduler:
                 if not channel_senders:
                     # Skip contact if no sender available for effective channel
                     rot_state["channel_cursor"] = next_channel_cursor
-                    campaign.metadata["rotation_state"] = rot_state
-                    campaign_repo.save(campaign)
+                    campaign_repo.set_rotation_state(campaign_id, rot_state)
                     session.commit()
                     time.sleep(0.2)
                     continue
@@ -483,13 +481,19 @@ class PersistentCampaignScheduler:
                 # Advance channel rotation cursor
                 channel_cursor = next_channel_cursor
 
-                # Persist updated rotation state to campaign metadata in DB
+                # Persist updated rotation state to metadata. set_rotation_state only
+                # writes the rotation_state key, so it cannot clobber the worker's
+                # quota counters, and it never rewrites status — pause stays authoritative.
                 rot_state["channel_cursor"] = channel_cursor
                 rot_state["sender_cursors"] = sender_cursors
                 rot_state["template_cursors"] = template_cursors
-                campaign.metadata["rotation_state"] = rot_state
-                campaign_repo.save(campaign)
+                campaign_repo.set_rotation_state(campaign_id, rot_state)
                 session.commit()
+
+                # If a pause landed while computing, do not dispatch this step.
+                # Resuming is an explicit operator (UI) action only.
+                if pause_flag and pause_flag.is_set():
+                    continue
 
                 contact_id = next_contact.contact_id
 

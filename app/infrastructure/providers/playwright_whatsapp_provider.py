@@ -16,7 +16,12 @@ from typing import Optional
 
 from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
-from app.infrastructure.providers.session_manager import WhatsAppSessionManager
+from app.infrastructure.providers.session_manager import (
+    BROWSER_ARGS,
+    REALISTIC_CHROME_UA,
+    WhatsAppSessionManager,
+    default_session_manager,
+)
 from app.ports.providers import ProviderSendResult, ProviderStatusResult, WhatsAppProvider
 
 
@@ -29,7 +34,7 @@ class PlaywrightWhatsAppProvider:
         headless: bool = True,
         timeout_seconds: int = 60,
     ) -> None:
-        self.session_manager = session_manager or WhatsAppSessionManager()
+        self.session_manager = session_manager or default_session_manager
         self.headless = headless
         self.timeout_seconds = timeout_seconds
 
@@ -71,6 +76,8 @@ class PlaywrightWhatsAppProvider:
                     str(session_dir),
                     headless=self.headless,
                     viewport={"width": 1280, "height": 900},
+                    user_agent=REALISTIC_CHROME_UA,
+                    args=BROWSER_ARGS,
                 )
                 page = context.pages[0] if context.pages else context.new_page()
 

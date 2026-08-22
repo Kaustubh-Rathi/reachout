@@ -12,12 +12,14 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -121,6 +123,10 @@ class ContactModel(Base):
     __table_args__ = (
         Index("ix_contacts_company_phone", "company_id", "phone"),
         Index("ix_contacts_company_email", "company_id", "email"),
+        CheckConstraint(
+            "phone IS NOT NULL OR email IS NOT NULL",
+            name="ck_contacts_reachable",
+        ),
     )
 
     def to_domain(self) -> Contact:
@@ -247,6 +253,10 @@ class SenderAccountModel(Base):
     daily_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     hourly_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    __table_args__ = (
+        UniqueConstraint("channel", "identity", name="uq_sender_channel_identity"),
+    )
+
     def to_domain(self) -> SenderAccount:
         return SenderAccount(
             id=self.id,
@@ -298,8 +308,9 @@ class CampaignModel(Base):
     metadata_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
 
     # Relationships
+    # Keep attempts on campaign delete (DB FK is ON DELETE SET NULL). Never delete-orphan audit rows.
     outreach_attempts: Mapped[List[OutreachAttemptModel]] = relationship(
-        "OutreachAttemptModel", back_populates="campaign", cascade="all, delete-orphan"
+        "OutreachAttemptModel", back_populates="campaign"
     )
 
     def to_domain(self) -> Campaign:
@@ -398,7 +409,7 @@ class OutreachAttemptModel(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     contact_id: Mapped[str] = mapped_column(String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True)
-    sender_account_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    sender_account_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("sender_accounts.id", ondelete="SET NULL"), nullable=True, index=True)
     channel: Mapped[str] = mapped_column(String(32), nullable=False)
     attempt_type: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
@@ -406,7 +417,7 @@ class OutreachAttemptModel(Base):
     message_body_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     destination: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     campaign_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
-    template_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    template_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("message_templates.id", ondelete="SET NULL"), nullable=True)
     subject_snapshot: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     attachment_snapshot: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     prepared_at: Mapped[datetime] = mapped_column(
@@ -537,4 +548,8 @@ class SuppressionRecordModel(Base):
     reason: Mapped[str] = mapped_column(String(500), default="MANUAL_CRM_DELETION", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("suppression_type", "identifier", name="uq_suppression_type_identifier"),
     )

@@ -39,7 +39,13 @@ class CreateSenderRequest(BaseModel):
 
 class ConfigureWhatsAppRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    count: int = Field(..., ge=1, le=20, description="Number of WhatsApp sessions to configure")
+    count: int = Field(..., ge=1, le=100, description="Number of WhatsApp sessions to configure")
+
+
+class AddSenderRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    display_name: Optional[str] = None
+    identity: Optional[str] = None
 
 
 class ConfigureEmailRequest(BaseModel):
@@ -59,6 +65,16 @@ def get_senders_readiness(session: Session = Depends(get_session)) -> Dict[str, 
     """Retrieve multi-channel sender readiness and active session counts."""
     svc = SenderService(session)
     return svc.get_senders_readiness()
+
+
+@router.post("/whatsapp/add")
+def add_whatsapp_session(
+    payload: AddSenderRequest = AddSenderRequest(),
+    session: Session = Depends(get_session),
+) -> Dict[str, Any]:
+    """Dynamically add a new independent WhatsApp session in AUTH_REQUIRED status."""
+    svc = SenderService(session)
+    return svc.add_whatsapp_session(display_name=payload.display_name, identity=payload.identity)
 
 
 @router.post("/whatsapp/configure")
@@ -92,6 +108,17 @@ def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_sess
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
+
+
+
+@router.post("/email/add")
+def add_email_session(
+    payload: AddSenderRequest = AddSenderRequest(),
+    session: Session = Depends(get_session),
+) -> Dict[str, Any]:
+    """Dynamically add a new Email sender in AUTH_REQUIRED status."""
+    svc = SenderService(session)
+    return svc.add_email_session(display_name=payload.display_name, identity=payload.identity)
 
 
 @router.post("/email/configure")
@@ -189,4 +216,35 @@ def create_sender(payload: CreateSenderRequest, session: Session = Depends(get_s
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/{sender_id}/deactivate")
+def deactivate_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+    """Deactivate a sender account so it exits future rotation without deleting history."""
+    svc = SenderService(session)
+    res = svc.deactivate_sender(sender_id)
+    if not res:
+        raise HTTPException(status_code=404, detail=f"Sender account '{sender_id}' not found")
+    return res
+
+
+@router.post("/{sender_id}/reactivate")
+def reactivate_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+    """Reactivate a deactivated sender account."""
+    svc = SenderService(session)
+    res = svc.reactivate_sender(sender_id)
+    if not res:
+        raise HTTPException(status_code=404, detail=f"Sender account '{sender_id}' not found")
+    return res
+
+
+@router.delete("/{sender_id}")
+def delete_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+    """Controlled deletion/deactivation of sender (preserves historical attempts)."""
+    svc = SenderService(session)
+    success = svc.remove_sender(sender_id)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Sender account '{sender_id}' not found")
+    return {"message": f"Sender '{sender_id}' deactivated and removed from active rotation", "sender_id": sender_id}
+
 

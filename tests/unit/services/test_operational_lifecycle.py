@@ -1,8 +1,8 @@
-"""End-to-End Operational Workflow Verification Tests.
+"""Operational Lifecycle and Workflow Verification Tests.
 
-Verifies the entire operational business journey:
+Verifies the operational business journey across service domain boundaries:
 1. Initialize system with Contacts across Companies.
-2. Query Dashboard metrics.
+2. Query Initial Contact state.
 3. Start Campaign -> Campaign Worker executes company-first outreach.
 4. Contacts update to SENT; immutable Attempt snapshots created.
 5. Activity logs and audit history appear.
@@ -55,8 +55,8 @@ from app.infrastructure.models import (
 from app.ports.providers import ProviderSendResult, WhatsAppProvider
 
 
-class TestFullEndToEndWorkflow:
-    """End-to-end integration test verifying the complete candidate lifecycle without external I/O."""
+class TestOperationalLifecycleWorkflow:
+    """Service integration test verifying the complete candidate lifecycle without external I/O."""
 
     def test_complete_outreach_and_crm_lifecycle(self, mock_wa_provider):
         # 1. SETUP: In-memory relational database
@@ -104,7 +104,7 @@ class TestFullEndToEndWorkflow:
         session.add(MessageTemplateModel.from_domain(template))
         session.commit()
 
-        # --- STEP 1: Query Initial Dashboard State ---
+        # --- STEP 1: Query Initial Contacts ---
         total_contacts = session.scalar(select(func.count(ContactModel.contact_id)))
         assert total_contacts == 5
 

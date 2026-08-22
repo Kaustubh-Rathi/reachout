@@ -287,6 +287,55 @@ class ContactService:
             "reminders": rem_list,
         }
 
+    def get_discrepancies(self) -> Dict[str, Any]:
+        """Detect data discrepancies: the same phone or email owned by multiple contacts
+        (typically the same person appearing under different companies / rows). These are
+        surfaced in the UI for review/merge rather than being silently dropped."""
+        contacts = self.contact_repo.list_all()
+        by_phone: Dict[str, List[Contact]] = {}
+        by_email: Dict[str, List[Contact]] = {}
+        for c in contacts:
+            for p in c.phones:
+                by_phone.setdefault(p, []).append(c)
+            for e in c.emails:
+                by_email.setdefault(e, []).append(c)
+
+        groups = []
+        seen = set()
+        for phone, owners in by_phone.items():
+            if len(owners) > 1:
+                cids = tuple(sorted(o.contact_id for o in owners))
+                if cids not in seen:
+                    seen.add(cids)
+                    groups.append(self._make_group("PHONE", phone, owners))
+        for email, owners in by_email.items():
+            if len(owners) > 1:
+                cids = tuple(sorted(o.contact_id for o in owners))
+                if cids not in seen:
+                    seen.add(cids)
+                    groups.append(self._make_group("EMAIL", email, owners))
+
+        return {"count": len(groups), "groups": groups}
+
+    def _make_group(self, kind: str, identifier: str, owners: List[Contact]) -> Dict[str, Any]:
+        comp_map = {c.id: c.name for c in self.company_repo.list_all()}
+        return {
+            "kind": kind,
+            "identifier": identifier,
+            "contacts": [
+                {
+                    "contact_id": c.contact_id,
+                    "company_id": c.company_id,
+                    "company": comp_map.get(c.company_id, c.company_id.title() if c.company_id else "Unknown"),
+                    "name": c.name,
+                    "phone": c.phone or "",
+                    "email": c.email or "",
+                    "last_whatsapp_at": c.last_whatsapp_at.isoformat() if c.last_whatsapp_at else None,
+                }
+                for c in owners
+            ],
+        }
+
     def archive_contact(self, contact_id: str, reason: str = "MANUAL_CRM_DELETION") -> bool:
         """Delete contact and record tombstone suppressions for phone, email, and canonical key."""
         contact = self.contact_repo.get_by_id(contact_id)

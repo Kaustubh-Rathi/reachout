@@ -5,15 +5,18 @@ Handles company directory listings and detail queries.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.domain.company import Company, calculate_company_status
 from app.domain.enums import CompanyStatus
 from app.domain.policies.endpoint_coverage_policy import get_contact_endpoint_metrics
+from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, check_contact_follow_up_eligibility
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
+from app.infrastructure.repositories.sqlite_reminder_repository import SqliteReminderRepository
 
 
 class CompanyService:
@@ -24,6 +27,7 @@ class CompanyService:
         self.company_repo = SqliteCompanyRepository(session)
         self.contact_repo = SqliteContactRepository(session)
         self.outreach_repo = SqliteOutreachRepository(session)
+        self.reminder_repo = SqliteReminderRepository(session)
 
     def list_companies(self) -> List[Dict[str, Any]]:
         companies = self.company_repo.list_all()
@@ -102,12 +106,45 @@ class CompanyService:
         contacts_hierarchy = []
         total_endpoints = 0
         covered_endpoints = 0
+        now = datetime.now(timezone.utc)
 
         for c in contacts:
             c_attempts = attempts_by_contact.get(c.contact_id, [])
             coverage = get_contact_endpoint_metrics(c, c_attempts)
             total_endpoints += coverage["total_endpoints"]
             covered_endpoints += coverage["covered_endpoints"]
+
+            history = [
+                {
+                    "id": a.id,
+                    "channel": a.channel.value,
+                    "attempt_type": a.attempt_type.value,
+                    "status": a.status.value,
+                    "destination": a.destination,
+                    "sender_account_id": a.sender_account_id,
+                    "template_id": a.template_id,
+                    "prepared_at": a.prepared_at.isoformat() if a.prepared_at else None,
+                    "completed_at": a.completed_at.isoformat() if a.completed_at else None,
+                    "failure_code": a.failure_code,
+                    "failure_detail": a.failure_detail,
+                    "provider_reference": a.provider_reference,
+                }
+                for a in c_attempts
+            ]
+
+            follow_up = check_contact_follow_up_eligibility(c, now, DEFAULT_FOLLOW_UP_THRESHOLD_DAYS)
+            reminders = self.reminder_repo.list_by_contact(c.contact_id)
+            reminders_list = [
+                {
+                    "id": r.id,
+                    "due_at": r.due_at.isoformat(),
+                    "reason": r.reason,
+                    "status": r.status.value,
+                    "created_at": r.created_at.isoformat(),
+                    "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                }
+                for r in reminders
+            ]
 
             endpoints_list = []
             # WhatsApp endpoints
@@ -156,9 +193,15 @@ class CompanyService:
                 "last_whatsapp_at": c.last_whatsapp_at.isoformat() if c.last_whatsapp_at else None,
                 "last_email_at": c.last_email_at.isoformat() if c.last_email_at else None,
                 "last_activity_at": c.last_activity_at.isoformat() if c.last_activity_at else None,
+                "interested_at": c.interested_at.isoformat() if c.interested_at else None,
+                "follow_up_due": follow_up.is_due,
+                "follow_up_due_at": follow_up.due_at.isoformat() if follow_up.due_at else None,
+                "follow_up_reason": follow_up.reason,
                 "coverage": coverage,
                 "is_fully_covered": coverage["is_fully_covered"],
                 "endpoints": endpoints_list,
+                "history": history,
+                "reminders": reminders_list,
             })
 
         return {
@@ -174,14 +217,29 @@ class CompanyService:
             "contacts": contacts_hierarchy,
         }
 
-    def list_hierarchies(self, search: Optional[str] = None, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+    def list_hierarchies(
+        self,
+        search: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        crm_status: Optional[str] = None,
+        priority_filter: Optional[str] = None,
+        company: Optional[str] = None,
+        channel_status: Optional[str] = None,
+        current_time: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
         """List all company hierarchies with filtering."""
+        now = current_time or datetime.now(timezone.utc)
         companies = self.company_repo.list_all()
         results = []
         for comp in companies:
             h = self.get_company_hierarchy(comp.id)
             if not h:
                 continue
+
+            # Filter by a specific company (id or name)
+            if company and company != "ALL":
+                if h["id"].lower() != company.lower() and h["name"].lower() != company.lower():
+                    continue
 
             if search:
                 s = search.lower().strip()
@@ -195,6 +253,60 @@ class CompanyService:
 
             if status_filter and status_filter != "ALL":
                 if h["status"].upper() != status_filter.upper():
+                    continue
+
+            # Contact-level CRM outcome filter (company included if any HR matches)
+            if crm_status and crm_status != "ALL":
+                if not any(c["crm_outcome"] == crm_status.upper() for c in h["contacts"]):
+                    continue
+
+            # Channel/outreach-status filter
+            if channel_status and channel_status != "ALL":
+                cs = channel_status.upper()
+                if cs == "SENT":
+                    if h["covered_endpoints"] == 0:
+                        continue
+                elif cs == "NOT_SENT":
+                    if h["covered_endpoints"] > 0:
+                        continue
+                elif cs == "WHATSAPP_SENT":
+                    if not any(c["last_whatsapp_at"] for c in h["contacts"]):
+                        continue
+                elif cs == "EMAIL_SENT":
+                    if not any(c["last_email_at"] for c in h["contacts"]):
+                        continue
+
+            # Priority filter (company included if any HR contact matches the bucket)
+            if priority_filter and priority_filter != "ALL":
+                pf = priority_filter.upper()
+                matched = False
+                for c in h["contacts"]:
+                    if pf == "INTERESTED":
+                        if c["crm_outcome"] == "INTERESTED":
+                            matched = True
+                            break
+                    elif pf == "NOT_INTERESTED":
+                        if c["crm_outcome"] == "NOT_INTERESTED":
+                            matched = True
+                            break
+                    elif pf == "FOLLOW_UP_DUE":
+                        if c["follow_up_due"]:
+                            matched = True
+                            break
+                    elif pf == "RECENTLY_ACTIVE":
+                        if c["last_activity_at"] or c["last_whatsapp_at"] or c["last_email_at"]:
+                            matched = True
+                            break
+                    elif pf == "UNCONTACTED":
+                        uncontacted = (
+                            not c["last_whatsapp_at"]
+                            and not c["last_email_at"]
+                            and c["crm_outcome"] != "NOT_INTERESTED"
+                        )
+                        if uncontacted:
+                            matched = True
+                            break
+                if not matched:
                     continue
 
             results.append(h)

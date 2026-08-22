@@ -24,6 +24,7 @@ from app.infrastructure.repositories.sqlite_contact_repository import SqliteCont
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
+from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
 from app.services.event_bus import event_bus
 
@@ -46,6 +47,110 @@ class OutreachService:
         # Resolve provider from injection or explicit provider factory
         self.whatsapp_provider = whatsapp_provider if whatsapp_provider is not None else get_whatsapp_provider()
         self.email_provider = email_provider if email_provider is not None else get_email_provider()
+        # N1: manual sends share the app-wide rate limiter used by campaigns.
+        self.rate_limiter = default_rate_limiter
+
+    def _validate_sender_active(self, sender: SenderAccount) -> None:
+        """B13: refuse to dispatch from a sender that is not ACTIVE."""
+        if not sender.is_available():
+            raise ValueError(
+                f"SENDER_NOT_ACTIVE: Sender '{sender.id}' is not ACTIVE (status={sender.status.value}). "
+                f"Authenticate/reactivate it before sending."
+            )
+
+    def _check_and_build_idempotency(
+        self,
+        contact_id: str,
+        channel: Channel,
+        attempt_type: AttemptType,
+        campaign_id: Optional[str],
+        destination: Optional[str],
+        now: datetime,
+    ) -> str:
+        """B14: deterministic idempotency key + pre-dispatch dedup guard.
+
+        Returns an idempotency key safe to insert. If an identical attempt was already
+        SENT, raises a dedicated AlreadySentError; if one is in-flight, raises ValueError.
+        """
+        base_key = generate_idempotency_key(
+            contact_id=contact_id,
+            channel=channel,
+            attempt_type=attempt_type,
+            campaign_id=campaign_id,
+            destination=destination,
+        )
+        existing = self.outreach_repo.get_by_idempotency_key(base_key)
+        if existing:
+            # Already delivered to this endpoint -> never send a duplicate (B14).
+            if existing.status == OutreachStatus.SENT:
+                raise AlreadySentError(existing.id)
+            if existing.status in (OutreachStatus.QUEUED, OutreachStatus.SENDING):
+                raise ValueError("Outreach attempt already in-flight for this contact/channel/destination")
+            # Previous attempt FAILED / UNKNOWN / RECOVERY: a genuine retry gets a distinct key.
+            return generate_idempotency_key(
+                contact_id=contact_id,
+                channel=channel,
+                attempt_type=attempt_type,
+                campaign_id=campaign_id,
+                destination=destination,
+                custom_salt=str(int(now.timestamp() * 1000)),
+            )
+        return base_key
+
+    def _dispatch_whatsapp(self, attempt, contact, recipient_phone, body, attachment_ref, sender, now):
+        """N1: rate-limit, acquire sender, dispatch, release, record usage."""
+        ready = self.rate_limiter.wait_for_ready(
+            sender_id=sender.id, channel="WHATSAPP",
+            daily_limit=sender.daily_limit, hourly_limit=sender.hourly_limit,
+            timeout_seconds=30.0,
+        )
+        if not ready:
+            attempt.mark_failed("ERR_PACING_TIMEOUT", "Sender not ready within pacing timeout", now)
+            self.outreach_repo.save(attempt); self.session.commit()
+            return attempt, ProviderSendResult.failed("ERR_PACING_TIMEOUT", "Sender not ready within pacing timeout")
+        if not self.rate_limiter.acquire_sender(sender.id):
+            attempt.mark_failed("ERR_SENDER_BUSY", "Sender locked by concurrent dispatch", now)
+            self.outreach_repo.save(attempt); self.session.commit()
+            return attempt, ProviderSendResult.failed("ERR_SENDER_BUSY", "Sender locked by concurrent dispatch")
+        try:
+            res = self.whatsapp_provider.send_message(
+                attempt=attempt, recipient_phone=recipient_phone,
+                message_body=body, attachment_path=attachment_ref,
+            )
+        finally:
+            self.rate_limiter.release_sender(sender.id)
+        if res.success:
+            self.rate_limiter.record_dispatch_success(sender.id)
+        else:
+            self.rate_limiter.record_dispatch_failure(sender.id, is_rate_limit=("RATE_LIMIT" in (res.failure_code or "")))
+        return attempt, res
+
+    def _dispatch_email(self, attempt, contact, recipient_email, subject, body, attachment_ref, sender, now):
+        ready = self.rate_limiter.wait_for_ready(
+            sender_id=sender.id, channel="EMAIL",
+            daily_limit=sender.daily_limit, hourly_limit=sender.hourly_limit,
+            timeout_seconds=30.0,
+        )
+        if not ready:
+            attempt.mark_failed("ERR_PACING_TIMEOUT", "Sender not ready within pacing timeout", now)
+            self.outreach_repo.save(attempt); self.session.commit()
+            return attempt, ProviderSendResult.failed("ERR_PACING_TIMEOUT", "Sender not ready within pacing timeout")
+        if not self.rate_limiter.acquire_sender(sender.id):
+            attempt.mark_failed("ERR_SENDER_BUSY", "Sender locked by concurrent dispatch", now)
+            self.outreach_repo.save(attempt); self.session.commit()
+            return attempt, ProviderSendResult.failed("ERR_SENDER_BUSY", "Sender locked by concurrent dispatch")
+        try:
+            res = self.email_provider.send_email(
+                attempt=attempt, recipient_email=recipient_email,
+                subject=subject, message_body=body, attachment_path=attachment_ref,
+            )
+        finally:
+            self.rate_limiter.release_sender(sender.id)
+        if res.success:
+            self.rate_limiter.record_dispatch_success(sender.id)
+        else:
+            self.rate_limiter.record_dispatch_failure(sender.id, is_rate_limit=("RATE_LIMIT" in (res.failure_code or "")))
+        return attempt, res
 
 
     def send_whatsapp(
@@ -79,6 +184,9 @@ class OutreachService:
         if not sender:
             raise ValueError(f"NO_ACTIVE_WHATSAPP_SESSION: No active WhatsApp sender account available for {contact_id}")
 
+        # B13: never dispatch from a non-ACTIVE sender, even when explicitly selected.
+        self._validate_sender_active(sender)
+
         # Resolve template / body
         body = custom_body or ""
         template = None
@@ -93,20 +201,33 @@ class OutreachService:
             body = f"Hi {contact.first_name}, I am reaching out regarding opportunities at {contact.company_id}."
 
         now = datetime.now(timezone.utc)
-        idempotency_key = generate_idempotency_key(
-            contact_id=contact.contact_id,
-            channel=Channel.WHATSAPP,
-            attempt_type=AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL,
-            campaign_id=campaign_id,
-            destination=recipient_phone,
-            custom_salt=str(int(now.timestamp() * 1000)),
-        )
+        attempt_type = AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL
+        # B14: deterministic idempotency key + pre-dispatch dedup guard.
+        try:
+            idempotency_key = self._check_and_build_idempotency(
+                contact.contact_id, Channel.WHATSAPP, attempt_type, campaign_id, recipient_phone, now
+            )
+        except AlreadySentError as exc:
+            return {
+                "attempt_id": exc.attempt_id,
+                "status": "SENT",
+                "success": True,
+                "channel": "WHATSAPP",
+                "attempt_type": attempt_type.value,
+                "destination": recipient_phone,
+                "sender_account_id": sender.id,
+                "template_id": template.id if template else None,
+                "provider_reference": None,
+                "failure_code": None,
+                "failure_detail": None,
+                "duplicate": True,
+            }
 
         attempt = OutreachAttempt.prepare(
             contact_id=contact.contact_id,
             sender_account_id=sender.id,
             channel=Channel.WHATSAPP,
-            attempt_type=AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL,
+            attempt_type=attempt_type,
             message_body=body,
             destination=recipient_phone,
             campaign_id=campaign_id,
@@ -157,12 +278,7 @@ class OutreachService:
             },
         )
 
-        res = self.whatsapp_provider.send_message(
-            attempt=attempt,
-            recipient_phone=recipient_phone,
-            message_body=body,
-            attachment_path=attachment_ref,
-        )
+        attempt, res = self._dispatch_whatsapp(attempt, contact, recipient_phone, body, attachment_ref, sender, now)
 
         if res.success:
             attempt.mark_sent(provider_reference=res.provider_reference, timestamp=now)
@@ -266,6 +382,9 @@ class OutreachService:
         if not sender:
             raise ValueError(f"NO_ACTIVE_EMAIL_SESSION: No active Email sender account available for {contact_id}")
 
+        # B13: never dispatch from a non-ACTIVE sender.
+        self._validate_sender_active(sender)
+
         body = custom_body or ""
         subj = subject or ""
         template = None
@@ -283,20 +402,33 @@ class OutreachService:
             body = f"Hi {contact.first_name},\n\nI hope you are doing well. Reaching out regarding roles at {contact.company_id}.\n\nBest regards,\nCandidate"
 
         now = datetime.now(timezone.utc)
-        idempotency_key = generate_idempotency_key(
-            contact_id=contact.contact_id,
-            channel=Channel.EMAIL,
-            attempt_type=AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL,
-            campaign_id=campaign_id,
-            destination=recipient_email,
-            custom_salt=str(int(now.timestamp() * 1000)),
-        )
+        attempt_type = AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL
+        # B14: deterministic idempotency key + pre-dispatch dedup guard.
+        try:
+            idempotency_key = self._check_and_build_idempotency(
+                contact.contact_id, Channel.EMAIL, attempt_type, campaign_id, recipient_email, now
+            )
+        except AlreadySentError as exc:
+            return {
+                "attempt_id": exc.attempt_id,
+                "status": "SENT",
+                "success": True,
+                "channel": "EMAIL",
+                "attempt_type": attempt_type.value,
+                "destination": recipient_email,
+                "sender_account_id": sender.id,
+                "template_id": template.id if template else None,
+                "provider_reference": None,
+                "failure_code": None,
+                "failure_detail": None,
+                "duplicate": True,
+            }
 
         attempt = OutreachAttempt.prepare(
             contact_id=contact.contact_id,
             sender_account_id=sender.id,
             channel=Channel.EMAIL,
-            attempt_type=AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL,
+            attempt_type=attempt_type,
             message_body=body,
             destination=recipient_email,
             campaign_id=campaign_id,
@@ -348,13 +480,7 @@ class OutreachService:
             },
         )
 
-        res = self.email_provider.send_email(
-            attempt=attempt,
-            recipient_email=recipient_email,
-            subject=subj,
-            message_body=body,
-            attachment_path=attachment_ref,
-        )
+        attempt, res = self._dispatch_email(attempt, contact, recipient_email, subj, body, attachment_ref, sender, now)
 
         if res.success:
             attempt.mark_sent(provider_reference=res.provider_reference, timestamp=now)
@@ -455,6 +581,9 @@ class OutreachService:
         if not sender:
             raise ValueError(f"NO_ACTIVE_WHATSAPP_SESSION: No active WhatsApp sender account available for {contact_id}")
 
+        # B13: never dispatch from a non-ACTIVE sender.
+        self._validate_sender_active(sender)
+
         body = custom_body or ""
         template = None
         if template_id:
@@ -488,12 +617,7 @@ class OutreachService:
         attempt.mark_sending(now)
         self.outreach_repo.save(attempt)
 
-        res = self.whatsapp_provider.send_message(
-            attempt=attempt,
-            recipient_phone=recipient_phone,
-            message_body=body,
-            attachment_path=attachment_ref,
-        )
+        attempt, res = self._dispatch_whatsapp(attempt, contact, recipient_phone, body, attachment_ref, sender, now)
 
         if res.success:
             attempt.mark_sent(provider_reference=res.provider_reference, timestamp=now)
@@ -557,6 +681,9 @@ class OutreachService:
         if not sender:
             raise ValueError(f"NO_ACTIVE_EMAIL_SESSION: No active Email sender account available for {contact_id}")
 
+        # B13: never dispatch from a non-ACTIVE sender.
+        self._validate_sender_active(sender)
+
         body = custom_body or ""
         subj = subject or ""
         template = None
@@ -595,13 +722,7 @@ class OutreachService:
         attempt.mark_sending(now)
         self.outreach_repo.save(attempt)
 
-        res = self.email_provider.send_email(
-            attempt=attempt,
-            recipient_email=recipient_email,
-            subject=subj,
-            message_body=body,
-            attachment_path=attachment_ref,
-        )
+        attempt, res = self._dispatch_email(attempt, contact, recipient_email, subj, body, attachment_ref, sender, now)
 
         if res.success:
             attempt.mark_sent(provider_reference=res.provider_reference, timestamp=now)
@@ -715,3 +836,11 @@ class OutreachService:
             "status": attempt.status.value,
             "recovery_notes": attempt.recovery_notes,
         }
+
+
+class AlreadySentError(Exception):
+    """Raised when a dispatch would duplicate an already-SENT attempt."""
+
+    def __init__(self, attempt_id: str):
+        self.attempt_id = attempt_id
+        super().__init__(f"Outreach already sent (attempt {attempt_id})")
