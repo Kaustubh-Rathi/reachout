@@ -69,3 +69,9 @@ logs/screenshots/
 .env
 .env.*
 !.env.example
+
+# Local dev / sandbox helper artifacts
+.tmp_tests/
+.tmp_run*/
+.tmp_probe/
+

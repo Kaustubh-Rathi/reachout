@@ -25,12 +25,23 @@ def list_companies(session: Session = Depends(get_session)) -> List[Dict[str, An
 @router.get("/hierarchy")
 def list_company_hierarchies(
     search: Optional[str] = Query(None),
-    status: Optional[str] = Query(None),
+    status: Optional[str] = Query(None, description="Company status: NOT_CONTACTED/IN_PROGRESS/CONTACTED/CLOSED"),
+    crm_status: Optional[str] = Query(None, description="CRM outcome to match on any HR contact"),
+    priority_filter: Optional[str] = Query(None, description="INTERESTED/NOT_INTERESTED/FOLLOW_UP_DUE/RECENTLY_ACTIVE/UNCONTACTED"),
+    company: Optional[str] = Query(None, description="Company id or name to filter by"),
+    channel_status: Optional[str] = Query(None, description="SENT/NOT_SENT/WHATSAPP_SENT/EMAIL_SENT"),
     session: Session = Depends(get_session),
 ) -> List[Dict[str, Any]]:
     """List all companies with full HR and endpoint hierarchies."""
     svc = CompanyService(session)
-    return svc.list_hierarchies(search=search, status_filter=status)
+    return svc.list_hierarchies(
+        search=search,
+        status_filter=status,
+        crm_status=crm_status,
+        priority_filter=priority_filter,
+        company=company,
+        channel_status=channel_status,
+    )
 
 
 @router.get("/{company_id}")

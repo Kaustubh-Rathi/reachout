@@ -19,6 +19,19 @@ from app.domain.enums import SenderStatus
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_SESSIONS_ROOT = ROOT_DIR / ".sessions" / "whatsapp"
 
+# Realistic desktop Chrome UA so WhatsApp Web does not fingerprint us as headless/bot.
+REALISTIC_CHROME_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+)
+# Chromium/Chrome args that suppress automation signals and help the QR render.
+BROWSER_ARGS = ["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+# Use the real installed Chrome, headed, ONLY during authentication/QR capture,
+# because WhatsApp blocks the bundled headless Chromium and the QR never renders there.
+# Normal message sending stays headless for speed and silence.
+USE_REAL_CHROME_FOR_AUTH = True
+HEADED_FOR_AUTH = True
+
 
 class WhatsAppSessionManager:
     """Manages persistent browser directories and contexts for N WhatsApp senders."""
@@ -86,6 +99,8 @@ class WhatsAppSessionManager:
                     str(session_dir),
                     headless=True,
                     viewport={"width": 1280, "height": 900},
+                    user_agent=REALISTIC_CHROME_UA,
+                    args=BROWSER_ARGS,
                 )
                 page = context.pages[0] if context.pages else context.new_page()
                 page.goto("https://web.whatsapp.com", wait_until="domcontentloaded", timeout=timeout_seconds * 1000)
@@ -165,10 +180,15 @@ class WhatsAppSessionManager:
         session_dir = self.get_session_dir(sender_id)
         try:
             with sync_playwright() as pw:
+                # Auth/QR capture: real installed Chrome, HEADED, so the QR renders and
+                # WhatsApp does not flag the browser as a headless bot.
                 context = pw.chromium.launch_persistent_context(
                     str(session_dir),
-                    headless=True,
+                    headless=False,
+                    channel="chrome" if USE_REAL_CHROME_FOR_AUTH else "chromium",
                     viewport={"width": 1280, "height": 900},
+                    user_agent=REALISTIC_CHROME_UA,
+                    args=BROWSER_ARGS,
                 )
                 page = context.pages[0] if context.pages else context.new_page()
                 page.goto("https://web.whatsapp.com", wait_until="domcontentloaded", timeout=45000)
@@ -231,3 +251,7 @@ class WhatsAppSessionManager:
                     "sender.status_changed",
                     {"sender_id": sender_id, "channel": "WHATSAPP", "status": "ERROR", "error": str(exc)},
                 )
+
+
+# Canonical app-wide singleton so QR auth state survives across HTTP requests.
+default_session_manager = WhatsAppSessionManager()

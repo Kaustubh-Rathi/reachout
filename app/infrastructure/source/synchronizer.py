@@ -122,6 +122,17 @@ class DatabaseSourceSynchronizer:
         now = datetime.now(timezone.utc)
         created_company_ids: Set[str] = set()
 
+        # Cross-company dedup index (B5): a single person/phone/email must map to ONE
+        # contact regardless of which company row it appears under. First-seen company wins.
+        all_existing = self.contact_repo.list_all()
+        global_phone_index: Dict[str, Contact] = {}
+        global_email_index: Dict[str, Contact] = {}
+        for ec in all_existing:
+            for p in ec.phones:
+                global_phone_index.setdefault(p, ec)
+            for e in ec.emails:
+                global_email_index.setdefault(e, ec)
+
         for candidate, src_rec in parsed_candidates:
             try:
                 # 1. Check if suppressed / tombstoned
@@ -147,30 +158,25 @@ class DatabaseSourceSynchronizer:
 
                 candidate.company_id = comp.id
 
-                # 3. Deterministic Identity Matching
-                # Look up existing contacts in this company
-                existing_contacts = self.contact_repo.find_by_company(comp.id)
+                # 3. Deterministic Identity Matching (cross-company aware, B5)
+                # Priority 1: global phone match -> first-seen contact owns the person.
                 existing: Optional[Contact] = None
-
-                # Matching rule 1: Match by exact canonical key
-                for ec in existing_contacts:
-                    if ec.canonical_key == candidate.canonical_key:
-                        existing = ec
-                        break
-
-                # Matching rule 2: Match by normalized phone overlap
-                if not existing and candidate.phones:
-                    candidate_phones_set = set(candidate.phones)
-                    for ec in existing_contacts:
-                        if set(ec.phones) & candidate_phones_set:
-                            existing = ec
+                if candidate.phones:
+                    for p in candidate.phones:
+                        if p in global_phone_index:
+                            existing = global_phone_index[p]
                             break
-
-                # Matching rule 3: Match by normalized email overlap
+                # Priority 2: global email match
                 if not existing and candidate.emails:
-                    candidate_emails_set = set(candidate.emails)
+                    for e in candidate.emails:
+                        if e in global_email_index:
+                            existing = global_email_index[e]
+                            break
+                # Priority 3: company-scoped canonical key match (legacy path)
+                if not existing:
+                    existing_contacts = self.contact_repo.find_by_company(comp.id)
                     for ec in existing_contacts:
-                        if set(ec.emails) & candidate_emails_set:
+                        if ec.canonical_key == candidate.canonical_key:
                             existing = ec
                             break
 
@@ -178,15 +184,19 @@ class DatabaseSourceSynchronizer:
                     # Update contact fields if needed, preserving historical metadata
                     changed = False
 
-                    # Merge new phone endpoints
+                    # Merge phone endpoints (B6): the source's current numbers become primary
+                    # (front of the list => default destination), while any stale numbers are
+                    # retained as secondary so a working number is never silently dropped.
                     existing_phones = list(existing.phones)
+                    candidate_phones = list(candidate.phones)
+                    merged_phones = list(candidate_phones)
                     added_phones = 0
-                    for p in candidate.phones:
-                        if p not in existing_phones:
-                            existing_phones.append(p)
+                    for p in existing_phones:
+                        if p not in merged_phones:
+                            merged_phones.append(p)
                             added_phones += 1
-                    if added_phones > 0:
-                        existing.phone = ", ".join(existing_phones)
+                    if merged_phones != existing_phones:
+                        existing.phone = ", ".join(merged_phones) if merged_phones else None
                         new_phone_endpoints += added_phones
                         changed = True
 
@@ -218,6 +228,11 @@ class DatabaseSourceSynchronizer:
                         unchanged_contacts += 1
 
                     self.contact_repo.save(existing)
+                    # Refresh index in case this contact gained endpoints a later row shares.
+                    for p in existing.phones:
+                        global_phone_index.setdefault(p, existing)
+                    for e in existing.emails:
+                        global_email_index.setdefault(e, existing)
                 else:
                     # Fresh new contact
                     candidate.source_reference = src_rec
@@ -227,6 +242,12 @@ class DatabaseSourceSynchronizer:
                     new_contacts += 1
                     new_phone_endpoints += len(candidate.phones)
                     new_email_endpoints += len(candidate.emails)
+                    # Keep the within-batch dedup index fresh so a later row sharing this
+                    # phone/email under another company resolves to this same contact (B5).
+                    for p in candidate.phones:
+                        global_phone_index.setdefault(p, candidate)
+                    for e in candidate.emails:
+                        global_email_index.setdefault(e, candidate)
 
             except Exception as exc:
                 errors.append(f"Row {src_rec.source_row} error: {exc}")

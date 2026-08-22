@@ -112,7 +112,7 @@ class CampaignService:
             "progress_percent": pct,
             "automatic_quota": campaign.automatic_quota,
             "manual_reserve": campaign.manual_reserve,
-            "automatic_used": campaign.automatic_used or completed,
+            "automatic_used": campaign.automatic_used,
             "manual_used": campaign.manual_used,
             "remaining_automatic": campaign.remaining_automatic,
             "remaining_manual": campaign.remaining_manual,
@@ -133,8 +133,9 @@ class CampaignService:
         self,
         channel: Channel,
         campaign_id: Optional[str] = None,
+        is_resuming: bool = False,
     ) -> Dict[str, Any]:
-        """Verify all domain readiness prerequisites before initiating automated outreach."""
+        """Verify all domain readiness prerequisites before initiating or resuming automated outreach."""
         # 1. Check campaign if given
         if campaign_id:
             campaign = self.campaign_repo.get_by_id(campaign_id)
@@ -144,11 +145,17 @@ class CampaignService:
                     "reason": "CAMPAIGN_NOT_FOUND",
                     "detail": f"Campaign '{campaign_id}' does not exist.",
                 }
-            if campaign.status == CampaignStatus.RUNNING:
+            if not is_resuming and campaign.status == CampaignStatus.RUNNING:
                 return {
                     "ready": False,
                     "reason": "CAMPAIGN_ALREADY_RUNNING",
                     "detail": f"Campaign '{campaign_id}' is already actively running.",
+                }
+            if is_resuming and campaign.status != CampaignStatus.PAUSED:
+                return {
+                    "ready": False,
+                    "reason": "CAMPAIGN_NOT_PAUSED",
+                    "detail": f"Campaign '{campaign_id}' is in status '{campaign.status.value}', cannot resume.",
                 }
             if not campaign.can_dispatch_automatic():
                 return {
@@ -250,13 +257,22 @@ class CampaignService:
         return self.get_campaign_progress(campaign_id)
 
     def resume_campaign(self, campaign_id: str) -> Dict[str, Any]:
-        """Resume a paused campaign via canonical PersistentCampaignScheduler."""
+        """Resume a paused campaign via canonical PersistentCampaignScheduler with strict readiness gate."""
         campaign = self.campaign_repo.get_by_id(campaign_id)
         if not campaign:
             raise ValueError(f"Campaign not found: {campaign_id}")
 
+        if campaign.status != CampaignStatus.PAUSED:
+            raise ValueError(f"Cannot resume campaign in status '{campaign.status.value}'. Must be PAUSED.")
+
+        # Strict readiness gate check before resuming
+        readiness = self.validate_outreach_readiness(campaign.channel, campaign_id=campaign_id, is_resuming=True)
+        if not readiness["ready"]:
+            raise ValueError(f"OUTREACH_NOT_READY: {readiness['reason']} - {readiness['detail']}")
+
         self.scheduler.resume_campaign(campaign_id)
         return self.get_campaign_progress(campaign_id)
+
 
     def stop_campaign(self, campaign_id: str) -> Dict[str, Any]:
         """Stop/cancel a campaign permanently via canonical PersistentCampaignScheduler."""

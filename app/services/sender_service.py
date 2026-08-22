@@ -17,47 +17,12 @@ from app.infrastructure.providers.factory import (
     get_email_provider,
     get_whatsapp_provider,
 )
-from app.infrastructure.providers.session_manager import WhatsAppSessionManager
+from app.infrastructure.providers.session_manager import (
+    WhatsAppSessionManager,
+    default_session_manager,
+)
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.services.event_bus import event_bus
-
-
-def get_default_senders() -> List[SenderAccount]:
-    return [
-        SenderAccount(
-            id="WA_SESSION_1",
-            channel=Channel.WHATSAPP,
-            provider="playwright_whatsapp",
-            identity="+91 98765 00001",
-            display_name="WhatsApp Session 1",
-            status=SenderStatus.AUTH_REQUIRED,
-            daily_limit=50,
-            hourly_limit=10,
-        ),
-        SenderAccount(
-            id="WA_SESSION_2",
-            channel=Channel.WHATSAPP,
-            provider="playwright_whatsapp",
-            identity="+91 98765 00002",
-            display_name="WhatsApp Session 2",
-            status=SenderStatus.AUTH_REQUIRED,
-            daily_limit=50,
-            hourly_limit=10,
-        ),
-        SenderAccount(
-            id="EMAIL_SESSION_1",
-            channel=Channel.EMAIL,
-            provider="smtp",
-            identity="outreach.primary@domain.com",
-            display_name="Email Session 1 (Primary)",
-            status=SenderStatus.AUTH_REQUIRED,
-            daily_limit=100,
-            hourly_limit=20,
-        ),
-    ]
-
-
-DEFAULT_SENDERS = get_default_senders()
 
 
 class SenderService:
@@ -70,17 +35,16 @@ class SenderService:
     ) -> None:
         self.session = session
         self.repo = SqliteSenderRepository(session)
-        self.session_manager = session_manager or WhatsAppSessionManager()
+        self.session_manager = session_manager or default_session_manager
 
     def seed_defaults_if_empty(self) -> None:
-        """Seed default sender accounts if repository is empty."""
-        active = self.repo.list_active()
-        wa = self.repo.list_by_channel(Channel.WHATSAPP)
-        em = self.repo.list_by_channel(Channel.EMAIL)
-        if not active and not wa and not em:
-            for s in get_default_senders():
-                self.repo.save(s)
-            self.session.commit()
+        """Seed placeholder sender accounts if repository is empty.
+
+        No accounts are pre-created: the operator adds the required number of
+        WhatsApp and Email sessions from the UI. Kept as a no-op so existing
+        callers are unaffected.
+        """
+        return
 
     def reconcile_sender_states(self) -> None:
         """Reconcile stored sender statuses against persistent auth contexts and vaults on startup."""
@@ -99,6 +63,30 @@ class SenderService:
                     pass
 
         # Email senders reconciliation
+        em_senders = self.repo.list_by_channel(Channel.EMAIL)
+
+        # F3/B4: Materialize vault-only email credentials into sender_accounts rows so no
+        # stored credential is stranded as a "phantom session" without a DB record.
+        from app.infrastructure.security.credential_vault import default_credential_vault
+        existing_em_ids = {s.id for s in em_senders}
+        vault_ids = default_credential_vault.list_senders_with_credentials()
+        for vid in vault_ids:
+            if vid not in existing_em_ids:
+                creds = default_credential_vault.get_credentials(vid) or {}
+                user = (creds.get("user") or "").strip()
+                new_sender = SenderAccount(
+                    id=vid,
+                    channel=Channel.EMAIL,
+                    provider="smtp",
+                    identity=user or vid,
+                    display_name=user or vid,
+                    status=SenderStatus.ACTIVE if user and creds.get("password") else SenderStatus.AUTH_REQUIRED,
+                    daily_limit=100,
+                    hourly_limit=20,
+                )
+                self.repo.save(new_sender)
+
+        # Refresh after materialization so the loop below sees newly-created rows.
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
         email_provider = get_email_provider()
         for s in em_senders:
@@ -205,7 +193,7 @@ class SenderService:
                     id=sess_id,
                     channel=Channel.WHATSAPP,
                     provider="playwright_whatsapp",
-                    identity=f"+91 98765 {i:05d}",
+                    identity="",
                     display_name=f"WhatsApp Session {i}",
                     status=SenderStatus.AUTH_REQUIRED,
                     daily_limit=50,
@@ -432,6 +420,167 @@ class SenderService:
             "overall_ready": len(active_wa) > 0 or len(active_em) > 0,
         }
 
+    def add_whatsapp_session(
+        self,
+        display_name: Optional[str] = None,
+        identity: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Dynamically add a new WhatsApp session to the repository."""
+        self.seed_defaults_if_empty()
+        existing_wa = self.repo.list_by_channel(Channel.WHATSAPP)
+        
+        # Determine next session index
+        max_idx = 0
+        for s in existing_wa:
+            if s.id.startswith("WA_SESSION_"):
+                suffix = s.id[len("WA_SESSION_"):]
+                if suffix.isdigit():
+                    max_idx = max(max_idx, int(suffix))
+            elif s.id.startswith("wa_"):
+                suffix = s.id[3:]
+                if suffix.isdigit():
+                    max_idx = max(max_idx, int(suffix))
+        
+        next_idx = max_idx + 1 if max_idx > 0 else (len(existing_wa) + 1)
+        sess_id = f"WA_SESSION_{next_idx}"
+        name = display_name.strip() if display_name else f"WhatsApp Session {next_idx}"
+        ident = identity.strip() if identity else ""
+
+        new_sender = SenderAccount(
+            id=sess_id,
+            channel=Channel.WHATSAPP,
+            provider="playwright_whatsapp",
+            identity=ident,
+            display_name=name,
+            status=SenderStatus.AUTH_REQUIRED,
+            daily_limit=50,
+            hourly_limit=10,
+        )
+        self.repo.save(new_sender)
+        self.session_manager.set_auth_state(sess_id, SenderStatus.AUTH_REQUIRED)
+        self.session.commit()
+
+        event_bus.publish_event(
+            "sender.status_changed",
+            {
+                "sender_id": new_sender.id,
+                "channel": new_sender.channel.value,
+                "status": new_sender.status.value,
+                "display_name": new_sender.display_name,
+            },
+        )
+        event_bus.publish_event(
+            "SENDER_STATUS_CHANGED",
+            {
+                "sender_id": new_sender.id,
+                "channel": new_sender.channel.value,
+                "status": new_sender.status.value,
+            },
+        )
+
+        return {
+            "id": new_sender.id,
+            "channel": new_sender.channel.value,
+            "provider": new_sender.provider,
+            "identity": new_sender.identity,
+            "display_name": new_sender.display_name,
+            "status": new_sender.status.value,
+            "daily_limit": new_sender.daily_limit,
+            "hourly_limit": new_sender.hourly_limit,
+        }
+
+    def add_email_session(
+        self,
+        display_name: Optional[str] = None,
+        identity: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Dynamically add a new Email sender to the repository.
+
+        The new sender starts in AUTH_REQUIRED status; the operator supplies
+        SMTP credentials via the configure-email flow before it can dispatch.
+        """
+        self.seed_defaults_if_empty()
+        existing_em = self.repo.list_by_channel(Channel.EMAIL)
+
+        max_idx = 0
+        for s in existing_em:
+            if s.id.startswith("EMAIL_SESSION_"):
+                suffix = s.id[len("EMAIL_SESSION_"):]
+                if suffix.isdigit():
+                    max_idx = max(max_idx, int(suffix))
+            elif s.id.startswith("email_session_"):
+                suffix = s.id[len("email_session_"):]
+                if suffix.isdigit():
+                    max_idx = max(max_idx, int(suffix))
+
+        next_idx = max_idx + 1 if max_idx > 0 else (len(existing_em) + 1)
+        sess_id = f"EMAIL_SESSION_{next_idx}"
+        name = display_name.strip() if display_name else f"Email Session {next_idx}"
+        ident = identity.strip() if identity else ""
+
+        new_sender = SenderAccount(
+            id=sess_id,
+            channel=Channel.EMAIL,
+            provider="smtp",
+            identity=ident,
+            display_name=name,
+            status=SenderStatus.AUTH_REQUIRED,
+            daily_limit=100,
+            hourly_limit=20,
+        )
+        self.repo.save(new_sender)
+        self.session.commit()
+
+        event_bus.publish_event(
+            "sender.status_changed",
+            {
+                "sender_id": new_sender.id,
+                "channel": new_sender.channel.value,
+                "status": new_sender.status.value,
+                "display_name": new_sender.display_name,
+            },
+        )
+        event_bus.publish_event(
+            "SENDER_STATUS_CHANGED",
+            {
+                "sender_id": new_sender.id,
+                "channel": new_sender.channel.value,
+                "status": new_sender.status.value,
+            },
+        )
+
+        return {
+            "id": new_sender.id,
+            "channel": new_sender.channel.value,
+            "provider": new_sender.provider,
+            "identity": new_sender.identity,
+            "display_name": new_sender.display_name,
+            "status": new_sender.status.value,
+            "daily_limit": new_sender.daily_limit,
+            "hourly_limit": new_sender.hourly_limit,
+        }
+
+    def deactivate_sender(self, sender_id: str) -> Optional[Dict[str, Any]]:
+        """Deactivate a sender account so it exits future rotation without deleting history."""
+        return self.update_sender_status(sender_id, SenderStatus.INACTIVE.value)
+
+    def reactivate_sender(
+        self,
+        sender_id: str,
+        status: SenderStatus = SenderStatus.ACTIVE,
+    ) -> Optional[Dict[str, Any]]:
+        """Reactivate a deactivated sender account."""
+        sender = self.repo.get_by_id(sender_id)
+        if not sender:
+            return None
+        return self.update_sender_status(sender_id, status.value)
+
+
+    def remove_sender(self, sender_id: str) -> bool:
+        """Controlled removal of sender from active routing (marks INACTIVE to preserve attempt FK integrity)."""
+        res = self.deactivate_sender(sender_id)
+        return res is not None
+
     def create_sender(
         self,
         id: str,
@@ -463,4 +612,6 @@ class SenderService:
             "display_name": sender.display_name,
             "status": sender.status.value,
         }
+
+
 

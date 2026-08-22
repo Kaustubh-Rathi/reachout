@@ -19,7 +19,15 @@ from app.infrastructure.repositories import (
 )
 from app.infrastructure.source.excel_reader import TabularSourceReader
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
-from scripts.backup_source_data import compute_file_sha256
+
+
+def compute_file_sha256(path) -> str:
+    """Compute a byte-for-byte SHA-256 of a file to prove immutability."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while chunk := f.read(65536):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 @pytest.fixture

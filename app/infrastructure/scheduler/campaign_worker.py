@@ -27,7 +27,7 @@ from app.infrastructure.repositories.sqlite_company_repository import SqliteComp
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.infrastructure.scheduler.rate_limiter import RateLimiter, default_rate_limiter
 from app.ports.infrastructure import DomainEvent, EventPublisher
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
 
@@ -46,7 +46,7 @@ class OutreachWorker:
         self.session_factory = session_factory
         self.whatsapp_provider = whatsapp_provider if whatsapp_provider is not None else get_whatsapp_provider()
         self.email_provider = email_provider if email_provider is not None else get_email_provider()
-        self.rate_limiter = rate_limiter or RateLimiter()
+        self.rate_limiter = rate_limiter or default_rate_limiter
         self.event_publisher = event_publisher or default_event_bus
 
     def execute_attempt(
@@ -400,10 +400,9 @@ class OutreachWorker:
 
                     if db_campaign:
                         if attempt_type == AttemptType.AUTOMATIC:
-                            db_campaign.record_automatic_dispatch(success=True)
+                            campaign_repo.increment_automatic_used(campaign_id)
                         else:
-                            db_campaign.record_manual_dispatch()
-                        campaign_repo.save(db_campaign)
+                            campaign_repo.increment_manual_used(campaign_id)
 
                     self.rate_limiter.record_dispatch_success(sender_account.id)
                     self.event_publisher.publish(

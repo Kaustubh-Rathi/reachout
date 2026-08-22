@@ -166,3 +166,7 @@ class RateLimiter:
     def is_sender_busy(self, sender_id: str) -> bool:
         with self._lock:
             return self._sender_busy[sender_id]
+
+
+# Canonical app-wide rate limiter shared between campaign scheduler and manual sends.
+default_rate_limiter = RateLimiter()

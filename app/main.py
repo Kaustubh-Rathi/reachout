@@ -16,6 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from app.api import api_router
+from app.config import (
+    HTML_DEFAULT_LIMIT_TOKEN,
+    HTML_MAX_LIMIT_TOKEN,
+    DEFAULT_OUTREACH_LIMIT,
+    MAX_OUTREACH_LIMIT,
+)
 from app.infrastructure.database import SessionFactory, init_db
 from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
 from app.services.crm_service import CrmService
@@ -93,7 +99,11 @@ def index():
         html_file = ROOT_DIR / "crm_dashboard.html"
     if not html_file.exists():
         raise HTTPException(status_code=404, detail="Dashboard UI file not found.")
-    return html_file.read_text(encoding="utf-8")
+    html = html_file.read_text(encoding="utf-8")
+    # Inject configured limits so the frontend never hardcodes magic numbers.
+    html = html.replace(HTML_DEFAULT_LIMIT_TOKEN, str(DEFAULT_OUTREACH_LIMIT))
+    html = html.replace(HTML_MAX_LIMIT_TOKEN, str(MAX_OUTREACH_LIMIT))
+    return html
 
 
 def main():

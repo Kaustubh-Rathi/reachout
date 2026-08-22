@@ -70,10 +70,10 @@ def test_phase8_readiness_modal_on_blocked_start(browser_page: Page):
     page.goto(BASE_URL, wait_until="networkidle")
 
     # Wait for start button to be enabled
-    page.wait_for_selector("#start-remaining-btn:not([disabled])", timeout=10000)
+    page.wait_for_selector("#start-campaign-btn:not([disabled])", timeout=10000)
 
-    # Click Start Remaining Outreach
-    page.click("#start-remaining-btn")
+    # Click New Run
+    page.click("#start-campaign-btn")
     page.wait_for_selector("#readiness-modal.open", timeout=5000)
     assert page.is_visible("#readiness-error-reason")
     assert page.is_visible("text=NO_ACTIVE_WHATSAPP_SESSION")

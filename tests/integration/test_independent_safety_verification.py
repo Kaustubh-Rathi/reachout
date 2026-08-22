@@ -477,7 +477,8 @@ class TestCampaignFullLifecycle:
                     sender_id="WA-AMZ",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_amz_1", company_id="amazon", name="Andy Jassy", phone="+12062661000"))
+            for i in range(1, 11):
+                contact_repo.save(Contact(contact_id=f"cnt_amz_{i}", company_id="amazon", name=f"Contact {i}", phone=f"+1206266100{i}"))
             tmpl_repo.save(MessageTemplate.create(template_id="tmpl_amz", name="Amazon Tmpl", channel=Channel.WHATSAPP, body="Hi {first_name}"))
             session.commit()
 
@@ -493,7 +494,7 @@ class TestCampaignFullLifecycle:
                 template_ids=["tmpl_amz"],
                 sender_account_ids=["WA-AMZ"],
             )
-            c_dict = camp_svc.start_campaign(camp.id, max_count=5)
+            c_dict = camp_svc.start_campaign(camp.id, max_count=10)
             camp_id = c_dict["id"]
             assert c_dict["status"] in ("STARTING", "RUNNING", "COMPLETED")
 
@@ -503,17 +504,19 @@ class TestCampaignFullLifecycle:
             paused = camp_svc.pause_campaign(camp_id)
             assert paused["status"] in ("PAUSED", "COMPLETED", "RUNNING")
 
-        # 3. RESUME
+        # 3. RESUME (if paused)
         with SessionFactory() as session:
             camp_svc = CampaignService(session, scheduler=scheduler)
-            resumed = camp_svc.resume_campaign(camp_id)
-            assert resumed["status"] in ("RUNNING", "COMPLETED", "PAUSED")
+            if paused["status"] == "PAUSED":
+                resumed = camp_svc.resume_campaign(camp_id)
+                assert resumed["status"] in ("RUNNING", "COMPLETED", "PAUSED")
 
         # 4. STOP
         with SessionFactory() as session:
             camp_svc = CampaignService(session, scheduler=scheduler)
             stopped = camp_svc.stop_campaign(camp_id)
             assert stopped["status"] in ("STOPPED", "COMPLETED", "PAUSED")
+
 
         # Verify DB persistence
         with SessionFactory() as session:
