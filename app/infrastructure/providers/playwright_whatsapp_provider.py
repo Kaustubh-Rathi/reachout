@@ -276,34 +276,57 @@ class PlaywrightWhatsAppProvider:
                     try:
                         time.sleep(random.uniform(0.8, 1.5))
                         
-                        attach_btn = page.evaluate_handle('''() => {
+                        # Physical OS-level mouse click on the attach (plus) button
+                        attach_coords = page.evaluate('''() => {
                             let svgs = document.querySelectorAll('footer svg');
+                            let btn = null;
                             for (let svg of svgs) {
                                 if (svg.innerHTML.includes('plus') || svg.getAttribute('data-icon') === 'plus') {
-                                    return svg.closest('button, div[role="button"], span[role="button"]');
+                                    btn = svg.closest('button, div[role="button"], span[role="button"]');
+                                    break;
                                 }
                             }
-                            let composer = document.querySelector('footer div[contenteditable="true"]');
-                            if (composer && composer.parentElement && composer.parentElement.previousElementSibling) {
-                                return composer.parentElement.previousElementSibling.querySelector('button, div[role="button"]');
+                            if (!btn) {
+                                let composer = document.querySelector('footer div[contenteditable="true"]');
+                                if (composer && composer.parentElement && composer.parentElement.previousElementSibling) {
+                                    btn = composer.parentElement.previousElementSibling.querySelector('button, div[role="button"]');
+                                }
+                            }
+                            if (btn) {
+                                let rect = btn.getBoundingClientRect();
+                                return {x: rect.x + rect.width/2, y: rect.y + rect.height/2};
                             }
                             return null;
                         }''')
                         
-                        if attach_btn:
-                            try:
-                                attach_btn.evaluate('(el) => el.click()')
-                            except Exception:
-                                pass
-                        time.sleep(1.0)
+                        if not attach_coords:
+                            raise Exception("Could not find attach (plus) button coordinates in the footer")
+                            
+                        page.mouse.click(attach_coords['x'], attach_coords['y'])
+                        time.sleep(1.5)
                         
+                        # Physical OS-level mouse click on the Document menu item
+                        doc_coords = page.evaluate('''() => {
+                            let listItems = document.querySelectorAll('li, span');
+                            for (let item of listItems) {
+                                if (item.innerText && item.innerText.includes('Document')) {
+                                    let rect = item.getBoundingClientRect();
+                                    // Make sure it's floating above the footer (y < window.innerHeight - 50) 
+                                    // and not hidden, to avoid clicking chat bubbles
+                                    if (rect.y < window.innerHeight - 50 && rect.width > 0 && rect.height > 0) {
+                                        return {x: rect.x + rect.width/2, y: rect.y + rect.height/2};
+                                    }
+                                }
+                            }
+                            return null;
+                        }''')
+                        
+                        if not doc_coords:
+                            raise Exception("Could not find Document menu item coordinates")
+                            
                         # Catch the native OS file picker
                         with page.expect_file_chooser(timeout=5000) as fc_info:
-                            # Click the Document button in the menu (first item or by text)
-                            doc_btn = page.locator('li:has-text("Document"), span:has-text("Document")').first
-                            if doc_btn.count() == 0:
-                                doc_btn = page.locator('ul li').first
-                            doc_btn.click()
+                            page.mouse.click(doc_coords['x'], doc_coords['y'])
                             
                         file_chooser = fc_info.value
                         file_chooser.set_files(str(att_file))
