@@ -99,10 +99,13 @@ class OutreachService:
 
     def _dispatch_whatsapp(self, attempt, contact, recipient_phone, body, attachment_ref, sender, now):
         """N1: rate-limit, acquire sender, dispatch, release, record usage."""
+        base_pace = self.rate_limiter.default_channel_delay.get("WHATSAPP", 120.0)
+        manual_pace = base_pace / 2.0
         ready = self.rate_limiter.wait_for_ready(
             sender_id=sender.id, channel="WHATSAPP",
             daily_limit=sender.daily_limit, hourly_limit=sender.hourly_limit,
-            timeout_seconds=30.0,
+            timeout_seconds=manual_pace + 10.0,
+            min_delay_override=manual_pace,
         )
         if not ready:
             attempt.mark_failed("ERR_PACING_TIMEOUT", "Sender not ready within pacing timeout", now)
@@ -126,10 +129,13 @@ class OutreachService:
         return attempt, res
 
     def _dispatch_email(self, attempt, contact, recipient_email, subject, body, attachment_ref, sender, now):
+        base_pace = self.rate_limiter.default_channel_delay.get("EMAIL", 60.0)
+        manual_pace = base_pace / 2.0
         ready = self.rate_limiter.wait_for_ready(
             sender_id=sender.id, channel="EMAIL",
             daily_limit=sender.daily_limit, hourly_limit=sender.hourly_limit,
-            timeout_seconds=30.0,
+            timeout_seconds=manual_pace + 10.0,
+            min_delay_override=manual_pace,
         )
         if not ready:
             attempt.mark_failed("ERR_PACING_TIMEOUT", "Sender not ready within pacing timeout", now)
