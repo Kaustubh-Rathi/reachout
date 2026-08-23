@@ -17,8 +17,9 @@ from app.domain.contact import Contact
 from app.domain.enums import CRMOutcome, InterviewState
 from app.domain.reminder import FollowUpReminder
 
-
-DEFAULT_FOLLOW_UP_THRESHOLD_DAYS = 7
+# Single source of truth for the follow-up threshold lives in app/config.py to avoid
+# duplicating the value here and drifting. Re-exported for backwards compatibility.
+from app.config import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS  # noqa: E402,F401
 
 
 @dataclass(frozen=True)

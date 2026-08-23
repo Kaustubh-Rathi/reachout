@@ -92,10 +92,10 @@ LOOP FOR EACH READY CONTACT:
     ├── Navigate to `https://web.whatsapp.com/send?phone={phone}&text={encoded_msg}`
     ├── Detect invalid number modal -> If found, return `("invalid_number", "...")`
     ├── Locate send button or composer -> Click or press Enter -> `text_sent = True`
-    ├── Check if PDF exists at `RESUME_PATH` (`D:\Resume\Kaustubh.pdf`)
+    ├── Check if PDF exists at `RESUME_PATH` (`D:\Resume\Resume.pdf`)
     ├── Click Attach button (`button[aria-label="Attach"]`)
     ├── Click Document menu item (`button[role="menuitem"][aria-label="Document"]`)
-    ├── `expect_file_chooser()` -> Feed `Kaustubh.pdf`
+    ├── `expect_file_chooser()` -> Feed `Resume.pdf`
     ├── Wait for PDF preview modal -> Locate and click Send button
     ├── Verify send button disappears and composer restores
     ├── `append_log()` -> Appends row to `logs/mnc_whatsapp_send_log.csv`
@@ -462,7 +462,7 @@ erDiagram
         string id PK "UUID"
         string channel "WHATSAPP | EMAIL"
         string provider "PLAYWRIGHT_WEB | SMTP | GMAIL_OAUTH"
-        string identity "e.g. +917499718082 or user@gmail.com"
+        string identity "e.g. +919999999999 or user@gmail.com"
         string display_name
         string status "ACTIVE | RATE_LIMITED | EXPIRED | DISABLED"
         string credential_ref "Keyring ref / session dir path"
@@ -779,7 +779,7 @@ Replace all raw `print()` statements with structured JSON logging (`structlog` o
   "contact_id": "d1e2f3-...",
   "company": "Google",
   "channel": "WHATSAPP",
-  "sender_account": "+917499718082",
+  "sender_account": "+919999999999",
   "duration_ms": 1420,
   "attempt_number": 1,
   "status": "SENT"

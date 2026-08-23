@@ -13,7 +13,7 @@ class TestMessageTemplateModel:
         tmpl = MessageTemplate.create(
             name="WhatsApp Tech Outreach v1",
             channel=Channel.WHATSAPP,
-            body="Hey {first_name},\nI'm exploring SDE roles at *{company}*.\nRegards,\nKaustubh",
+            body="Hey {first_name},\nI'm exploring SDE roles at *{company}*.\nRegards,\nTest User",
             attachment_ref="resume_2026.pdf",
         )
         assert tmpl.channel == Channel.WHATSAPP

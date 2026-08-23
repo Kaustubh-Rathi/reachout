@@ -91,12 +91,17 @@ class TestPhase6Templates:
 
         for tmpl in OFFICIAL_WHATSAPP_TEMPLATES:
             assert tmpl.channel == Channel.WHATSAPP
-            assert "https://kaustubh-rathi.github.io/Kaustubh_Rathi_Portfolio/" in tmpl.body
-            assert "https://www.linkedin.com/in/Kaustubh-Rathi-9228ab255" in tmpl.body
-            assert "https://github.com/Kaustubh-Rathi" in tmpl.body
-            assert "+917499718082" in tmpl.body
+            # Templates use {sender_*} placeholders (personal identity comes from .env/config).
+            assert "{sender_portfolio}" in tmpl.body
+            assert "{sender_linkedin}" in tmpl.body
+            assert "{sender_github}" in tmpl.body
+            assert "{sender_phone}" in tmpl.body
             assert tmpl.attachment_ref is None
             assert tmpl.active is True
+        # SENDER_PROFILE must provide real identity so placeholders resolve.
+        from app.config import SENDER_PROFILE
+        assert SENDER_PROFILE["sender_portfolio"].startswith("https://")
+        assert SENDER_PROFILE["sender_phone"]
 
     def test_all_4_email_templates_exist_and_match_specs(self):
         """Verify all 4 Email templates exist with exact subjects and bodies."""
@@ -107,10 +112,10 @@ class TestPhase6Templates:
         for tmpl in OFFICIAL_EMAIL_TEMPLATES:
             assert tmpl.channel == Channel.EMAIL
             assert tmpl.subject is not None and len(tmpl.subject) > 0
-            assert "https://kaustubh-rathi.github.io/Kaustubh_Rathi_Portfolio/" in tmpl.body
-            assert "https://www.linkedin.com/in/Kaustubh-Rathi-9228ab255" in tmpl.body
-            assert "https://github.com/Kaustubh-Rathi" in tmpl.body
-            assert "+917499718082" in tmpl.body
+            assert "{sender_portfolio}" in tmpl.body
+            assert "{sender_linkedin}" in tmpl.body
+            assert "{sender_github}" in tmpl.body
+            assert "{sender_phone}" in tmpl.body
             assert tmpl.attachment_ref is None
             assert tmpl.active is True
 

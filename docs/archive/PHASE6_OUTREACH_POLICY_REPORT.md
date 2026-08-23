@@ -36,7 +36,7 @@ All six business-level outreach policy dimensions were designed, implemented, mi
 
 ### Dimension 1: Message Templates (WhatsApp & Email)
 * **Domain Model & DB Entity**: `MessageTemplate` ([`app/domain/message_template.py`](file:///D:/Reachout/app/domain/message_template.py)) updated with `phone_number: Optional[str]` and `active: bool = True`.
-* **Official Copies**: Exactly 4 WhatsApp templates (`WA-01` to `WA-04`) and 4 Email templates (`EMAIL-01` to `EMAIL-04`) seeded with exact portfolio, LinkedIn, GitHub URLs, phone `+917499718082`, and resume attachment reference `resume.pdf`.
+* **Official Copies**: Exactly 4 WhatsApp templates (`WA-01` to `WA-04`) and 4 Email templates (`EMAIL-01` to `EMAIL-04`) seeded with exact portfolio, LinkedIn, GitHub URLs, phone `+919999999999`, and resume attachment reference `resume.pdf`.
 * **Variable Resolution & Validation**:
   * Interpolates `[Name]`, `[Company Name]`, `[Company]` and legacy `{first_name}`, `{company}` tokens.
   * Pre-dispatch validation (`template.validate(contact, company)`) checks for missing recipient name or company. If unresolvable, dispatch halts before provider I/O and creates a `FAILED` attempt with `failure_code="ERR_TEMPLATE_VARIABLE_UNRESOLVED"` without consuming quota.

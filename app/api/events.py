@@ -64,8 +64,11 @@ async def websocket_events(websocket: WebSocket):
             await websocket.send_json(data_payload)
     except WebSocketDisconnect:
         pass
-    except Exception:
-        pass
+    except Exception as exc:
+        # Surface a failing event-stream subscriber instead of silently killing the socket.
+        import traceback
+        traceback.print_exc()
+        print(f"[Events] WebSocket event-stream error: {exc}")
 
 
 @router.get("/history")

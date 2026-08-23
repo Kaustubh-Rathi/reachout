@@ -510,7 +510,24 @@ class PersistentCampaignScheduler:
                 if attempt.status == OutreachStatus.SENT:
                     dispatched_count += 1
             except Exception as exc:
+                # Surface attempt-execution failures instead of silently skipping the
+                # contact. Mark the attempt FAILED (if one was created) so it is visible
+                # in the audit trail and does not linger in an in-flight state.
+                import traceback
+                traceback.print_exc()
                 print(f"[Scheduler] Attempt error for contact {contact_id}: {exc}")
+                try:
+                    with self.session_factory() as sess:
+                        orep = SqliteOutreachRepository(sess)
+                        att = orep.get_by_id(selected_sender.id) if False else None
+                        # Find any PREPARED/SENDING attempt for this contact+channel
+                        for a in orep.list_by_contact(contact_id):
+                            if a.channel == (selected_template.channel if selected_template else None) and                                a.status in (OutreachStatus.PREPARED, OutreachStatus.SENDING):
+                                a.mark_failed("ERR_WORKER_EXCEPTION", str(exc), datetime.now(timezone.utc))
+                                orep.save(a)
+                        sess.commit()
+                except Exception as mark_exc:
+                    print(f"[Scheduler] Also failed to record attempt failure: {mark_exc}")
 
         with self._lock:
             self._active_threads.pop(campaign_id, None)

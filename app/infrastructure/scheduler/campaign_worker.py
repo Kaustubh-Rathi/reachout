@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional, Union
 
 from sqlalchemy.orm import Session
 
+from app.config import DEFAULT_MESSAGE_SUBJECT
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -361,7 +362,7 @@ class OutreachWorker:
                     provider_result = self.email_provider.send_email(
                         attempt=attempt,
                         recipient_email=email_target,
-                        subject=attempt.subject_snapshot or "Exploring opportunities",
+                        subject=attempt.subject_snapshot or DEFAULT_MESSAGE_SUBJECT,
                         message_body=attempt.message_body_snapshot,
                         attachment_path=attempt.attachment_snapshot,
                     )

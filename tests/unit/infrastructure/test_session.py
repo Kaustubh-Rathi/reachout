@@ -57,7 +57,7 @@ class TestSessionAndFailureHandling:
         sender = SenderAccount.create(
             channel=Channel.WHATSAPP,
             provider="PLAYWRIGHT",
-            identity="+917499718082",
+            identity="+919999999999",
             display_name="WA Sender",
         )
         campaign = Campaign.create(name="August Sprint", channel=Channel.WHATSAPP)
@@ -82,7 +82,7 @@ class TestSessionAndFailureHandling:
     def test_session_expired_forced_logout_handling(self, sample_contact: Contact):
         """Simulate ?post_logout=1 session death (preventing rapid retry spam loops)."""
         sender = SenderAccount.create(
-            channel=Channel.WHATSAPP, provider="PLAYWRIGHT", identity="+917499718082", display_name="WA"
+            channel=Channel.WHATSAPP, provider="PLAYWRIGHT", identity="+919999999999", display_name="WA"
         )
         campaign = Campaign.create(name="Batch Send", channel=Channel.WHATSAPP)
         campaign.start()
