@@ -57,6 +57,7 @@ class RateLimiter:
         channel: str,
         daily_limit: Optional[int] = None,
         hourly_limit: Optional[int] = None,
+        min_delay_override: Optional[float] = None,
     ) -> Tuple[bool, str]:
         """Check if a sender is currently eligible to dispatch a message."""
         with self._lock:
@@ -73,13 +74,15 @@ class RateLimiter:
                 return False, f"RATE_LIMITED_BACKOFF_{wait_sec}S"
 
             # 3. Check inter-message spacing delay with human jitter
-            base_delay = self.default_channel_delay.get(channel.upper(), 2.0)
-            if sender_id not in self._target_delay:
-                self._target_delay[sender_id] = (
-                    random.uniform(base_delay * 0.8, base_delay * 1.25) if base_delay > 10 else base_delay
-                )
-
-            min_delay = self._target_delay[sender_id]
+            if min_delay_override is not None:
+                min_delay = min_delay_override
+            else:
+                base_delay = self.default_channel_delay.get(channel.upper(), 2.0)
+                if sender_id not in self._target_delay:
+                    self._target_delay[sender_id] = (
+                        random.uniform(base_delay * 0.8, base_delay * 1.25) if base_delay > 10 else base_delay
+                    )
+                min_delay = self._target_delay[sender_id]
             last_time = self._last_send_time.get(sender_id, 0.0)
             elapsed = now_mono - last_time
             if elapsed < min_delay:
@@ -152,13 +155,14 @@ class RateLimiter:
         daily_limit: Optional[int] = None,
         hourly_limit: Optional[int] = None,
         timeout_seconds: float = 60.0,
+        min_delay_override: Optional[float] = None,
     ) -> bool:
         """Block until sender is ready or timeout expires."""
         deadline = time.monotonic() + timeout_seconds
-        min_delay = self.default_channel_delay.get(channel.upper(), 0.01)
+        min_delay = min_delay_override if min_delay_override is not None else self.default_channel_delay.get(channel.upper(), 0.01)
         sleep_step = max(0.001, min(0.05, min_delay / 2.0))
         while time.monotonic() < deadline:
-            can, _ = self.can_send(sender_id, channel, daily_limit, hourly_limit)
+            can, _ = self.can_send(sender_id, channel, daily_limit, hourly_limit, min_delay_override)
             if can:
                 return True
             time.sleep(sleep_step)

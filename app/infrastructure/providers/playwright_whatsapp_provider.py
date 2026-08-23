@@ -11,8 +11,20 @@ import random
 import re
 import time
 import urllib.parse
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+SEND_LOG = Path(__file__).resolve().parent.parent.parent.parent / "logs" / "whatsapp_send.log"
+
+
+def _dbg(message: str) -> None:
+    try:
+        SEND_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(SEND_LOG, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now(timezone.utc).isoformat()}] {message}\n")
+    except Exception:
+        pass
 
 from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
@@ -96,53 +108,156 @@ class PlaywrightWhatsAppProvider:
             ) as context:
                 page = context.pages[0] if context.pages else context.new_page()
 
-                # Step 1: Navigate to chat url
-                url = f"https://web.whatsapp.com/send?phone={clean_phone}"
-                page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-
-                invalid_text = page.get_by_text(
-                    re.compile(r"phone number shared via url is invalid", re.I)
-                )
-                send_button = page.locator(
-                    'button[aria-label="Send"], button[data-testid="compose-btn-send"]'
-                )
-                composer = page.locator(
-                    '[aria-label="Type a message"], [data-testid="conversation-compose-box-input"]'
-                )
-
-                # Check if logged out or auth required
+                # Step 1: Pre-flight sync check
+                # Navigate to the base URL first to let the React app fully initialize
+                # and sync before we try to use the /send?phone deep link.
+                page.goto("https://web.whatsapp.com", wait_until="domcontentloaded", timeout=timeout_ms)
+                
+                # Check for QR code (auth required)
                 if page.locator('canvas[aria-label="Scan this QR code to link a device"], canvas').count() > 0:
                     return ProviderSendResult.failed(
                         failure_code="ERR_AUTH_REQUIRED",
                         failure_detail="WhatsApp session requires QR code scan authentication",
                     )
+                
+                # Wait for the chat list (#side) to prove the app is fully synced and ready
+                try:
+                    page.wait_for_selector("#side", timeout=30000)
+                except Exception:
+                    return ProviderSendResult.failed(
+                        failure_code="ERR_SYNC_TIMEOUT",
+                        failure_detail="WhatsApp Web failed to sync chats within timeout",
+                    )                
+                # Step 2: Navigate to chat url now that app is fully bootstrapped
+                # Instead of relying on web.whatsapp.com/send which drops parameters due to SPA bugs,
+                # we mimic a real human: click the search bar, type the number, and press Enter.
+                
+                search_box = page.get_by_placeholder("Search or start a new chat").first
+                if search_box.count() == 0:
+                    search_box = page.locator('div[title="Search input textbox"]').first
+                    
+                if search_box.count() == 0:
+                    return ProviderSendResult.unknown(
+                        reason="Could not find WhatsApp search bar to initiate chat."
+                    )
+                    
+                # Clear any existing search
+                search_box.click()
+                time.sleep(0.5)
+                page.keyboard.press("Control+A")
+                page.keyboard.press("Backspace")
+                time.sleep(0.5)
+                
+                # Type the target phone number
+                page.keyboard.type(clean_phone)
+                
+                # Wait for WhatsApp to search its internal contacts and the global directory
+                time.sleep(2.0)
+                page.keyboard.press("Enter")
+                
+                _dbg(f"[send] sender={attempt.sender_account_id} -> {clean_phone} (UI Search Method)")
 
-                # Wait for composer to be visible and ready
+                invalid_text = page.get_by_text(
+                    re.compile(r"phone number shared via url is invalid", re.I)
+                )
+                
+                # Step 3: Robust Selectors for 2025/2026
+                composer = page.locator(
+                    'footer div[contenteditable="true"], [data-testid="conversation-compose-box-input"], div[title="Type a message"]'
+                )
+                send_button = page.locator(
+                    '[data-testid="send"], footer button[aria-label="Send"], footer button:has(span[data-icon="send"])'
+                )
+
+                # Wait for composer to become interactable
                 deadline = time.monotonic() + self.timeout_seconds
                 text_sent = False
+                
                 while time.monotonic() < deadline:
+                    
+                    if composer.count() and composer.first.is_visible():
+                        # We are in the chat!
+                        # Clear anything that might be leftover in the composer
+                        composer.first.click()
+                        page.keyboard.press("Control+A")
+                        page.keyboard.press("Backspace")
+                        time.sleep(0.5)
+                        
+                        try:
+                            page.keyboard.type(message_body, delay=random.uniform(40, 100))
+                        except Exception:
+                            composer.first.fill(message_body)
+                            
+                        time.sleep(1.0)
+                        
+                        # Wait for send button and click it
+                        if send_button.count() and send_button.first.is_visible():
+                            try:
+                                send_button.first.click()
+                            except Exception:
+                                page.keyboard.press("Enter")
+                        else:
+                            page.keyboard.press("Enter")
+                        
+                        try:
+                            page.screenshot(path="debug_wa_typed.png")
+                        except Exception:
+                            pass
+
+                        time.sleep(random.uniform(1.5, 2.5))
+                        text_sent = True
+                        break
+                        
+                    # If we don't find it, the number might not exist on WhatsApp.
+                    # Press Enter again just in case search was slow.
+                    page.keyboard.press("Enter")
+                        
                     if invalid_text.count() and invalid_text.first.is_visible():
                         return ProviderSendResult.failed(
                             failure_code="ERR_NOT_ON_WHATSAPP",
                             failure_detail="WhatsApp rejected phone number as invalid or not registered",
                         )
+                        
+                    time.sleep(1.5)
 
                     if composer.count() and composer.first.is_visible():
-                        # Natural pre-typing cognitive delay
                         time.sleep(random.uniform(1.2, 2.5))
-                        composer.first.click()
+                        try:
+                            page.keyboard.press("Escape")
+                        except Exception:
+                            pass
+                        time.sleep(0.3)
 
-                        # Human-like sequential typing
-                        _human_type(composer.first, message_body)
+                        try:
+                            composer.first.click()
+                        except Exception:
+                            pass
+                        time.sleep(0.3)
 
-                        # Post-typing review pause before dispatch
+                        # Type the message
+                        try:
+                            page.keyboard.type(message_body, delay=random.uniform(40, 100))
+                        except Exception:
+                            try:
+                                _human_type(composer.first, message_body)
+                            except Exception:
+                                pass
+
                         time.sleep(random.uniform(1.0, 2.0))
 
-                        # Dispatch via Enter or Send button
+                        # Dispatch via Send button or Enter
                         if send_button.count() and send_button.first.is_visible():
-                            send_button.first.click()
+                            try:
+                                send_button.first.click(timeout=8000)
+                            except Exception:
+                                page.keyboard.press("Enter")
                         else:
-                            composer.first.press("Enter")
+                            page.keyboard.press("Enter")
+                        
+                        try:
+                            page.screenshot(path="debug_wa_typed.png")
+                        except Exception:
+                            pass
 
                         time.sleep(random.uniform(1.5, 2.5))
                         text_sent = True
@@ -155,40 +270,84 @@ class PlaywrightWhatsAppProvider:
                         reason="Message composer did not become ready within timeout period"
                     )
 
-                # Step 2: Attachment if requested
+                # Step 4: Attachment (Industry Standard Direct Upload)
                 att_file = Path(attachment_path) if attachment_path else None
                 if att_file and att_file.exists():
                     try:
                         time.sleep(random.uniform(0.8, 1.5))
-                        attach_btn = page.locator(
-                            'button[aria-label="Attach"], [title="Attach"], span[data-icon="plus-rounded"], span[data-icon="clip"], span[data-icon="plus"]'
-                        ).first
-                        attach_btn.wait_for(state="visible", timeout=10000)
-                        attach_btn.click()
-
-                        doc_item = page.locator(
-                            'button[role="menuitem"][aria-label="Document"], [role="menuitem"]:has-text("Document"), button:has-text("Document")'
-                        ).first
-                        doc_item.wait_for(state="visible", timeout=7000)
-
-                        with page.expect_file_chooser(timeout=7000) as fc_info:
-                            doc_item.click()
+                        
+                        attach_btn = page.evaluate_handle('''() => {
+                            let svgs = document.querySelectorAll('footer svg');
+                            for (let svg of svgs) {
+                                if (svg.innerHTML.includes('plus') || svg.getAttribute('data-icon') === 'plus') {
+                                    return svg.closest('button, div[role="button"], span[role="button"]');
+                                }
+                            }
+                            let composer = document.querySelector('footer div[contenteditable="true"]');
+                            if (composer && composer.parentElement && composer.parentElement.previousElementSibling) {
+                                return composer.parentElement.previousElementSibling.querySelector('button, div[role="button"]');
+                            }
+                            return null;
+                        }''')
+                        
+                        if attach_btn:
+                            try:
+                                attach_btn.evaluate('(el) => el.click()')
+                            except Exception:
+                                pass
+                        time.sleep(1.0)
+                        
+                        # Catch the native OS file picker
+                        with page.expect_file_chooser(timeout=5000) as fc_info:
+                            # Click the Document button in the menu (first item or by text)
+                            doc_btn = page.locator('li:has-text("Document"), span:has-text("Document")').first
+                            if doc_btn.count() == 0:
+                                doc_btn = page.locator('ul li').first
+                            doc_btn.click()
+                            
                         file_chooser = fc_info.value
                         file_chooser.set_files(str(att_file))
-
-                        time.sleep(random.uniform(1.2, 2.0))
-
-                        send_doc_btn = page.locator(
-                            'div[role="button"][aria-label^="Send"], div[role="button"][aria-label="Send"], span[data-icon="wds-ic-send-filled"], [data-testid="send"]'
-                        ).last
-                        send_doc_btn.wait_for(state="visible", timeout=15000)
-                        send_doc_btn.click()
+                        
+                        # Wait for preview to load (larger PDFs take longer)
+                        # The caption text box appears once the preview is fully loaded.
+                        caption_box = page.locator('div[contenteditable="true"]').last
+                        caption_box.wait_for(state="visible", timeout=15000)
+                        
+                        # DO NOT explicitly click the caption box! Clicking it can break the default 
+                        # Enter key event listener on the modal in some WhatsApp Web versions.
+                        time.sleep(1.0)
+                        
+                        # Send the attachment
                         page.keyboard.press("Enter")
-                        send_doc_btn.wait_for(state="hidden", timeout=15000)
-                        time.sleep(random.uniform(1.5, 2.5))
+                        time.sleep(random.uniform(2.0, 3.5))
+
+                        # Additional fallback if Enter failed: look for the green send button by absolute placement 
+                        # and use a native mouse click (JS clicks often fail on React synthetic events)
+                        btn_coords = page.evaluate('''() => {
+                            let btns = document.querySelectorAll('div[role="button"]');
+                            for (let b of btns) {
+                                let rect = b.getBoundingClientRect();
+                                if (rect.right > window.innerWidth - 100 && rect.bottom > window.innerHeight - 100) {
+                                    return {x: rect.x + rect.width/2, y: rect.y + rect.height/2};
+                                }
+                            }
+                            return null;
+                        }''')
+                        
+                        if btn_coords:
+                            page.mouse.click(btn_coords['x'], btn_coords['y'])
+                            time.sleep(2.0)
+
+                    except Exception as e:
+                        _dbg(f"[send] Optional attachment failed: {str(e)}")
+                        time.sleep(random.uniform(2.5, 4.0))
+                        
                     except Exception as attach_exc:
-                        # Text was sent successfully, but attachment failed
                         ref_id = f"wa_{clean_phone}_{int(time.time())}"
+                        try:
+                            page.screenshot(path="debug_wa_final.png")
+                        except Exception:
+                            pass
                         return ProviderSendResult(
                             success=True,
                             status=OutreachStatus.SENT,
@@ -197,9 +356,15 @@ class PlaywrightWhatsAppProvider:
                             failure_detail=f"Text delivered, but attachment failed: {attach_exc}",
                         )
 
-                ref_id = f"wa_{clean_phone}_{int(time.time())}"
-                time.sleep(1.0)
-                return ProviderSendResult.sent(provider_reference=ref_id)
+                try:
+                    page.screenshot(path="debug_wa_final.png")
+                except Exception:
+                    pass
+                return ProviderSendResult(
+                    success=True,
+                    status=OutreachStatus.SENT,
+                    provider_reference=f"wa_{clean_phone}_{int(time.time())}",
+                )
 
         except Exception as exc:
             return ProviderSendResult.unknown(
