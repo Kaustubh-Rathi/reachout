@@ -207,7 +207,7 @@ def sample_sender() -> SenderAccount:
     return SenderAccount.create(
         channel=Channel.WHATSAPP,
         provider="MOCK_PLAYWRIGHT",
-        identity="+919000000001",
+        identity="+919999999999",
         display_name="Primary WhatsApp Sender",
         daily_limit=50,
     )

@@ -95,7 +95,11 @@ class WhatsAppSessionManager:
                     shutil.copytree(item, dest_item, dirs_exist_ok=True)
                 else:
                     shutil.copy2(item, dest_item)
-            shutil.rmtree(src, ignore_errors=True)
+            try:
+                shutil.rmtree(src)
+            except Exception as exc:
+                # Surface a leftover temp dir instead of silently ignoring it.
+                _auth_log(f"[auth] WARN: failed to remove leftover temp session dir {src}: {exc!r}")
         else:
             last_err: Optional[Exception] = None
             for attempt in range(10):
@@ -113,7 +117,11 @@ class WhatsAppSessionManager:
         """Remove the on-disk session folder for an id (used for abandoned temp sessions)."""
         s_dir = self.session_dir_path(sender_id)
         if s_dir.exists():
-            shutil.rmtree(s_dir, ignore_errors=True)
+            try:
+                shutil.rmtree(s_dir)
+            except Exception as exc:
+                # Surface the leftover dir instead of silently ignoring it.
+                _auth_log(f"[auth] WARN: failed to remove session dir {s_dir}: {exc!r}")
 
     def is_temp_id(self, sender_id: str) -> bool:
         return sender_id.startswith("tmp_auth_")

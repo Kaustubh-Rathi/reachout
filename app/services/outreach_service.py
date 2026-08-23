@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
+from app.config import DEFAULT_MESSAGE_BODY, DEFAULT_MESSAGE_SUBJECT
 from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
@@ -204,7 +205,7 @@ class OutreachService:
                 attachment_ref = attachment_ref or template.attachment_ref
 
         if not body:
-            body = f"Hi {contact.first_name}, I am reaching out regarding opportunities at {contact.company_id}."
+            body = DEFAULT_MESSAGE_BODY.format(first_name=contact.first_name or "", company=contact.company_id or "")
 
         now = datetime.now(timezone.utc)
         attempt_type = AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL
@@ -403,9 +404,9 @@ class OutreachService:
                 attachment_ref = attachment_ref or template.attachment_ref
 
         if not subj:
-            subj = f"Exploring opportunities at {contact.company_id}"
+            subj = f"{DEFAULT_MESSAGE_SUBJECT} at {contact.company_id}"
         if not body:
-            body = f"Hi {contact.first_name},\n\nI hope you are doing well. Reaching out regarding roles at {contact.company_id}.\n\nBest regards,\nCandidate"
+            body = DEFAULT_MESSAGE_BODY.format(first_name=contact.first_name or "", company=contact.company_id or "")
 
         now = datetime.now(timezone.utc)
         attempt_type = AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL

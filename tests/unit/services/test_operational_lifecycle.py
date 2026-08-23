@@ -91,7 +91,7 @@ class TestOperationalLifecycleWorkflow:
         sender = SenderAccount.create(
             channel=Channel.WHATSAPP,
             provider="MOCK_WA",
-            identity="+919000000001",
+            identity="+919999999999",
             display_name="Primary WhatsApp",
             daily_limit=100,
         )

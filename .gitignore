@@ -75,3 +75,13 @@ logs/screenshots/
 .tmp_run*/
 .tmp_probe/
 
+
+# Personal / local artifacts (do not commit)
+logs/*.csv
+resume.pdf
+.env
+# Local live E2E harness (references real authenticated WhatsApp session IDs + personal test targets)
+tests/e2e/live/live_e2e_harness.py
+# Debug screenshots written by the browser provider (root level)
+debug_*.png
+

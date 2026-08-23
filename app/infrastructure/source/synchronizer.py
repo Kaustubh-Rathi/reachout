@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
 
+from app.config import DEFAULT_COUNTRY_CODE
 from app.domain.company import Company, normalize_company_name
 from app.domain.contact import Contact
 from app.domain.source_record import SourceRecord
@@ -33,7 +34,7 @@ CONTACT_SLOTS: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
 )
 
 
-def normalize_phone_number(raw: str, default_country_code: str = "91") -> Optional[str]:
+def normalize_phone_number(raw: str, default_country_code: str = DEFAULT_COUNTRY_CODE) -> Optional[str]:
     """Normalize phone number to E.164 digits without leading '+'."""
     value = clean_text(raw)
     if not value:
@@ -53,7 +54,7 @@ def normalize_phone_number(raw: str, default_country_code: str = "91") -> Option
     return digits
 
 
-def extract_phone_numbers(raw: str, default_country_code: str = "91") -> List[str]:
+def extract_phone_numbers(raw: str, default_country_code: str = DEFAULT_COUNTRY_CODE) -> List[str]:
     """Extract all unique valid phone numbers from a cell string."""
     value = clean_text(raw)
     if not value:
@@ -89,7 +90,7 @@ class DatabaseSourceSynchronizer:
         self,
         session: Session,
         reader: Optional[SourceReader] = None,
-        default_country_code: str = "91",
+        default_country_code: str = DEFAULT_COUNTRY_CODE,
     ) -> None:
         self.session = session
         self.reader = reader or TabularSourceReader()

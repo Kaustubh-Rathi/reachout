@@ -61,14 +61,27 @@ class SenderService:
         # WhatsApp senders reconciliation
         wa_senders = self.repo.list_by_channel(Channel.WHATSAPP)
         for s in wa_senders:
+            # Only reconcile when we actually hold a real, non-default in-memory auth
+            # state (a live temp flow or an in-progress re-auth). After a process
+            # restart the in-memory auth dict is empty, and get_auth_state() returns a
+            # NOT_CONFIGURED default that must NOT overwrite a persisted ACTIVE status
+            # (otherwise authenticated WhatsApp sessions silently regress to
+            # NOT_CONFIGURED on every boot and vanish from the dashboard).
+            if not self.session_manager.is_auth_known(s.id):
+                continue
             auth_info = self.session_manager.get_auth_state(s.id)
             st_str = auth_info.get("status")
             if st_str and st_str != s.status.value:
                 try:
                     s.status = SenderStatus(st_str)
                     self.repo.save(s)
-                except ValueError:
-                    pass
+                except ValueError as exc:
+                    # An unrecognized status string in the session manager is a real
+                    # divergence; surface it instead of silently skipping it.
+                    print(
+                        f"[SenderService] Skipping unrecognized auth status {st_str!r} "
+                        f"for sender {s.id}: {exc}"
+                    )
 
         # Email senders reconciliation
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
@@ -270,7 +283,15 @@ class SenderService:
                 try:
                     self._persist_whatsapp_session(payload, temp_display_name)
                 except Exception as exc:
-                    print(f"[SenderService] Error persisting new WhatsApp session: {exc}")
+                    # Surface the failure instead of leaving a phantom ACTIVE session
+                    # with no DB row (the operator would be misled into thinking the
+                    # WhatsApp session persisted). Mark auth state ERROR so the UI shows it.
+                    import traceback
+                    traceback.print_exc()
+                    self.session_manager.set_auth_state(
+                        sender_id, SenderStatus.ERROR,
+                        error_message=f"Failed to persist WhatsApp session: {exc}",
+                    )
             elif st_val:
                 # Sync status for an existing persisted sender (re-auth).
                 try:
@@ -282,7 +303,10 @@ class SenderService:
                             cb_repo.save(cb_sender)
                             cb_sess.commit()
                 except Exception as exc:
-                    print(f"[SenderService] Error syncing auth status: {exc}")
+                    # Surface re-auth status-sync failures so sender status never silently
+                    # diverges from reality.
+                    import traceback
+                    traceback.print_exc()
 
             event_bus.publish_event(event_name, payload)
             alias_name = event_name.upper().replace(".", "_")

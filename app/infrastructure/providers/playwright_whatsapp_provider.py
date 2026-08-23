@@ -199,11 +199,6 @@ class PlaywrightWhatsAppProvider:
                         else:
                             page.keyboard.press("Enter")
                         
-                        try:
-                            page.screenshot(path="debug_wa_typed.png")
-                        except Exception:
-                            pass
-
                         time.sleep(random.uniform(1.5, 2.5))
                         text_sent = True
                         break
@@ -235,30 +230,35 @@ class PlaywrightWhatsAppProvider:
                         time.sleep(0.3)
 
                         # Type the message
+                        typed = False
                         try:
                             page.keyboard.type(message_body, delay=random.uniform(40, 100))
+                            typed = True
                         except Exception:
                             try:
                                 _human_type(composer.first, message_body)
-                            except Exception:
-                                pass
+                                typed = True
+                            except Exception as type_exc:
+                                # Do NOT press send on an empty composer: that would send
+                                # a blank message while reporting SENT. Surface instead.
+                                _dbg(f"[send] FATAL typing failed for {clean_phone}: {type_exc!r}")
+                                return ProviderSendResult.failed(
+                                    failure_code="ERR_TYPING_FAILED",
+                                    failure_detail=f"Could not enter message text: {type_exc}",
+                                )
 
                         time.sleep(random.uniform(1.0, 2.0))
 
-                        # Dispatch via Send button or Enter
-                        if send_button.count() and send_button.first.is_visible():
-                            try:
-                                send_button.first.click(timeout=8000)
-                            except Exception:
+                        # Dispatch via Send button or Enter (only if text was entered)
+                        if typed:
+                            if send_button.count() and send_button.first.is_visible():
+                                try:
+                                    send_button.first.click(timeout=8000)
+                                except Exception:
+                                    page.keyboard.press("Enter")
+                            else:
                                 page.keyboard.press("Enter")
-                        else:
-                            page.keyboard.press("Enter")
                         
-                        try:
-                            page.screenshot(path="debug_wa_typed.png")
-                        except Exception:
-                            pass
-
                         time.sleep(random.uniform(1.5, 2.5))
                         text_sent = True
                         break
@@ -361,10 +361,6 @@ class PlaywrightWhatsAppProvider:
                         time.sleep(random.uniform(2.5, 4.0))
 
 
-                try:
-                    page.screenshot(path="debug_wa_final.png")
-                except Exception:
-                    pass
                 return ProviderSendResult(
                     success=True,
                     status=OutreachStatus.SENT,
