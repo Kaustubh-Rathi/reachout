@@ -6,11 +6,13 @@ from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import CampaignStatus, Channel, OutreachStatus, SenderStatus
+from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
+from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.services.contact_service import ContactService
 from app.services.sender_service import SenderService
@@ -25,12 +27,20 @@ def isolated_session_factory(tmp_path):
     SessionFactory = sessionmaker(bind=engine)
     with SessionFactory() as session:
         TemplateService(session).seed_defaults_if_empty()
-        sender_svc = SenderService(session)
-        sender_svc.seed_defaults_if_empty()
-        for ch in (Channel.WHATSAPP, Channel.EMAIL):
-            for s in sender_svc.repo.list_by_channel(ch):
-                s.status = SenderStatus.ACTIVE
-                sender_svc.repo.save(s)
+        # SenderService.seed_defaults_if_empty() is a deliberate no-op, so seed
+        # active placeholder senders explicitly for the campaign scheduler.
+        srepo = SqliteSenderRepository(session)
+        for i in (1, 2):
+            wa = SenderAccount.create(channel=Channel.WHATSAPP, provider="playwright_whatsapp",
+                                      identity=f"+91900000000{i}", display_name=f"WA{i}",
+                                      sender_id=f"WA{i}", daily_limit=100)
+            wa.status = SenderStatus.ACTIVE
+            srepo.save(wa)
+            em = SenderAccount.create(channel=Channel.EMAIL, provider="smtp",
+                                      identity=f"sender{i}@example.com", display_name=f"EM{i}",
+                                      sender_id=f"EMAIL{i}", daily_limit=100)
+            em.status = SenderStatus.ACTIVE
+            srepo.save(em)
         session.commit()
     return SessionFactory
 

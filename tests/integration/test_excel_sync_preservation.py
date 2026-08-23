@@ -20,6 +20,7 @@ from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOut
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.services.sync_service import SyncService
+from app.services.template_service import TemplateService
 
 
 @pytest.fixture
@@ -27,7 +28,12 @@ def sync_test_session_factory(tmp_path):
     """Create isolated SQLite database for sync preservation test."""
     engine = create_engine(f"sqlite:///{tmp_path / 'sync_preservation.db'}")
     Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)
+    sf = sessionmaker(bind=engine)
+    # Seed official templates so attempts referencing template_id (FK) resolve.
+    with sf() as session:
+        TemplateService(session).seed_defaults_if_empty()
+        session.commit()
+    return sf
 
 
 def test_excel_sync_preserves_history_timestamps_and_crm_status(sync_test_session_factory, tmp_path):

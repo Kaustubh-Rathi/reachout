@@ -19,6 +19,7 @@ from app.infrastructure.repositories import (
     SqliteCompanyRepository,
     SqliteContactRepository,
     SqliteOutreachRepository,
+    SqliteSenderRepository,
     SqliteSuppressionRepository,
 )
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
@@ -102,6 +103,8 @@ class TestDuplicateAndSuppression:
             identity="+919999999999",
             display_name="Line 1",
         )
+        # Persist the sender so the attempt's sender_account_id FK resolves.
+        SqliteSenderRepository(tombstone_session).save(sender)
 
         attempt = OutreachAttempt.prepare(
             contact_id=contact.contact_id,

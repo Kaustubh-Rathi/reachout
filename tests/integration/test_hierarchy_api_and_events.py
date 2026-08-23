@@ -11,11 +11,13 @@ from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, CRMOutcome, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
+from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.events.event_bus import default_event_bus
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
+from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.main import app
 from app.services.company_service import CompanyService
 from app.services.event_bus import event_bus
@@ -26,7 +28,16 @@ def hierarchy_session_factory(tmp_path):
     """Create isolated SQLite database for hierarchy testing."""
     engine = create_engine(f"sqlite:///{tmp_path / 'hierarchy_test.db'}")
     Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)
+    sf = sessionmaker(bind=engine)
+    # Seed the senders referenced by the attempts' sender_account_id FK.
+    with sf() as session:
+        srepo = SqliteSenderRepository(session)
+        srepo.save(SenderAccount.create(sender_id="WA1", channel=Channel.WHATSAPP, provider="mock",
+                                        identity="+919899000000", display_name="WA1"))
+        srepo.save(SenderAccount.create(sender_id="EMAIL1", channel=Channel.EMAIL, provider="mock",
+                                        identity="email1@example.com", display_name="EMAIL1"))
+        session.commit()
+    return sf
 
 
 def test_company_hierarchy_endpoint(hierarchy_session_factory):

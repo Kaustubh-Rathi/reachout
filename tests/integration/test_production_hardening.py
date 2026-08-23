@@ -650,6 +650,11 @@ class TestFinding12ExcelSyncHistoryPreservation:
             cnt = Contact(contact_id="cnt_acme_1", company_id="comp_acme", name="Alice", phone="+919000000001")
             contact_repo.save(cnt)
 
+            # Persist the referenced sender so the attempt FK resolves.
+            SqliteSenderRepository(session).save(SenderAccount.create(
+                sender_id="snd_01", channel=Channel.WHATSAPP, provider="mock",
+                identity="+919000000000", display_name="Snd"))
+
             # Historical SENT attempt
             att_sent = OutreachAttempt.prepare(
                 contact_id="cnt_acme_1",

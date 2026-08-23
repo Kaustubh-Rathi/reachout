@@ -10,6 +10,7 @@ from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, CRMOutcome, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
+from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.models import (
     CompanyModel,
@@ -21,6 +22,7 @@ from app.infrastructure.repositories import (
     SqliteCompanyRepository,
     SqliteContactRepository,
     SqliteOutreachRepository,
+    SqliteSenderRepository,
 )
 
 
@@ -123,6 +125,10 @@ class TestSqlitePersistence:
             phone="919111111111",
         )
         contact_repo.save(contact)
+        # Persist the referenced sender so the attempt FK resolves.
+        SqliteSenderRepository(sqlite_session).save(SenderAccount.create(
+            sender_id="snd_wa_1", channel=Channel.WHATSAPP, provider="mock",
+            identity="+919111111111", display_name="S1"))
         sqlite_session.commit()
 
         attempt1 = OutreachAttempt.prepare(
