@@ -24,10 +24,12 @@ from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, CRMOutcome, InterviewState, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
+from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
+from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.main import app
 from app.services.company_service import CompanyService
 
@@ -105,6 +107,10 @@ def _seed_hierarchy(session):
     comp_repo = SqliteCompanyRepository(session)
     cnt_repo = SqliteContactRepository(session)
     outreach_repo = SqliteOutreachRepository(session)
+    # Seed the sender referenced by the attempt FK.
+    SqliteSenderRepository(session).save(SenderAccount.create(
+        sender_id="WA1", channel=Channel.WHATSAPP, provider="mock",
+        identity="+919000000000", display_name="WA1"))
 
     # Company A: interested, contacted via WA
     a = Company.create(name="Acme Corp", company_id="acme")

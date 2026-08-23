@@ -20,6 +20,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -254,7 +255,17 @@ class SenderAccountModel(Base):
     hourly_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("channel", "identity", name="uq_sender_channel_identity"),
+        # Unique per (channel, identity) EXCEPT empty placeholder identities, which
+        # legitimately repeat for unauthenticated WhatsApp placeholder sessions
+        # (e.g. WA_SESSION_1, WA_SESSION_2). Prevents duplicate real identities while
+        # allowing multiple empty placeholder rows.
+        Index(
+            "uq_sender_channel_identity",
+            "channel",
+            "identity",
+            unique=True,
+            sqlite_where=text("identity != ''"),
+        ),
     )
 
     def to_domain(self) -> SenderAccount:

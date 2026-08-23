@@ -769,6 +769,11 @@ class TestSourceSynchronizationRegression:
             dara.notes = "Discussed Senior Staff SWE opportunity"
             contact_repo.save(dara)
 
+            # Seed the sender referenced by the attempt FK.
+            SqliteSenderRepository(session).save(SenderAccount.create(
+                sender_id="WA-1", channel=Channel.WHATSAPP, provider="mock",
+                identity="+919000000000", display_name="WA1"))
+
             att = OutreachAttempt.prepare(contact_id=dara.contact_id, sender_account_id="WA-1", channel=Channel.WHATSAPP, attempt_type=AttemptType.AUTOMATIC, message_body="Hello Dara")
             att.mark_sent(provider_reference="wa_uber_ref_1")
             outreach_repo.save(att)

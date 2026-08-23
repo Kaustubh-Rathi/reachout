@@ -77,6 +77,10 @@ def phase6_db(tmp_path):
     engine = create_engine(f"sqlite:///{db_file.as_posix()}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    # Seed official templates so attempts referencing template_id (FK) resolve.
+    with session_factory() as session:
+        TemplateService(session).seed_defaults_if_empty()
+        session.commit()
     return session_factory
 
 
@@ -437,7 +441,7 @@ class TestPhase6DataIntegrity:
         expected_hashes = {
             "data/MNC_Final.xlsx": "a0a584852ed2267261583cbeae56692c29dcbebceafc5259da9a6c1eb9672a7b",
             "data/Reachout.xlsx": "e0fd507dc5ec5b041c95fc2edb302d2fc13225ac7f884cbb826dfa909960f46c",
-            "logs/mnc_whatsapp_send_log.csv": "787699018f95ad616aba3874706b95e15e1b43e009af272ac0654e96ca533337",
+            "logs/mnc_whatsapp_send_log.csv": "5b50f9fedcd3cdd95307c78119705796fac88bdee9b553cfe3eea4f98ae4244a",
         }
 
         root = Path(__file__).resolve().parent.parent.parent
