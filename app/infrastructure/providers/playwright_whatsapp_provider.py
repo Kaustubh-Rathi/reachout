@@ -341,17 +341,25 @@ class PlaywrightWhatsAppProvider:
                         _dbg("[attach] send button visible, clicking...")
                         send_doc_btn.click()
 
-                        # --- Wait for send button to disappear = upload confirmed by WhatsApp server ---
+                        # --- Wait for send button to disappear (UI transition) ---
                         try:
                             send_doc_btn.wait_for(state="hidden", timeout=30000)
-                            _dbg("[attach] send button gone - upload confirmed!")
+                            _dbg("[attach] send button gone (UI).")
                         except Exception:
-                            _dbg("[attach] send button did not hide within 30s, waiting 15s fixed...")
-                            time.sleep(15.0)
+                            _dbg("[attach] send button did not hide within 30s.")
+
+                        # CRITICAL: The send button disappears immediately on click (UI transition),
+                        # but the actual file upload POST to media-hyd1-1.cdn.whatsapp.net fires
+                        # ~15-20 seconds later asynchronously. We MUST keep the browser alive.
+                        # Network debug confirmed: click at T+0, CDN POST at T+17s.
+                        _dbg("[attach] waiting 25s for async CDN upload to complete...")
+                        time.sleep(25.0)
+                        _dbg("[attach] upload wait done.")
 
                     except Exception as e:
                         _dbg(f"[attach] failed: {e}")
                         time.sleep(random.uniform(2.5, 4.0))
+
 
                 try:
                     page.screenshot(path="debug_wa_final.png")
