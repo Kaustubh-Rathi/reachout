@@ -270,114 +270,88 @@ class PlaywrightWhatsAppProvider:
                         reason="Message composer did not become ready within timeout period"
                     )
 
-                # Step 4: Attachment (Industry Standard Direct Upload)
+                # Step 4: Attachment
                 att_file = Path(attachment_path) if attachment_path else None
                 if att_file and att_file.exists():
                     try:
                         time.sleep(random.uniform(0.8, 1.5))
-                        
-                        # Physical OS-level mouse click on the attach (plus) button
-                        attach_coords = page.evaluate('''() => {
-                            let svgs = document.querySelectorAll('footer svg');
-                            let btn = null;
-                            for (let svg of svgs) {
-                                if (svg.innerHTML.includes('plus') || svg.getAttribute('data-icon') === 'plus') {
-                                    btn = svg.closest('button, div[role="button"], span[role="button"]');
-                                    break;
+
+                        # --- Find & click the attach (plus-rounded) button via JS coords ---
+                        attach_coords = page.evaluate("""() => {
+                            let el = document.querySelector('[title="Attach"]');
+                            if (!el) {
+                                for (let ic of ['plus-rounded', 'plus', 'clip']) {
+                                    let svg = document.querySelector('span[data-icon="' + ic + '"]');
+                                    if (svg) { el = svg.closest('button, span[role="button"], div[role="button"]'); if (el) break; }
                                 }
                             }
-                            if (!btn) {
-                                let composer = document.querySelector('footer div[contenteditable="true"]');
-                                if (composer && composer.parentElement && composer.parentElement.previousElementSibling) {
-                                    btn = composer.parentElement.previousElementSibling.querySelector('button, div[role="button"]');
-                                }
-                            }
-                            if (btn) {
-                                let rect = btn.getBoundingClientRect();
-                                return {x: rect.x + rect.width/2, y: rect.y + rect.height/2};
+                            if (!el) el = document.querySelector('[aria-label="Attach"]');
+                            if (el) {
+                                let r = el.getBoundingClientRect();
+                                return {x: r.left + r.width/2, y: r.top + r.height/2};
                             }
                             return null;
-                        }''')
-                        
+                        }""")
+
                         if not attach_coords:
-                            raise Exception("Could not find attach (plus) button coordinates in the footer")
-                            
+                            raise Exception("Could not find Attach button in the footer")
+
+                        _dbg(f"[attach] clicking attach btn at {attach_coords}")
                         page.mouse.click(attach_coords['x'], attach_coords['y'])
                         time.sleep(1.5)
-                        
-                        # Physical OS-level mouse click on the Document menu item
-                        doc_coords = page.evaluate('''() => {
-                            let listItems = document.querySelectorAll('li, span');
-                            for (let item of listItems) {
-                                if (item.innerText && item.innerText.includes('Document')) {
-                                    let rect = item.getBoundingClientRect();
-                                    // Make sure it's floating above the footer (y < window.innerHeight - 50) 
-                                    // and not hidden, to avoid clicking chat bubbles
-                                    if (rect.y < window.innerHeight - 50 && rect.width > 0 && rect.height > 0) {
-                                        return {x: rect.x + rect.width/2, y: rect.y + rect.height/2};
+
+                        # --- Find Document menu item by role=menuitem (strict, avoids chat bubbles) ---
+                        doc_coords = page.evaluate("""() => {
+                            let items = document.querySelectorAll('[role="menuitem"]');
+                            for (let item of items) {
+                                let txt = (item.innerText || item.textContent || '').trim();
+                                if (txt === 'Document') {
+                                    let r = item.getBoundingClientRect();
+                                    if (r.width > 0 && r.height > 0) {
+                                        return {x: r.left + r.width/2, y: r.top + r.height/2};
                                     }
                                 }
                             }
                             return null;
-                        }''')
-                        
-                        if not doc_coords:
-                            raise Exception("Could not find Document menu item coordinates")
-                            
-                        # Catch the native OS file picker
-                        with page.expect_file_chooser(timeout=5000) as fc_info:
-                            page.mouse.click(doc_coords['x'], doc_coords['y'])
-                            
-                        file_chooser = fc_info.value
-                        file_chooser.set_files(str(att_file))
-                        
-                        # Wait for preview to load (larger PDFs take longer)
-                        # The caption text box appears once the preview is fully loaded.
-                        caption_box = page.locator('div[contenteditable="true"]').last
-                        caption_box.wait_for(state="visible", timeout=15000)
-                        
-                        # DO NOT explicitly click the caption box! Clicking it can break the default 
-                        # Enter key event listener on the modal in some WhatsApp Web versions.
-                        time.sleep(1.0)
-                        
-                        # Send the attachment
-                        page.keyboard.press("Enter")
-                        time.sleep(random.uniform(2.0, 3.5))
+                        }""")
 
-                        # Additional fallback if Enter failed: look for the green send button by absolute placement 
-                        # and use a native mouse click (JS clicks often fail on React synthetic events)
-                        btn_coords = page.evaluate('''() => {
-                            let btns = document.querySelectorAll('div[role="button"]');
-                            for (let b of btns) {
-                                let rect = b.getBoundingClientRect();
-                                if (rect.right > window.innerWidth - 100 && rect.bottom > window.innerHeight - 100) {
-                                    return {x: rect.x + rect.width/2, y: rect.y + rect.height/2};
-                                }
-                            }
-                            return null;
-                        }''')
-                        
-                        if btn_coords:
-                            page.mouse.click(btn_coords['x'], btn_coords['y'])
-                            time.sleep(2.0)
+                        if not doc_coords:
+                            raise Exception("Could not find Document menuitem after clicking attach")
+
+                        _dbg(f"[attach] clicking Document menuitem at {doc_coords}")
+
+                        # Click Document and catch the native file chooser
+                        with page.expect_file_chooser(timeout=7000) as fc_info:
+                            page.mouse.click(doc_coords['x'], doc_coords['y'])
+
+                        fc = fc_info.value
+                        fc.set_files(str(att_file))
+                        _dbg(f"[attach] file set: {att_file}")
+                        time.sleep(1.5)
+
+                        # --- Wait for and click the dedicated send button in the attachment modal ---
+                        send_doc_btn = page.locator(
+                            'div[role="button"][aria-label^="Send"], '
+                            'div[role="button"][aria-label="Send"], '
+                            'span[data-icon="wds-ic-send-filled"], '
+                            '[data-testid="send"], '
+                            'span[data-icon="send"]'
+                        ).last
+                        send_doc_btn.wait_for(state="visible", timeout=15000)
+                        _dbg("[attach] send button visible, clicking...")
+                        send_doc_btn.click()
+
+                        # --- Wait for send button to disappear = upload confirmed by WhatsApp server ---
+                        try:
+                            send_doc_btn.wait_for(state="hidden", timeout=30000)
+                            _dbg("[attach] send button gone - upload confirmed!")
+                        except Exception:
+                            _dbg("[attach] send button did not hide within 30s, waiting 15s fixed...")
+                            time.sleep(15.0)
 
                     except Exception as e:
-                        _dbg(f"[send] Optional attachment failed: {str(e)}")
+                        _dbg(f"[attach] failed: {e}")
                         time.sleep(random.uniform(2.5, 4.0))
-                        
-                    except Exception as attach_exc:
-                        ref_id = f"wa_{clean_phone}_{int(time.time())}"
-                        try:
-                            page.screenshot(path="debug_wa_final.png")
-                        except Exception:
-                            pass
-                        return ProviderSendResult(
-                            success=True,
-                            status=OutreachStatus.SENT,
-                            provider_reference=ref_id,
-                            failure_code="WARN_ATTACHMENT_FAILED",
-                            failure_detail=f"Text delivered, but attachment failed: {attach_exc}",
-                        )
 
                 try:
                     page.screenshot(path="debug_wa_final.png")
@@ -388,6 +362,8 @@ class PlaywrightWhatsAppProvider:
                     status=OutreachStatus.SENT,
                     provider_reference=f"wa_{clean_phone}_{int(time.time())}",
                 )
+
+
 
         except Exception as exc:
             return ProviderSendResult.unknown(
