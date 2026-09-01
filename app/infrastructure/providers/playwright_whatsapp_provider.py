@@ -129,33 +129,10 @@ class PlaywrightWhatsAppProvider:
                         failure_detail="WhatsApp Web failed to sync chats within timeout",
                     )                
                 # Step 2: Navigate to chat url now that app is fully bootstrapped
-                # Instead of relying on web.whatsapp.com/send which drops parameters due to SPA bugs,
-                # we mimic a real human: click the search bar, type the number, and press Enter.
-                
-                search_box = page.get_by_placeholder("Search or start a new chat").first
-                if search_box.count() == 0:
-                    search_box = page.locator('div[title="Search input textbox"]').first
-                    
-                if search_box.count() == 0:
-                    return ProviderSendResult.unknown(
-                        reason="Could not find WhatsApp search bar to initiate chat."
-                    )
-                    
-                # Clear any existing search
-                search_box.click()
-                time.sleep(0.5)
-                page.keyboard.press("Control+A")
-                page.keyboard.press("Backspace")
-                time.sleep(0.5)
-                
-                # Type the target phone number
-                page.keyboard.type(clean_phone)
-                
-                # Wait for WhatsApp to search its internal contacts and the global directory
-                time.sleep(2.0)
-                page.keyboard.press("Enter")
-                
-                _dbg(f"[send] sender={attempt.sender_account_id} -> {clean_phone} (UI Search Method)")
+                # The UI Search method fails for unsaved numbers. We use JS location assignment
+                # to trigger the SPA deep link directly.
+                _dbg(f"[send] sender={attempt.sender_account_id} -> {clean_phone} (JS Deep Link Method)")
+                page.evaluate(f'window.location.href = "https://web.whatsapp.com/send/?phone={clean_phone}";')
 
                 invalid_text = page.get_by_text(
                     re.compile(r"phone number shared via url is invalid", re.I)
@@ -174,11 +151,15 @@ class PlaywrightWhatsAppProvider:
                 text_sent = False
                 
                 while time.monotonic() < deadline:
-                    
+                    if invalid_text.count() and invalid_text.first.is_visible():
+                        return ProviderSendResult.failed(
+                            failure_code="ERR_NOT_ON_WHATSAPP",
+                            failure_detail="WhatsApp rejected phone number as invalid or not registered",
+                        )
+
                     if composer.count() and composer.first.is_visible():
                         # We are in the chat!
-                        # Clear anything that might be leftover in the composer
-                        composer.first.click()
+                        composer.first.click(force=True)
                         page.keyboard.press("Control+A")
                         page.keyboard.press("Backspace")
                         time.sleep(0.5)
@@ -190,7 +171,6 @@ class PlaywrightWhatsAppProvider:
                             
                         time.sleep(1.0)
                         
-                        # Wait for send button and click it
                         if send_button.count() and send_button.first.is_visible():
                             try:
                                 send_button.first.click()
@@ -203,67 +183,7 @@ class PlaywrightWhatsAppProvider:
                         text_sent = True
                         break
                         
-                    # If we don't find it, the number might not exist on WhatsApp.
-                    # Press Enter again just in case search was slow.
-                    page.keyboard.press("Enter")
-                        
-                    if invalid_text.count() and invalid_text.first.is_visible():
-                        return ProviderSendResult.failed(
-                            failure_code="ERR_NOT_ON_WHATSAPP",
-                            failure_detail="WhatsApp rejected phone number as invalid or not registered",
-                        )
-                        
-                    time.sleep(1.5)
-
-                    if composer.count() and composer.first.is_visible():
-                        time.sleep(random.uniform(1.2, 2.5))
-                        try:
-                            page.keyboard.press("Escape")
-                        except Exception:
-                            pass
-                        time.sleep(0.3)
-
-                        try:
-                            composer.first.click()
-                        except Exception:
-                            pass
-                        time.sleep(0.3)
-
-                        # Type the message
-                        typed = False
-                        try:
-                            page.keyboard.type(message_body, delay=random.uniform(40, 100))
-                            typed = True
-                        except Exception:
-                            try:
-                                _human_type(composer.first, message_body)
-                                typed = True
-                            except Exception as type_exc:
-                                # Do NOT press send on an empty composer: that would send
-                                # a blank message while reporting SENT. Surface instead.
-                                _dbg(f"[send] FATAL typing failed for {clean_phone}: {type_exc!r}")
-                                return ProviderSendResult.failed(
-                                    failure_code="ERR_TYPING_FAILED",
-                                    failure_detail=f"Could not enter message text: {type_exc}",
-                                )
-
-                        time.sleep(random.uniform(1.0, 2.0))
-
-                        # Dispatch via Send button or Enter (only if text was entered)
-                        if typed:
-                            if send_button.count() and send_button.first.is_visible():
-                                try:
-                                    send_button.first.click(timeout=8000)
-                                except Exception:
-                                    page.keyboard.press("Enter")
-                            else:
-                                page.keyboard.press("Enter")
-                        
-                        time.sleep(random.uniform(1.5, 2.5))
-                        text_sent = True
-                        break
-
-                    time.sleep(0.5)
+                    time.sleep(1.0)
 
                 if not text_sent:
                     return ProviderSendResult.unknown(

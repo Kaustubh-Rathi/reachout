@@ -273,6 +273,7 @@ class OutreachService:
         # Dispatch via provider
         attempt.mark_sending(now)
         self.outreach_repo.save(attempt)
+        self.session.commit()
 
         event_bus.publish_event(
             "OUTREACH_STARTED",
@@ -475,6 +476,7 @@ class OutreachService:
         # Dispatch
         attempt.mark_sending(now)
         self.outreach_repo.save(attempt)
+        self.session.commit()
 
         event_bus.publish_event(
             "OUTREACH_STARTED",
