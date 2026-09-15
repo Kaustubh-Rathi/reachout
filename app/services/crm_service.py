@@ -20,20 +20,19 @@ from app.domain.policies.reminder_policy import (
     check_contact_follow_up_eligibility,
 )
 from app.domain.reminder import FollowUpReminder
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_reminder_repository import SqliteReminderRepository
-from app.services.event_bus import event_bus
+from app.services.context import ServiceContext, build_service_context
 
 
 class CrmService:
     """Application service for CRM lifecycle and follow-up reminders."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, context: Optional[ServiceContext] = None) -> None:
         self.session = session
-        self.contact_repo = SqliteContactRepository(session)
-        self.outreach_repo = SqliteOutreachRepository(session)
-        self.reminder_repo = SqliteReminderRepository(session)
+        ctx = context or build_service_context(session)
+        self.contact_repo = ctx.contact_repo
+        self.outreach_repo = ctx.outreach_repo
+        self.reminder_repo = ctx.reminder_repo
+        self.event_publisher = ctx.event_publisher
 
     def update_status(self, contact_id: str, status: str, timestamp: Optional[datetime] = None) -> Dict[str, Any]:
         """Update contact CRM business status directly.
@@ -101,9 +100,9 @@ class CrmService:
             "interview_status": contact.interview_status.value,
             "timestamp": now.isoformat(),
         }
-        event_bus.publish_event("CRM_STATUS_CHANGED", event_payload)
-        event_bus.publish_event("CRM_OUTCOME_UPDATED", event_payload)
-        event_bus.publish_event("CONTACT_UPDATED", event_payload)
+        self.event_publisher.publish_event("CRM_STATUS_CHANGED", event_payload)
+        self.event_publisher.publish_event("CRM_OUTCOME_UPDATED", event_payload)
+        self.event_publisher.publish_event("CONTACT_UPDATED", event_payload)
 
     def mark_interested(self, contact_id: str, timestamp: Optional[datetime] = None) -> Dict[str, Any]:
         """Mark contact as interested, setting interested_at and resetting interview to PENDING."""
@@ -117,7 +116,7 @@ class CrmService:
         self.session.commit()
 
         # Check and publish event
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "CRM_OUTCOME_UPDATED",
             {
                 "contact_id": contact.contact_id,
@@ -150,7 +149,7 @@ class CrmService:
 
         self.session.commit()
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "CRM_OUTCOME_UPDATED",
             {
                 "contact_id": contact.contact_id,
@@ -181,7 +180,7 @@ class CrmService:
 
         self.session.commit()
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "INTERVIEW_STATUS_UPDATED",
             {
                 "contact_id": contact.contact_id,
@@ -212,7 +211,7 @@ class CrmService:
 
         self.session.commit()
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "INTERVIEW_STATUS_UPDATED",
             {
                 "contact_id": contact.contact_id,
@@ -295,7 +294,7 @@ class CrmService:
                     )
                     self.reminder_repo.save(reminder)
                     created_reminders.append(reminder)
-                    event_bus.publish_event(
+                    self.event_publisher.publish_event(
                         "FOLLOW_UP_DUE",
                         {
                             "contact_id": contact.contact_id,

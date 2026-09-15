@@ -42,12 +42,14 @@ class FrozenClock:
 
     def advance(self, **delta_kwargs: Any) -> None:
         from datetime import timedelta
+
         self._current_time += timedelta(**delta_kwargs)
 
 
 @dataclass(frozen=True)
 class DomainEvent:
     """Base domain event envelope."""
+
     event_type: str
     payload: Dict[str, Any]
     event_id: str = field(default_factory=lambda: uuid.uuid4().hex)
@@ -66,14 +68,16 @@ class EventPublisher(Protocol):
         """Publish multiple domain events."""
         ...
 
+    def publish_event(self, event_type: str, payload: Dict[str, Any]) -> DomainEvent:
+        """Construct and publish a single domain event from a name and payload."""
+        ...
+
 
 @runtime_checkable
 class Scheduler(Protocol):
     """Port for background job and delay scheduling."""
 
-    def schedule(
-        self, task_id: str, run_at: datetime, action: Callable[[], Any]
-    ) -> None:
+    def schedule(self, task_id: str, run_at: datetime, action: Callable[[], Any]) -> None:
         """Schedule an action for execution at a specific datetime."""
         ...
 

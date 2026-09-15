@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.ports.source import SyncSummary
-from app.services.event_bus import event_bus
+from app.services.context import ServiceContext, build_service_context
 
 
 class SyncService:
@@ -24,9 +24,16 @@ class SyncService:
     _last_summary: Optional[SyncSummary] = None
     _summary_lock = threading.Lock()
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        context: Optional[ServiceContext] = None,
+        synchronizer=None,
+    ) -> None:
         self.session = session
-        self.synchronizer = DatabaseSourceSynchronizer(session)
+        ctx = context or build_service_context(session)
+        self.event_publisher = ctx.event_publisher
+        self.synchronizer = synchronizer or DatabaseSourceSynchronizer(session)
 
     def sync_source(
         self,
@@ -53,7 +60,7 @@ class SyncService:
                 raise FileNotFoundError("No default source workbook found in data directory.")
 
         filename = Path(path).name
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "EXCEL_SYNC_STARTED",
             {"source_file": filename},
         )
@@ -79,12 +86,12 @@ class SyncService:
                 "errors": summary.errors,
             }
 
-            event_bus.publish_event("EXCEL_SYNC_COMPLETED", payload)
-            event_bus.publish_event("SYNC_COMPLETED", payload)
+            self.event_publisher.publish_event("EXCEL_SYNC_COMPLETED", payload)
+            self.event_publisher.publish_event("SYNC_COMPLETED", payload)
 
             return payload
         except Exception as exc:
-            event_bus.publish_event(
+            self.event_publisher.publish_event(
                 "EXCEL_SYNC_FAILED",
                 {"source_file": filename, "error": str(exc)},
             )

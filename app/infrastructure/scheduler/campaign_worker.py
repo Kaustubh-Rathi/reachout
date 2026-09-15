@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional, Union
 
 from sqlalchemy.orm import Session
 
-from app.config import DEFAULT_MESSAGE_SUBJECT
+from app.config import DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -82,9 +82,13 @@ class OutreachWorker:
             effective_destination = destination
             if not effective_destination:
                 if channel == Channel.WHATSAPP:
-                    effective_destination = contact.primary_phone if hasattr(contact, "primary_phone") else (contact.phone or "")
+                    effective_destination = (
+                        contact.primary_phone if hasattr(contact, "primary_phone") else (contact.phone or "")
+                    )
                 elif channel == Channel.EMAIL:
-                    effective_destination = contact.primary_email if hasattr(contact, "primary_email") else (contact.email or "")
+                    effective_destination = (
+                        contact.primary_email if hasattr(contact, "primary_email") else (contact.email or "")
+                    )
 
             # 1. Template variable validation before any dispatch
             validation_errors = template.validate(contact=contact, company=company)
@@ -200,7 +204,12 @@ class OutreachWorker:
                 return failed_attempt
 
             # Render message template
-            rendered = template.render(contact=contact, company=company, extra_vars=custom_extra_vars)
+            rendered = template.render(
+                contact=contact,
+                company=company,
+                extra_vars=custom_extra_vars,
+                sender_profile=SENDER_PROFILE,
+            )
             attachment_to_use = custom_attachment_path or rendered.attachment_ref
 
             # Idempotency key generation
@@ -383,7 +392,11 @@ class OutreachWorker:
                 if channel == Channel.WHATSAPP:
                     if not self.whatsapp_provider:
                         raise RuntimeError("WhatsAppProvider is not configured on OutreachWorker")
-                    phone_target = attempt.destination or (contact.primary_phone if hasattr(contact, "primary_phone") else contact.phone) or ""
+                    phone_target = (
+                        attempt.destination
+                        or (contact.primary_phone if hasattr(contact, "primary_phone") else contact.phone)
+                        or ""
+                    )
                     provider_result = self.whatsapp_provider.send_message(
                         attempt=attempt,
                         recipient_phone=phone_target,
@@ -393,7 +406,11 @@ class OutreachWorker:
                 elif channel == Channel.EMAIL:
                     if not self.email_provider:
                         raise RuntimeError("EmailProvider is not configured on OutreachWorker")
-                    email_target = attempt.destination or (contact.primary_email if hasattr(contact, "primary_email") else contact.email) or ""
+                    email_target = (
+                        attempt.destination
+                        or (contact.primary_email if hasattr(contact, "primary_email") else contact.email)
+                        or ""
+                    )
                     provider_result = self.email_provider.send_email(
                         attempt=attempt,
                         recipient_email=email_target,
@@ -402,7 +419,9 @@ class OutreachWorker:
                         attachment_path=attempt.attachment_snapshot,
                     )
                 else:
-                    provider_result = ProviderSendResult.failed("ERR_UNSUPPORTED_CHANNEL", f"Channel {channel} not supported")
+                    provider_result = ProviderSendResult.failed(
+                        "ERR_UNSUPPORTED_CHANNEL", f"Channel {channel} not supported"
+                    )
             except Exception as exc:
                 provider_result = ProviderSendResult.unknown(
                     reason=f"Unhandled exception during provider send execution: {exc}"

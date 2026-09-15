@@ -22,8 +22,7 @@ from app.infrastructure.providers.session_manager import (
     WhatsAppSessionManager,
     default_session_manager,
 )
-from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.services.event_bus import event_bus
+from app.services.context import ServiceContext, build_service_context
 
 
 def _normalise_full_phone(phone: str) -> str:
@@ -38,10 +37,16 @@ class SenderService:
         self,
         session: Session,
         session_manager: Optional[WhatsAppSessionManager] = None,
+        context: Optional[ServiceContext] = None,
+        session_factory=None,
     ) -> None:
         self.session = session
-        self.repo = SqliteSenderRepository(session)
+        ctx = context or build_service_context(session)
+        self.repo = ctx.sender_repo
+        self.event_publisher = ctx.event_publisher
         self.session_manager = session_manager or default_session_manager
+        # Background auth callbacks open their own DB session; injectable for tests.
+        self._session_factory = session_factory or SessionFactory
         # Display names for in-memory temp WhatsApp ids (never persisted to the DB).
         self._temp_display_names: Dict[str, str] = {}
 
@@ -78,10 +83,7 @@ class SenderService:
                 except ValueError as exc:
                     # An unrecognized status string in the session manager is a real
                     # divergence; surface it instead of silently skipping it.
-                    print(
-                        f"[SenderService] Skipping unrecognized auth status {st_str!r} "
-                        f"for sender {s.id}: {exc}"
-                    )
+                    print(f"[SenderService] Skipping unrecognized auth status {st_str!r} for sender {s.id}: {exc}")
 
         # Email senders reconciliation
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
@@ -89,6 +91,7 @@ class SenderService:
         # F3/B4: Materialize vault-only email credentials into sender_accounts rows so no
         # stored credential is stranded as a "phantom session" without a DB record.
         from app.infrastructure.security.credential_vault import default_credential_vault
+
         existing_em_ids = {s.id for s in em_senders}
         vault_ids = default_credential_vault.list_senders_with_credentials()
         for vid in vault_ids:
@@ -126,7 +129,7 @@ class SenderService:
         """List all sender accounts in safe projection (no secrets/tokens/credentials)."""
         self.seed_defaults_if_empty()
         ch_enum = Channel(channel.upper()) if channel else None
-        
+
         senders = []
         if ch_enum:
             senders = self.repo.list_by_channel(ch_enum)
@@ -136,20 +139,22 @@ class SenderService:
         results = []
         for s in senders:
             auth_info = self.session_manager.get_auth_state(s.id) if s.channel == Channel.WHATSAPP else {}
-            results.append({
-                "id": s.id,
-                "channel": s.channel.value,
-                "provider": s.provider,
-                "identity": s.identity,
-                "display_name": s.display_name,
-                "status": s.status.value,
-                "last_used_at": s.last_used_at.isoformat() if s.last_used_at else None,
-                "daily_limit": s.daily_limit,
-                "hourly_limit": s.hourly_limit,
-                "qr_code": auth_info.get("qr_code"),
-                "error_message": auth_info.get("error_message"),
-                "last_checked": auth_info.get("last_checked"),
-            })
+            results.append(
+                {
+                    "id": s.id,
+                    "channel": s.channel.value,
+                    "provider": s.provider,
+                    "identity": s.identity,
+                    "display_name": s.display_name,
+                    "status": s.status.value,
+                    "last_used_at": s.last_used_at.isoformat() if s.last_used_at else None,
+                    "daily_limit": s.daily_limit,
+                    "hourly_limit": s.hourly_limit,
+                    "qr_code": auth_info.get("qr_code"),
+                    "error_message": auth_info.get("error_message"),
+                    "last_checked": auth_info.get("last_checked"),
+                }
+            )
         return results
 
     def get_sender(self, sender_id: str) -> Optional[SenderAccount]:
@@ -161,7 +166,7 @@ class SenderService:
         sender = self.repo.get_by_id(sender_id)
         if not sender:
             return None
-        
+
         status_enum = SenderStatus(status_str.upper())
         sender.status = status_enum
         self.repo.save(sender)
@@ -170,7 +175,7 @@ class SenderService:
         if sender.channel == Channel.WHATSAPP:
             self.session_manager.set_auth_state(sender_id, status_enum)
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "sender.status_changed",
             {
                 "sender_id": sender.id,
@@ -179,7 +184,7 @@ class SenderService:
                 "display_name": sender.display_name,
             },
         )
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "SENDER_STATUS_CHANGED",
             {
                 "sender_id": sender.id,
@@ -287,16 +292,18 @@ class SenderService:
                     # with no DB row (the operator would be misled into thinking the
                     # WhatsApp session persisted). Mark auth state ERROR so the UI shows it.
                     import traceback
+
                     traceback.print_exc()
                     self.session_manager.set_auth_state(
-                        sender_id, SenderStatus.ERROR,
+                        sender_id,
+                        SenderStatus.ERROR,
                         error_message=f"Failed to persist WhatsApp session: {exc}",
                     )
             elif st_val:
                 # Sync status for an existing persisted sender (re-auth).
                 try:
-                    with SessionFactory() as cb_sess:
-                        cb_repo = SqliteSenderRepository(cb_sess)
+                    with self._session_factory() as cb_sess:
+                        cb_repo = build_service_context(cb_sess).sender_repo
                         cb_sender = cb_repo.get_by_id(payload.get("sender_id") or sender_id)
                         if cb_sender:
                             cb_sender.status = SenderStatus(st_val)
@@ -306,11 +313,12 @@ class SenderService:
                     # Surface re-auth status-sync failures so sender status never silently
                     # diverges from reality.
                     import traceback
+
                     traceback.print_exc()
 
-            event_bus.publish_event(event_name, payload)
+            self.event_publisher.publish_event(event_name, payload)
             alias_name = event_name.upper().replace(".", "_")
-            event_bus.publish_event(alias_name, payload)
+            self.event_publisher.publish_event(alias_name, payload)
 
         auth_state = self.session_manager.start_qr_authentication(
             sender_id=sender_id,
@@ -324,7 +332,7 @@ class SenderService:
             cb_sender = self.repo.get_by_id(sender_id)
             display_name = cb_sender.display_name if cb_sender else temp_display_name
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "sender.status_changed",
             {
                 "sender_id": sender_id,
@@ -376,7 +384,7 @@ class SenderService:
 
         This is the single entry point for Email sessions (``/api/senders/email/add`` has
         been removed). If SMTP verification fails, an exception is raised and NOTHING is
-        persisted — no dummy/placeholder row is ever created.
+        persisted Ã¢â‚¬â€ no dummy/placeholder row is ever created.
         """
         import re
 
@@ -447,7 +455,7 @@ class SenderService:
         self.repo.save(sender)
         self.session.commit()
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "sender.status_changed",
             {
                 "sender_id": sender.id,
@@ -499,7 +507,7 @@ class SenderService:
         self.repo.save(sender)
         self.session.commit()
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "sender.status_changed",
             {
                 "sender_id": sender.id,
@@ -560,6 +568,7 @@ class SenderService:
         worker confirms a unique phone number (see ``start_whatsapp_authentication``).
         """
         import uuid
+
         temp_id = f"tmp_auth_{uuid.uuid4().hex[:12]}"
         name = display_name.strip() if display_name else "Pending WhatsApp Session"
         self._temp_display_names[temp_id] = name
@@ -572,8 +581,8 @@ class SenderService:
             "status": SenderStatus.AUTH_REQUIRED.value,
             "display_name": name,
         }
-        event_bus.publish_event("sender.status_changed", event_payload)
-        event_bus.publish_event("SENDER_STATUS_CHANGED", event_payload)
+        self.event_publisher.publish_event("sender.status_changed", event_payload)
+        self.event_publisher.publish_event("SENDER_STATUS_CHANGED", event_payload)
 
         return {
             "id": temp_id,
@@ -618,8 +627,8 @@ class SenderService:
         if not final_id or not phone:
             raise ValueError("Cannot persist WhatsApp session: missing final id or phone.")
 
-        with SessionFactory() as db_sess:
-            repo = SqliteSenderRepository(db_sess)
+        with self._session_factory() as db_sess:
+            repo = build_service_context(db_sess).sender_repo
             new_sender = SenderAccount(
                 id=final_id,
                 channel=Channel.WHATSAPP,
@@ -638,11 +647,11 @@ class SenderService:
         if temp_id:
             self._temp_display_names.pop(temp_id, None)
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "sender.status_changed",
             {"sender_id": final_id, "channel": "WHATSAPP", "status": "ACTIVE", "display_name": display_name},
         )
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "SENDER_STATUS_CHANGED", {"sender_id": final_id, "channel": "WHATSAPP", "status": "ACTIVE"}
         )
 
@@ -660,7 +669,6 @@ class SenderService:
         if not sender:
             return None
         return self.update_sender_status(sender_id, status.value)
-
 
     def remove_sender(self, sender_id: str) -> bool:
         """Controlled removal of sender from active routing (marks INACTIVE to preserve attempt FK integrity)."""
@@ -698,6 +706,3 @@ class SenderService:
             "display_name": sender.display_name,
             "status": sender.status.value,
         }
-
-
-

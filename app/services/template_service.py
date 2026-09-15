@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel
 from app.domain.message_template import ALL_OFFICIAL_TEMPLATES, MessageTemplate
-from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
+from app.services.context import ServiceContext, build_service_context
 
 
 DEFAULT_TEMPLATES = ALL_OFFICIAL_TEMPLATES
@@ -19,16 +19,18 @@ DEFAULT_TEMPLATES = ALL_OFFICIAL_TEMPLATES
 class TemplateService:
     """Application service for message templates."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, context: Optional[ServiceContext] = None) -> None:
         self.session = session
-        self.repo = SqliteTemplateRepository(session)
+        ctx = context or build_service_context(session)
+        self.repo = ctx.template_repo
+        self.event_publisher = ctx.event_publisher
 
     def seed_defaults_if_empty(self) -> None:
         """Seed default templates if table is empty or missing official templates."""
         wa_templates = self.repo.list_by_channel(Channel.WHATSAPP)
         email_templates = self.repo.list_by_channel(Channel.EMAIL)
         existing_ids = {t.id for t in (wa_templates + email_templates)}
-        
+
         # Ensure all official templates exist
         for t in DEFAULT_TEMPLATES:
             if t.id not in existing_ids:
@@ -41,7 +43,7 @@ class TemplateService:
         if channel:
             ch = Channel(channel.upper())
             return self.repo.list_by_channel(ch, active_only=active_only)
-        
+
         wa = self.repo.list_by_channel(Channel.WHATSAPP, active_only=active_only)
         em = self.repo.list_by_channel(Channel.EMAIL, active_only=active_only)
         return wa + em

@@ -13,7 +13,7 @@ from app.infrastructure.models import CampaignModel
 from app.ports.repositories import CampaignRepository
 
 
-class SqliteCampaignRepository:
+class SqliteCampaignRepository(CampaignRepository):
     """Repository handling persistence and queries for Campaign entities."""
 
     def __init__(self, session: Session) -> None:
@@ -58,10 +58,7 @@ class SqliteCampaignRepository:
                 metadata_json=func.json_set(
                     CampaignModel.metadata_json,
                     f"$.{key}",
-                    func.coalesce(
-                        func.json_extract(CampaignModel.metadata_json, f"$.{key}"), 0
-                    )
-                    + delta,
+                    func.coalesce(func.json_extract(CampaignModel.metadata_json, f"$.{key}"), 0) + delta,
                 )
             )
         )

@@ -13,7 +13,7 @@ from app.infrastructure.models import MessageTemplateModel
 from app.ports.repositories import TemplateRepository
 
 
-class SqliteTemplateRepository:
+class SqliteTemplateRepository(TemplateRepository):
     """Repository handling persistence and queries for MessageTemplate entities."""
 
     def __init__(self, session: Session) -> None:
@@ -25,10 +25,7 @@ class SqliteTemplateRepository:
 
     def list_by_channel(self, channel: Channel, active_only: bool = False) -> List[MessageTemplate]:
         channel_val = channel.value if hasattr(channel, "value") else str(channel)
-        stmt = (
-            select(MessageTemplateModel)
-            .where(MessageTemplateModel.channel == channel_val)
-        )
+        stmt = select(MessageTemplateModel).where(MessageTemplateModel.channel == channel_val)
         if active_only:
             stmt = stmt.where(MessageTemplateModel.active == True)
         stmt = stmt.order_by(MessageTemplateModel.id)
