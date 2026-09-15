@@ -104,6 +104,7 @@ class TestPhase6Templates:
             assert tmpl.active is True
         # SENDER_PROFILE must provide real identity so placeholders resolve.
         from app.config import SENDER_PROFILE
+
         assert SENDER_PROFILE["sender_portfolio"].startswith("https://")
         assert SENDER_PROFILE["sender_phone"]
 
@@ -148,7 +149,9 @@ class TestPhase6Templates:
             comp = Company.create(name="Google LLC", company_id="google")
             SqliteCompanyRepository(session).save(comp)
 
-            sender = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", sender_id="WA-001")
+            sender = SenderAccount.create(
+                channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", sender_id="WA-001"
+            )
             SqliteSenderRepository(session).save(sender)
 
             # Contact with empty name
@@ -173,7 +176,16 @@ class TestPhase6Templates:
         assert wa_ids == ["WA-01", "WA-02", "WA-03", "WA-04", "WA-01", "WA-02", "WA-03", "WA-04"]
 
         em_ids = [select_template_round_robin(OFFICIAL_EMAIL_TEMPLATES, i).id for i in range(8)]
-        assert em_ids == ["EMAIL-01", "EMAIL-02", "EMAIL-03", "EMAIL-04", "EMAIL-01", "EMAIL-02", "EMAIL-03", "EMAIL-04"]
+        assert em_ids == [
+            "EMAIL-01",
+            "EMAIL-02",
+            "EMAIL-03",
+            "EMAIL-04",
+            "EMAIL-01",
+            "EMAIL-02",
+            "EMAIL-03",
+            "EMAIL-04",
+        ]
 
 
 class TestPhase6CompanyCoverage:
@@ -261,7 +273,9 @@ class TestPhase6HistoricalExclusion:
                 last_whatsapp_at=datetime.now(timezone.utc),
             )
             SqliteContactRepository(session).save(contact)
-            sender = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", sender_id="WA-001")
+            sender = SenderAccount.create(
+                channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", sender_id="WA-001"
+            )
             SqliteSenderRepository(session).save(sender)
 
             # Historical attempt
@@ -319,7 +333,10 @@ class TestPhase6ChannelFallback:
         """Ambiguous UNKNOWN provider result blocks automatic fallback to prevent duplicate sends."""
         assert ChannelFallbackPolicy.is_fallback_safe(OutreachStatus.UNKNOWN) is False
         assert ChannelFallbackPolicy.is_fallback_safe(OutreachStatus.RECOVERY_REQUIRED) is False
-        assert ChannelFallbackPolicy.is_fallback_safe(OutreachStatus.FAILED, failure_code="ERR_PHONE_NOT_ON_WHATSAPP") is True
+        assert (
+            ChannelFallbackPolicy.is_fallback_safe(OutreachStatus.FAILED, failure_code="ERR_PHONE_NOT_ON_WHATSAPP")
+            is True
+        )
 
 
 class TestPhase6SenderRotation:
@@ -327,10 +344,14 @@ class TestPhase6SenderRotation:
 
     def test_rotation_skips_unavailable_or_auth_required_senders(self):
         """If WA-001 is AUTH_REQUIRED, scheduler selects next eligible sender (WA-002)."""
-        s1 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", sender_id="WA-001")
+        s1 = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", sender_id="WA-001"
+        )
         s1.status = SenderStatus.AUTH_REQUIRED
 
-        s2 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="S2", sender_id="WA-002")
+        s2 = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="S2", sender_id="WA-002"
+        )
         s2.status = SenderStatus.ACTIVE
 
         senders = [s1, s2]
@@ -341,7 +362,13 @@ class TestPhase6SenderRotation:
     def test_dynamic_arbitrary_n_senders(self):
         """Supports arbitrary N senders dynamically without hardcoding."""
         senders = [
-            SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity=f"+9100{i}", display_name=f"S{i}", sender_id=f"WA-{i:03d}")
+            SenderAccount.create(
+                channel=Channel.WHATSAPP,
+                provider="MOCK",
+                identity=f"+9100{i}",
+                display_name=f"S{i}",
+                sender_id=f"WA-{i:03d}",
+            )
             for i in range(1, 11)
         ]
         assert len(senders) == 10
@@ -385,10 +412,18 @@ class TestPhase6EndToEndScenario:
         """Full execution of Section 28: Apple(2), Uber(2), GreyOrange(3) with 4 senders."""
         with phase6_db() as session:
             # Create Senders
-            wa1 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="WA 1", sender_id="WA-001")
-            wa2 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="WA 2", sender_id="WA-002")
-            em1 = SenderAccount.create(channel=Channel.EMAIL, provider="MOCK", identity="e1@co.com", display_name="EM 1", sender_id="EMAIL-001")
-            em2 = SenderAccount.create(channel=Channel.EMAIL, provider="MOCK", identity="e2@co.com", display_name="EM 2", sender_id="EMAIL-002")
+            wa1 = SenderAccount.create(
+                channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="WA 1", sender_id="WA-001"
+            )
+            wa2 = SenderAccount.create(
+                channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="WA 2", sender_id="WA-002"
+            )
+            em1 = SenderAccount.create(
+                channel=Channel.EMAIL, provider="MOCK", identity="e1@co.com", display_name="EM 1", sender_id="EMAIL-001"
+            )
+            em2 = SenderAccount.create(
+                channel=Channel.EMAIL, provider="MOCK", identity="e2@co.com", display_name="EM 2", sender_id="EMAIL-002"
+            )
 
             sender_repo = SqliteSenderRepository(session)
             for s in (wa1, wa2, em1, em2):
@@ -449,4 +484,6 @@ class TestPhase6DataIntegrity:
             full_path = root / rel_path
             assert full_path.exists(), f"Source file {rel_path} does not exist!"
             actual_hash = hashlib.sha256(full_path.read_bytes()).hexdigest()
-            assert actual_hash == expected_hash, f"Data integrity violation in {rel_path}! Expected {expected_hash}, got {actual_hash}"
+            assert actual_hash == expected_hash, (
+                f"Data integrity violation in {rel_path}! Expected {expected_hash}, got {actual_hash}"
+            )

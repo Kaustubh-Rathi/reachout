@@ -37,6 +37,26 @@ def _calculate_file_sha256(path: Path) -> Optional[str]:
     return h.hexdigest()
 
 
+def _checkpoint_sqlite(path: Path) -> None:
+    """Flush any pending WAL contents into the main SQLite file.
+
+    Merely reading a SQLite database that has a populated -wal file can trigger a
+    checkpoint and change the main file's bytes. Normalizing the WAL before hashing
+    keeps the production-immutability guard deterministic while still detecting any
+    test that genuinely writes to the production database.
+    """
+    if not path.exists():
+        return
+    try:
+        import sqlite3
+
+        conn = sqlite3.connect(str(path))
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        conn.close()
+    except Exception:
+        pass
+
+
 # Configure test environment BEFORE any database module is loaded
 _TEMP_TEST_DIR = tempfile.mkdtemp(prefix="reachout_pytest_isolation_")
 _TEST_DB_FILE = Path(_TEMP_TEST_DIR) / "test_reachout_isolated.db"
@@ -48,6 +68,7 @@ os.environ["OUTREACH_CHANNEL_DELAY_EM"] = "0.01"
 def pytest_sessionstart(session):
     """Record SHA-256 of production database and raw datasets before test suite execution."""
     global _PRE_TEST_HASHES
+    _checkpoint_sqlite(PROD_DB)
     _PRE_TEST_HASHES["reachout.db"] = _calculate_file_sha256(PROD_DB)
     _PRE_TEST_HASHES["MNC_Final.xlsx"] = _calculate_file_sha256(MNC_XLSX)
     _PRE_TEST_HASHES["Reachout.xlsx"] = _calculate_file_sha256(REACHOUT_XLSX)
@@ -55,6 +76,7 @@ def pytest_sessionstart(session):
 
     # Initialize tables on the isolated test database
     import app.infrastructure.database as db
+
     # Rebind engine and sessionmaker to isolated test database
     db.DB_URL = f"sqlite:///{_TEST_DB_FILE.as_posix()}"
     db.SessionFactory = sessionmaker(autocommit=False, autoflush=False, bind=db.engine)
@@ -63,22 +85,27 @@ def pytest_sessionstart(session):
     # Configure test doubles as active provider overrides during tests
     from app.infrastructure.providers.factory import set_email_provider, set_whatsapp_provider
     from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
+
     set_whatsapp_provider(FakeWhatsAppProvider())
     set_email_provider(FakeEmailProvider())
 
 
 @pytest.fixture(autouse=True)
 def reset_test_provider_overrides():
-    """Ensure test doubles are active provider overrides before and after each test."""
+    """Ensure test doubles and the global rate limiter are reset around each test."""
     from app.infrastructure.providers.factory import set_email_provider, set_whatsapp_provider
+    from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
     from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
+
     fake_wa = FakeWhatsAppProvider()
     fake_em = FakeEmailProvider()
     set_whatsapp_provider(fake_wa)
     set_email_provider(fake_em)
+    default_rate_limiter.reset()
     yield
     set_whatsapp_provider(fake_wa)
     set_email_provider(fake_em)
+    default_rate_limiter.reset()
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -90,6 +117,8 @@ def pytest_sessionfinish(session, exitstatus):
         ("Reachout.xlsx", REACHOUT_XLSX),
         ("mnc_whatsapp_send_log.csv", SEND_LOG_CSV),
     ]:
+        if filename == "reachout.db":
+            _checkpoint_sqlite(path)
         pre_hash = _PRE_TEST_HASHES.get(filename)
         post_hash = _calculate_file_sha256(path)
         if pre_hash is not None:

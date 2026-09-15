@@ -1,6 +1,7 @@
-"""Browser E2E test suite for Reachout CRM Control Plane using Playwright.
+"""Browser E2E test suite for Reachout CRM Control Plane.
 
-Tests complete administrative workflows in headless Chromium:
+Tests complete administrative workflows in headless Camoufox (Firefox), the
+same browser engine the application uses for WhatsApp automation:
 - Dashboard loading & KPI metrics
 - Contact table rendering & direct email visibility
 - Campaign lifecycle (Start, Pause, Resume, Stop)
@@ -28,7 +29,7 @@ if str(ROOT_DIR) not in sys.path:
 
 import pytest
 import uvicorn
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page
 
 from app.domain.enums import Channel, CRMOutcome, InterviewState
 from app.infrastructure.database import SessionFactory, init_db
@@ -154,7 +155,9 @@ def test_manual_email_send_and_resend(browser_page: Page):
     page.wait_for_selector(".hr-card", timeout=5000)
 
     # Click first available enabled Email button
-    email_btn = page.locator("button:has-text('Send Email'):not([disabled]), button:has-text('Email'):not([disabled])").first
+    email_btn = page.locator(
+        "button:has-text('Send Email'):not([disabled]), button:has-text('Email'):not([disabled])"
+    ).first
     email_btn.click()
     page.wait_for_selector("#send-modal.open", timeout=5000)
     assert page.is_visible("text=Send EMAIL Message")
@@ -252,7 +255,9 @@ def test_senders_and_templates_drawers(browser_page: Page):
     page.wait_for_selector("#templates-modal.open", timeout=5000)
     page.wait_for_selector("#templates-list-container", timeout=5000)
     templates_text = page.locator("#templates-list-container").inner_text()
-    assert "tmpl_wa_default" in templates_text or "Default SDE Outreach" in templates_text or "WHATSAPP" in templates_text
+    assert (
+        "tmpl_wa_default" in templates_text or "Default SDE Outreach" in templates_text or "WHATSAPP" in templates_text
+    )
     page.click("#templates-modal .modal-close-btn")
 
 
