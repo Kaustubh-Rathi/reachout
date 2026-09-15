@@ -25,7 +25,31 @@ package = false
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+testpaths = ["tests"]
 markers = [
     "live_e2e: marks tests as live provider E2E tests (run with LIVE_E2E=1)",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.7",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = [".venv", "migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = [
+    "E501",   # line length is enforced by the formatter, not the linter
+    "B008",   # FastAPI dependencies are intentionally called in argument defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]  # package barrels re-export intentionally
+"tests/**" = ["E402"]
+"scripts/**" = ["E402"]
+"migrations/**" = ["E402"]
 
