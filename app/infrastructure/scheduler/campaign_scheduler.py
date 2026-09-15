@@ -528,6 +528,7 @@ class PersistentCampaignScheduler:
                         sess.commit()
                 except Exception as mark_exc:
                     print(f"[Scheduler] Also failed to record attempt failure: {mark_exc}")
+                time.sleep(1.0)
 
         with self._lock:
             self._active_threads.pop(campaign_id, None)
