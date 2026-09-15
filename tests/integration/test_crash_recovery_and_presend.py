@@ -189,3 +189,45 @@ class TestCrashRecoveryAndPreSend:
 
             c = camp_repo.get_by_id("cmp_crashed")
             assert c.status == CampaignStatus.PAUSED
+
+    def test_retry_after_failed_attempt_creates_fresh_attempt(self, recovery_env):
+        """When an earlier attempt FAILED, executing another attempt for the contact
+        must create a fresh PREPARED attempt with a new idempotency key rather than
+        crashing with 'Cannot begin sending from status FAILED'."""
+        session_factory = recovery_env["session_factory"]
+        mock_provider = MockFailingOrAmbiguousProvider(mode="failed")
+        rate_limiter = RateLimiter()
+        event_bus = EventBus()
+
+        worker = OutreachWorker(
+            session_factory=session_factory,
+            whatsapp_provider=mock_provider,
+            rate_limiter=rate_limiter,
+            event_publisher=event_bus,
+        )
+
+        with session_factory() as session:
+            sender = SqliteSenderRepository(session).get_by_id("snd_wa_1")
+            tmpl = SqliteTemplateRepository(session).get_by_id("tmpl_wa_1")
+
+        # 1. First execution fails via provider
+        attempt1 = worker.execute_attempt(
+            contact_id="cnt_oracle_01",
+            sender_account=sender,
+            template=tmpl,
+            attempt_type=AttemptType.AUTOMATIC,
+        )
+        assert attempt1.status == OutreachStatus.FAILED
+
+        # 2. Second execution for the same contact/sender/template
+        # Must NOT raise ValueError("Cannot begin sending from status 'FAILED'")
+        mock_provider.mode = "failed"
+        attempt2 = worker.execute_attempt(
+            contact_id="cnt_oracle_01",
+            sender_account=sender,
+            template=tmpl,
+            attempt_type=AttemptType.AUTOMATIC,
+        )
+        assert attempt2.status == OutreachStatus.FAILED
+        assert attempt2.id != attempt1.id
+        assert attempt2.idempotency_key != attempt1.idempotency_key
