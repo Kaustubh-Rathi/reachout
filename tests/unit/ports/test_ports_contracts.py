@@ -47,6 +47,7 @@ from app.ports import (
 
 # --- In-Memory Implementations for Contract Testing ---
 
+
 class InMemoryContactRepository:
     def __init__(self) -> None:
         self._store: Dict[str, Contact] = {}
@@ -74,6 +75,9 @@ class InMemoryContactRepository:
         for c in contacts:
             self._store[c.contact_id] = c
         return list(contacts)
+
+    def delete(self, contact_id: str) -> bool:
+        return self._store.pop(contact_id, None) is not None
 
 
 class InMemoryCompanyRepository:
@@ -167,6 +171,7 @@ class MockEventPublisher:
 
 # --- Tests ---
 
+
 class TestPortContracts:
     def test_contact_repository_protocol_conformance(self):
         repo = InMemoryContactRepository()
@@ -208,8 +213,11 @@ class TestPortContracts:
         assert isinstance(provider, WhatsAppProvider)
 
         attempt = OutreachAttempt.prepare(
-            contact_id="c1", sender_account_id="s1", channel=Channel.WHATSAPP,
-            attempt_type=AttemptType.AUTOMATIC, message_body="Hello"
+            contact_id="c1",
+            sender_account_id="s1",
+            channel=Channel.WHATSAPP,
+            attempt_type=AttemptType.AUTOMATIC,
+            message_body="Hello",
         )
         res = provider.send_message(attempt, recipient_phone="919876543210", message_body="Hello")
         assert res.success
@@ -221,8 +229,12 @@ class TestPortContracts:
         assert isinstance(provider, EmailProvider)
 
         attempt = OutreachAttempt.prepare(
-            contact_id="c1", sender_account_id="s1", channel=Channel.EMAIL,
-            attempt_type=AttemptType.AUTOMATIC, message_body="Hello", subject="Hi"
+            contact_id="c1",
+            sender_account_id="s1",
+            channel=Channel.EMAIL,
+            attempt_type=AttemptType.AUTOMATIC,
+            message_body="Hello",
+            subject="Hi",
         )
         res = provider.send_email(attempt, recipient_email="alice@amazon.com", subject="Hi", message_body="Hello")
         assert res.success

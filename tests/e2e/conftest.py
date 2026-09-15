@@ -13,7 +13,7 @@ if str(ROOT_DIR) not in sys.path:
 
 import pytest
 import uvicorn
-from playwright.sync_api import sync_playwright
+from camoufox.sync_api import Camoufox
 
 from app.infrastructure.database import SessionFactory, init_db
 from app.main import app
@@ -45,6 +45,7 @@ def run_test_server():
 
     # Wait for server to become responsive
     import urllib.request
+
     max_wait = 15
     start_t = time.time()
     while time.time() - start_t < max_wait:
@@ -61,9 +62,13 @@ def run_test_server():
 
 @pytest.fixture(scope="function")
 def browser_page():
-    """Yield a fresh headless browser page per test."""
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+    """Yield a fresh headless Camoufox (Firefox) page per test.
+
+    Camoufox is the browser engine the application itself uses, so the E2E
+    control-plane tests run against the same engine as production instead of
+    requiring a separately installed Playwright Chromium.
+    """
+    with Camoufox(headless=True, window=(1440, 900)) as browser:
         context = browser.new_context(viewport={"width": 1440, "height": 900})
         page = context.new_page()
         yield page

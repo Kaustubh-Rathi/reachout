@@ -127,6 +127,7 @@ def reset_globals():
 # 1. DATABASE ISOLATION & IMMUTABILITY VERIFICATION
 # ==============================================================================
 
+
 class TestDatabaseIsolationAndImmutability:
     def test_production_db_remains_untouched_by_isolated_operations(self, isolated_db):
         prod_db_path = Path("data/reachout.db")
@@ -150,6 +151,7 @@ class TestDatabaseIsolationAndImmutability:
 # 2. MANUAL SEND & RESEND REGRESSION (P0 Fix Verification)
 # ==============================================================================
 
+
 class TestManualSendAndResendRegression:
     def test_manual_whatsapp_send_captures_and_persists_provider_reference(self, isolated_db):
         _, SessionFactory = isolated_db
@@ -171,8 +173,17 @@ class TestManualSendAndResendRegression:
                     sender_id="WA-1",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_meta_01", company_id="meta", name="Mark Zuckerberg", phone="+16505434800"))
-            tmpl_repo.save(MessageTemplate.create(template_id="tmpl_wa_01", name="WA Template", channel=Channel.WHATSAPP, body="Hi {first_name} at {company}"))
+            contact_repo.save(
+                Contact(contact_id="cnt_meta_01", company_id="meta", name="Mark Zuckerberg", phone="+16505434800")
+            )
+            tmpl_repo.save(
+                MessageTemplate.create(
+                    template_id="tmpl_wa_01",
+                    name="WA Template",
+                    channel=Channel.WHATSAPP,
+                    body="Hi {first_name} at {company}",
+                )
+            )
             session.commit()
 
         with SessionFactory() as session:
@@ -215,8 +226,18 @@ class TestManualSendAndResendRegression:
                     sender_id="EM-1",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_apple_01", company_id="apple", name="Tim Cook", email="tim@apple.com"))
-            tmpl_repo.save(MessageTemplate.create(template_id="tmpl_em_01", name="Email Template", channel=Channel.EMAIL, body="Hi {first_name}", subject="Roles at {company}"))
+            contact_repo.save(
+                Contact(contact_id="cnt_apple_01", company_id="apple", name="Tim Cook", email="tim@apple.com")
+            )
+            tmpl_repo.save(
+                MessageTemplate.create(
+                    template_id="tmpl_em_01",
+                    name="Email Template",
+                    channel=Channel.EMAIL,
+                    body="Hi {first_name}",
+                    subject="Roles at {company}",
+                )
+            )
             session.commit()
 
         with SessionFactory() as session:
@@ -257,7 +278,9 @@ class TestManualSendAndResendRegression:
                     sender_id="WA-1",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_nflx_01", company_id="netflix", name="Reed Hastings", phone="+14085403700"))
+            contact_repo.save(
+                Contact(contact_id="cnt_nflx_01", company_id="netflix", name="Reed Hastings", phone="+14085403700")
+            )
             session.commit()
 
         # 1. Attempt #1 (SENT)
@@ -277,7 +300,9 @@ class TestManualSendAndResendRegression:
         # 2. Attempt #2: Manual RESEND
         with SessionFactory() as session:
             svc = OutreachService(session, whatsapp_provider=mock_wa)
-            res2 = svc.resend_whatsapp(contact_id="cnt_nflx_01", sender_id="WA-1", custom_body="Follow-up resend message")
+            res2 = svc.resend_whatsapp(
+                contact_id="cnt_nflx_01", sender_id="WA-1", custom_body="Follow-up resend message"
+            )
             assert res2["success"] is True
 
         # 3. Verify Attempt #1 is untouched and Attempt #2 is distinct
@@ -308,6 +333,7 @@ class TestManualSendAndResendRegression:
 # ==============================================================================
 # 3. PROVIDER MODE & RESOLUTION SAFETY
 # ==============================================================================
+
 
 class TestProviderModesAndConfiguration:
     def test_production_factory_resolves_concrete_providers(self):
@@ -351,6 +377,7 @@ class TestProviderModesAndConfiguration:
 # 4. CAMPAIGN SCHEDULER & RATE LIMITER INTEGRATION
 # ==============================================================================
 
+
 class TestSchedulerAndRateLimiterIntegration:
     def test_campaign_service_delegates_to_persistent_scheduler(self, isolated_db):
         _, SessionFactory = isolated_db
@@ -381,8 +408,14 @@ class TestSchedulerAndRateLimiterIntegration:
                     sender_id="WA-1",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_stripe_1", company_id="stripe", name="Patrick Collison", phone="+14150000001"))
-            tmpl_repo.save(MessageTemplate.create(template_id="tmpl_stripe", name="Default", channel=Channel.WHATSAPP, body="Hi {first_name}"))
+            contact_repo.save(
+                Contact(contact_id="cnt_stripe_1", company_id="stripe", name="Patrick Collison", phone="+14150000001")
+            )
+            tmpl_repo.save(
+                MessageTemplate.create(
+                    template_id="tmpl_stripe", name="Default", channel=Channel.WHATSAPP, body="Hi {first_name}"
+                )
+            )
             session.commit()
 
         # Start campaign via CampaignService
@@ -397,8 +430,12 @@ class TestSchedulerAndRateLimiterIntegration:
             camp_dict = camp_svc.start_campaign(camp.id, max_count=1)
             camp_id = camp_dict["id"]
 
-        # Verify PersistentCampaignScheduler is tracking the running worker
-        assert scheduler.is_running(camp_id) or scheduler.get_status().get("is_running") is not None
+        # The single-contact campaign may complete before we can observe the
+        # transient is_running flag, so delegation is verified via the resulting
+        # attempt below (and that the campaign left the IDLE state).
+        with SessionFactory() as session:
+            started_camp = SqliteCampaignRepository(session).get_by_id(camp_id)
+        assert started_camp is not None and started_camp.status != CampaignStatus.IDLE
 
         # Wait for worker completion
         time.sleep(0.4)
@@ -438,17 +475,28 @@ class TestSchedulerAndRateLimiterIntegration:
                 daily_limit=10,
             )
             sender_repo.save(sender)
-            contact = Contact(contact_id="cnt_oracle_1", company_id="oracle", name="Larry Ellison", phone="+16505067000")
+            contact = Contact(
+                contact_id="cnt_oracle_1", company_id="oracle", name="Larry Ellison", phone="+16505067000"
+            )
             contact_repo.save(contact)
-            template = MessageTemplate.create(template_id="tmpl_orc", name="Oracle Tmpl", channel=Channel.WHATSAPP, body="Hello {first_name}")
+            template = MessageTemplate.create(
+                template_id="tmpl_orc", name="Oracle Tmpl", channel=Channel.WHATSAPP, body="Hello {first_name}"
+            )
             tmpl_repo.save(template)
-            campaign = Campaign.create(name="Oracle Campaign", channel=Channel.WHATSAPP, template_ids=["tmpl_orc"], sender_account_ids=["WA-ORC"])
+            campaign = Campaign.create(
+                name="Oracle Campaign",
+                channel=Channel.WHATSAPP,
+                template_ids=["tmpl_orc"],
+                sender_account_ids=["WA-ORC"],
+            )
             campaign.start()
             camp_repo.save(campaign)
             session.commit()
 
         # Run attempt execution through worker
-        att = worker.execute_attempt(contact_id=contact.contact_id, sender_account=sender, template=template, campaign=campaign)
+        att = worker.execute_attempt(
+            contact_id=contact.contact_id, sender_account=sender, template=template, campaign=campaign
+        )
         assert att.status == OutreachStatus.SENT
         assert len(mock_wa.sent_calls) == 1
 
@@ -456,6 +504,7 @@ class TestSchedulerAndRateLimiterIntegration:
 # ==============================================================================
 # 5. CAMPAIGN FULL LIFECYCLE (START -> PAUSE -> RESUME -> STOP -> COMPLETED)
 # ==============================================================================
+
 
 class TestCampaignFullLifecycle:
     def test_campaign_state_transitions_and_persistence(self, isolated_db):
@@ -478,8 +527,16 @@ class TestCampaignFullLifecycle:
                 )
             )
             for i in range(1, 11):
-                contact_repo.save(Contact(contact_id=f"cnt_amz_{i}", company_id="amazon", name=f"Contact {i}", phone=f"+1206266100{i}"))
-            tmpl_repo.save(MessageTemplate.create(template_id="tmpl_amz", name="Amazon Tmpl", channel=Channel.WHATSAPP, body="Hi {first_name}"))
+                contact_repo.save(
+                    Contact(
+                        contact_id=f"cnt_amz_{i}", company_id="amazon", name=f"Contact {i}", phone=f"+1206266100{i}"
+                    )
+                )
+            tmpl_repo.save(
+                MessageTemplate.create(
+                    template_id="tmpl_amz", name="Amazon Tmpl", channel=Channel.WHATSAPP, body="Hi {first_name}"
+                )
+            )
             session.commit()
 
         scheduler = PersistentCampaignScheduler(SessionFactory)
@@ -517,18 +574,23 @@ class TestCampaignFullLifecycle:
             stopped = camp_svc.stop_campaign(camp_id)
             assert stopped["status"] in ("STOPPED", "COMPLETED", "PAUSED")
 
-
         # Verify DB persistence
         with SessionFactory() as session:
             camp_repo = SqliteCampaignRepository(session)
             camp_in_db = camp_repo.get_by_id(camp_id)
             assert camp_in_db is not None
-            assert camp_in_db.status in (CampaignStatus.STOPPED, CampaignStatus.COMPLETED, CampaignStatus.PAUSED, CampaignStatus.RUNNING)
+            assert camp_in_db.status in (
+                CampaignStatus.STOPPED,
+                CampaignStatus.COMPLETED,
+                CampaignStatus.PAUSED,
+                CampaignStatus.RUNNING,
+            )
 
 
 # ==============================================================================
 # 6. STARTUP CRASH RECOVERY
 # ==============================================================================
+
 
 class TestStartupCrashRecovery:
     def test_in_flight_sending_attempts_transition_to_recovery_required_on_startup(self, isolated_db):
@@ -552,7 +614,9 @@ class TestStartupCrashRecovery:
                     sender_id="WA-ADB",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_adb_1", company_id="adobe", name="Shantanu Narayen", phone="+14085366000"))
+            contact_repo.save(
+                Contact(contact_id="cnt_adb_1", company_id="adobe", name="Shantanu Narayen", phone="+14085366000")
+            )
 
             campaign = Campaign.create(name="Adobe Blast", channel=Channel.WHATSAPP, sender_account_ids=["WA-ADB"])
             campaign.start()
@@ -597,6 +661,7 @@ class TestStartupCrashRecovery:
 # 7. COMPANY-FIRST ROUND-ROBIN INTERLEAVING & DUPLICATE SUPPRESSION
 # ==============================================================================
 
+
 class TestCompanyFirstAndDuplicateSuppression:
     def test_canonical_dataset_interleaving_a1_b1_c1_d1_a2_c2_a3(self):
         """Proves canonical company-first round-robin interleaving:
@@ -639,8 +704,14 @@ class TestCompanyFirstAndDuplicateSuppression:
                     sender_id="WA-1",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_sfdc_1", company_id="salesforce", name="Marc Benioff", phone="+14159017000"))
-            tmpl_repo.save(MessageTemplate.create(template_id="tmpl_sfdc", name="Tmpl", channel=Channel.WHATSAPP, body="Hi {first_name}"))
+            contact_repo.save(
+                Contact(contact_id="cnt_sfdc_1", company_id="salesforce", name="Marc Benioff", phone="+14159017000")
+            )
+            tmpl_repo.save(
+                MessageTemplate.create(
+                    template_id="tmpl_sfdc", name="Tmpl", channel=Channel.WHATSAPP, body="Hi {first_name}"
+                )
+            )
             session.commit()
 
         # Send once
@@ -659,6 +730,7 @@ class TestCompanyFirstAndDuplicateSuppression:
 # ==============================================================================
 # 8. N-SENDER DYNAMIC SCALABILITY (1, 3, 10 Senders)
 # ==============================================================================
+
 
 class TestNSenderScalability:
     @pytest.mark.parametrize("sender_count", [1, 3, 10])
@@ -720,6 +792,7 @@ class TestNSenderScalability:
 # 9. SOURCE SYNCHRONIZATION REGRESSION
 # ==============================================================================
 
+
 class TestSourceSynchronizationRegression:
     def test_source_sync_comprehensive_scenarios_and_file_immutability(self, isolated_db, tmp_path):
         """Tests:
@@ -770,11 +843,23 @@ class TestSourceSynchronizationRegression:
             contact_repo.save(dara)
 
             # Seed the sender referenced by the attempt FK.
-            SqliteSenderRepository(session).save(SenderAccount.create(
-                sender_id="WA-1", channel=Channel.WHATSAPP, provider="mock",
-                identity="+919000000000", display_name="WA1"))
+            SqliteSenderRepository(session).save(
+                SenderAccount.create(
+                    sender_id="WA-1",
+                    channel=Channel.WHATSAPP,
+                    provider="mock",
+                    identity="+919000000000",
+                    display_name="WA1",
+                )
+            )
 
-            att = OutreachAttempt.prepare(contact_id=dara.contact_id, sender_account_id="WA-1", channel=Channel.WHATSAPP, attempt_type=AttemptType.AUTOMATIC, message_body="Hello Dara")
+            att = OutreachAttempt.prepare(
+                contact_id=dara.contact_id,
+                sender_account_id="WA-1",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                message_body="Hello Dara",
+            )
             att.mark_sent(provider_reference="wa_uber_ref_1")
             outreach_repo.save(att)
 
@@ -791,7 +876,12 @@ class TestSourceSynchronizationRegression:
         # - Duplicate row: duplicate Google Sundar
         rows_v2 = [
             {"company": "Google", "name": "Sundar Pichai", "phone": "919876543210", "email": "sundar@google.com"},
-            {"company": "Google", "name": "Sundar Pichai Duplicate", "phone": "919876543210", "email": "sundar@google.com"},
+            {
+                "company": "Google",
+                "name": "Sundar Pichai Duplicate",
+                "phone": "919876543210",
+                "email": "sundar@google.com",
+            },
             {"company": "Uber", "name": "Dara Khosrowshahi", "phone": "919999999999", "email": "dara@uber.com"},
             {"company": "Uber", "name": "Travis K", "phone": "919999999998", "email": "travis@uber.com"},
             {"company": "Anthropic", "name": "Dario Amodei", "phone": "919000000003", "email": "dario@anthropic.com"},
@@ -843,6 +933,7 @@ class TestSourceSynchronizationRegression:
 # 10. END-TO-END CRM FLOW
 # ==============================================================================
 
+
 class TestFullEndToEndCRMFlow:
     def test_complete_crm_and_outreach_flow(self, isolated_db):
         """Full end-to-end journey:
@@ -871,8 +962,14 @@ class TestFullEndToEndCRMFlow:
                     sender_id="WA-NVDA",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_nvda_1", company_id="nvidia", name="Jensen Huang", phone="+14084862000"))
-            tmpl_repo.save(MessageTemplate.create(template_id="tmpl_nvda", name="NVDA Tmpl", channel=Channel.WHATSAPP, body="Hi {first_name}"))
+            contact_repo.save(
+                Contact(contact_id="cnt_nvda_1", company_id="nvidia", name="Jensen Huang", phone="+14084862000")
+            )
+            tmpl_repo.save(
+                MessageTemplate.create(
+                    template_id="tmpl_nvda", name="NVDA Tmpl", channel=Channel.WHATSAPP, body="Hi {first_name}"
+                )
+            )
             session.commit()
 
         # Step 2: First Send
@@ -885,7 +982,9 @@ class TestFullEndToEndCRMFlow:
         # Step 3: Resend
         with SessionFactory() as session:
             outreach_svc = OutreachService(session, whatsapp_provider=mock_wa)
-            res2 = outreach_svc.resend_whatsapp(contact_id="cnt_nvda_1", sender_id="WA-NVDA", custom_body="Jensen, follow up!")
+            res2 = outreach_svc.resend_whatsapp(
+                contact_id="cnt_nvda_1", sender_id="WA-NVDA", custom_body="Jensen, follow up!"
+            )
             assert res2["success"] is True
 
         # Step 4: Mark Interested (8 days ago)
@@ -934,6 +1033,7 @@ class TestFullEndToEndCRMFlow:
 # 11. ERROR-CASE & RESILIENCE TESTING
 # ==============================================================================
 
+
 class TestErrorCasesAndResilience:
     def test_provider_timeout_and_network_drop_marks_failed_or_unknown(self, isolated_db):
         _, SessionFactory = isolated_db
@@ -954,7 +1054,9 @@ class TestErrorCasesAndResilience:
                     sender_id="WA-TSLA",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_tsla_1", company_id="tesla", name="Elon Musk", phone="+15125168000"))
+            contact_repo.save(
+                Contact(contact_id="cnt_tsla_1", company_id="tesla", name="Elon Musk", phone="+15125168000")
+            )
             session.commit()
 
         with SessionFactory() as session:
@@ -984,7 +1086,9 @@ class TestErrorCasesAndResilience:
                     sender_id="WA-ABNB",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_abnb_1", company_id="airbnb", name="Brian Chesky", phone="+14158005000"))
+            contact_repo.save(
+                Contact(contact_id="cnt_abnb_1", company_id="airbnb", name="Brian Chesky", phone="+14158005000")
+            )
             session.commit()
 
         with SessionFactory() as session:
