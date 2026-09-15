@@ -1,6 +1,5 @@
 """Integration tests for Pre-Send Transactions, crash recovery audit, and unknown state handling."""
 
-from datetime import datetime, timezone
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -44,6 +43,7 @@ class MockFailingOrAmbiguousProvider:
 
     def check_status(self, provider_reference):
         from app.ports.providers import ProviderStatusResult
+
         return ProviderStatusResult(status=OutreachStatus.UNKNOWN)
 
 

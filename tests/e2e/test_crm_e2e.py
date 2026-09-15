@@ -16,10 +16,7 @@ same browser engine the application uses for WhatsApp automation:
 
 from __future__ import annotations
 
-import os
 import sys
-import threading
-import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -27,18 +24,11 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-import pytest
-import uvicorn
 from playwright.sync_api import Page
 
-from app.domain.enums import Channel, CRMOutcome, InterviewState
-from app.infrastructure.database import SessionFactory, init_db
-from app.main import app
-from app.services.contact_service import ContactService
+from app.domain.enums import CRMOutcome, InterviewState
+from app.infrastructure.database import SessionFactory
 from app.services.crm_service import CrmService
-from app.services.sync_service import SyncService
-
-
 from tests.e2e.conftest import BASE_URL
 
 
@@ -99,6 +89,8 @@ def test_campaign_lifecycle_controls(browser_page: Page):
     pause_btn = page.locator("#pause-campaign-btn")
     resume_btn = page.locator("#resume-campaign-btn")
     stop_btn = page.locator("#stop-campaign-btn")
+    assert resume_btn.count() == 1
+    assert stop_btn.count() == 1
 
     # If start button is enabled, click start
     if start_btn.is_enabled():

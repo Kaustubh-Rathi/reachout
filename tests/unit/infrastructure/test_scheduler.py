@@ -9,15 +9,12 @@ Verifies:
 
 from __future__ import annotations
 
-import datetime
-from datetime import timezone
 import pytest
 from sqlalchemy import select
 
 from app.domain.campaign import Campaign
-from app.domain.enums import CampaignStatus, Channel, OutreachStatus
-from app.domain.outreach_attempt import OutreachAttempt
-from app.infrastructure.models import CampaignModel, OutreachAttemptModel
+from app.domain.enums import CampaignStatus, Channel
+from app.infrastructure.models import CampaignModel
 
 
 class TestSchedulerAndCampaignLifecycle:

@@ -2,13 +2,14 @@
 
 import csv
 from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, Channel, OutreachStatus
+from app.domain.enums import AttemptType, Channel
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
 from app.domain.policies.resend_policy import prepare_manual_resend
@@ -41,7 +42,14 @@ class TestDuplicateAndSuppression:
         with source_csv.open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["company", "name", "phone", "email"])
             writer.writeheader()
-            writer.writerow({"company": "Salesforce", "name": "Marc Benioff", "phone": "919876500001", "email": "marc@salesforce.com"})
+            writer.writerow(
+                {
+                    "company": "Salesforce",
+                    "name": "Marc Benioff",
+                    "phone": "919876500001",
+                    "email": "marc@salesforce.com",
+                }
+            )
 
         synchronizer = DatabaseSourceSynchronizer(tombstone_session)
         summary1 = synchronizer.sync_source(str(source_csv))
@@ -70,7 +78,9 @@ class TestDuplicateAndSuppression:
         # Re-run synchronization against original source file (which still contains Marc)
         summary2 = synchronizer.sync_source(str(source_csv))
         assert summary2.new_contacts == 0
-        assert contact_repo.get_by_key("salesforce|919876500001") is None, "Suppressed contact was incorrectly resurrected!"
+        assert contact_repo.get_by_key("salesforce|919876500001") is None, (
+            "Suppressed contact was incorrectly resurrected!"
+        )
 
     def test_automatic_duplicate_protection_blocks_resending_successful_outreach(self, tombstone_session):
         comp_repo = SqliteCompanyRepository(tombstone_session)

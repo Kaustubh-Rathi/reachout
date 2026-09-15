@@ -1,8 +1,6 @@
 """Unit tests for Phase 8 Sender Authentication state machine and multi-session management."""
 
-import pytest
-from app.domain.enums import Channel, SenderStatus
-from app.domain.sender_account import SenderAccount
+from app.domain.enums import SenderStatus
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager
 from app.services.sender_service import SenderService
@@ -22,7 +20,7 @@ def test_sender_status_enum_values():
 def test_whatsapp_session_manager_state_machine():
     """Verify in-memory state tracking and transitions in WhatsAppSessionManager."""
     mgr = WhatsAppSessionManager()
-    
+
     # 1. Default initial state
     st = mgr.get_auth_state("WA_SESSION_TEST")
     assert st["status"] == SenderStatus.NOT_CONFIGURED.value
@@ -30,6 +28,7 @@ def test_whatsapp_session_manager_state_machine():
 
     # 2. Start authentication transitions state to AUTHENTICATING
     events_captured = []
+
     def callback(evt, payload):
         events_captured.append((evt, payload))
 
@@ -48,7 +47,7 @@ def test_sender_service_configure_sessions():
     """Verify dynamic session count configuration for arbitrary N WhatsApp sessions."""
     with SessionFactory() as session:
         svc = SenderService(session)
-        
+
         # Configure exactly 3 WhatsApp sessions
         sessions = svc.configure_whatsapp_sessions(3)
         assert len(sessions) == 3

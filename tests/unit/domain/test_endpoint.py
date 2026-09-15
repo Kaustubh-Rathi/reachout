@@ -1,6 +1,5 @@
 """Unit tests for CommunicationEndpoint and endpoint normalization in Phase 7."""
 
-import pytest
 from app.domain.endpoint import (
     CommunicationEndpoint,
     extract_endpoints_from_raw,

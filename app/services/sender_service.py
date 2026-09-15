@@ -6,9 +6,9 @@ OAuth tokens, or session secrets.
 
 from __future__ import annotations
 
-import os
 import re
 from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel, SenderStatus
@@ -16,7 +16,6 @@ from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.factory import (
     get_email_provider,
-    get_whatsapp_provider,
 )
 from app.infrastructure.providers.session_manager import (
     WhatsAppSessionManager,
@@ -309,7 +308,7 @@ class SenderService:
                             cb_sender.status = SenderStatus(st_val)
                             cb_repo.save(cb_sender)
                             cb_sess.commit()
-                except Exception as exc:
+                except Exception:
                     # Surface re-auth status-sync failures so sender status never silently
                     # diverges from reality.
                     import traceback
@@ -386,7 +385,6 @@ class SenderService:
         been removed). If SMTP verification fails, an exception is raised and NOTHING is
         persisted Ã¢â‚¬â€ no dummy/placeholder row is ever created.
         """
-        import re
 
         clean_id = id.strip()
         clean_identity = identity.strip()

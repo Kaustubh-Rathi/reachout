@@ -6,14 +6,20 @@ per sender account with realistic anti-detection, humanized typing, and delivery
 
 from __future__ import annotations
 
-import os
 import random
 import re
 import time
-import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+from app.domain.enums import OutreachStatus
+from app.domain.outreach_attempt import OutreachAttempt
+from app.infrastructure.providers.session_manager import (
+    WhatsAppSessionManager,
+    default_session_manager,
+)
+from app.ports.providers import ProviderSendResult, ProviderStatusResult
 
 SEND_LOG = Path(__file__).resolve().parent.parent.parent.parent / "logs" / "whatsapp_send.log"
 
@@ -25,23 +31,6 @@ def _dbg(message: str) -> None:
             f.write(f"[{datetime.now(timezone.utc).isoformat()}] {message}\n")
     except Exception:
         pass
-
-from app.domain.enums import OutreachStatus
-from app.domain.outreach_attempt import OutreachAttempt
-from app.infrastructure.providers.session_manager import (
-    WhatsAppSessionManager,
-    default_session_manager,
-)
-from app.ports.providers import ProviderSendResult, ProviderStatusResult, WhatsAppProvider
-
-
-def _human_type(composer, text: str) -> None:
-    """Type message into composer character by character with realistic jitter and punctuation pauses."""
-    for char in text:
-        composer.press_sequentially(char)
-        time.sleep(random.uniform(0.04, 0.12))
-        if char in {".", ",", "!", "?", "\n"}:
-            time.sleep(random.uniform(0.25, 0.6))
 
 
 class PlaywrightWhatsAppProvider:
@@ -112,14 +101,14 @@ class PlaywrightWhatsAppProvider:
                 # Navigate to the base URL first to let the React app fully initialize
                 # and sync before we try to use the /send?phone deep link.
                 page.goto("https://web.whatsapp.com", wait_until="domcontentloaded", timeout=timeout_ms)
-                
+
                 # Check for QR code (auth required)
                 if page.locator('canvas[aria-label="Scan this QR code to link a device"], canvas').count() > 0:
                     return ProviderSendResult.failed(
                         failure_code="ERR_AUTH_REQUIRED",
                         failure_detail="WhatsApp session requires QR code scan authentication",
                     )
-                
+
                 # Wait for the chat list (#side) to prove the app is fully synced and ready
                 try:
                     page.wait_for_selector("#side", timeout=30000)
@@ -127,17 +116,15 @@ class PlaywrightWhatsAppProvider:
                     return ProviderSendResult.failed(
                         failure_code="ERR_SYNC_TIMEOUT",
                         failure_detail="WhatsApp Web failed to sync chats within timeout",
-                    )                
+                    )
                 # Step 2: Navigate to chat url now that app is fully bootstrapped
                 # The UI Search method fails for unsaved numbers. We use JS location assignment
                 # to trigger the SPA deep link directly.
                 _dbg(f"[send] sender={attempt.sender_account_id} -> {clean_phone} (JS Deep Link Method)")
                 page.evaluate(f'window.location.href = "https://web.whatsapp.com/send/?phone={clean_phone}";')
 
-                invalid_text = page.get_by_text(
-                    re.compile(r"phone number shared via url is invalid", re.I)
-                )
-                
+                invalid_text = page.get_by_text(re.compile(r"phone number shared via url is invalid", re.I))
+
                 # Step 3: Robust Selectors for 2025/2026
                 composer = page.locator(
                     'footer div[contenteditable="true"], [data-testid="conversation-compose-box-input"], div[title="Type a message"]'
@@ -149,7 +136,7 @@ class PlaywrightWhatsAppProvider:
                 # Wait for composer to become interactable
                 deadline = time.monotonic() + self.timeout_seconds
                 text_sent = False
-                
+
                 while time.monotonic() < deadline:
                     if invalid_text.count() and invalid_text.first.is_visible():
                         return ProviderSendResult.failed(
@@ -163,14 +150,14 @@ class PlaywrightWhatsAppProvider:
                         page.keyboard.press("Control+A")
                         page.keyboard.press("Backspace")
                         time.sleep(0.5)
-                        
+
                         try:
                             page.keyboard.type(message_body, delay=random.uniform(40, 100))
                         except Exception:
                             composer.first.fill(message_body)
-                            
+
                         time.sleep(1.0)
-                        
+
                         if send_button.count() and send_button.first.is_visible():
                             try:
                                 send_button.first.click()
@@ -178,11 +165,11 @@ class PlaywrightWhatsAppProvider:
                                 page.keyboard.press("Enter")
                         else:
                             page.keyboard.press("Enter")
-                        
+
                         time.sleep(random.uniform(1.5, 2.5))
                         text_sent = True
                         break
-                        
+
                     time.sleep(1.0)
 
                 if not text_sent:
@@ -217,7 +204,7 @@ class PlaywrightWhatsAppProvider:
                             raise Exception("Could not find Attach button in the footer")
 
                         _dbg(f"[attach] clicking attach btn at {attach_coords}")
-                        page.mouse.click(attach_coords['x'], attach_coords['y'])
+                        page.mouse.click(attach_coords["x"], attach_coords["y"])
                         time.sleep(1.5)
 
                         # --- Find Document menu item by role=menuitem (strict, avoids chat bubbles) ---
@@ -242,7 +229,7 @@ class PlaywrightWhatsAppProvider:
 
                         # Click Document and catch the native file chooser
                         with page.expect_file_chooser(timeout=7000) as fc_info:
-                            page.mouse.click(doc_coords['x'], doc_coords['y'])
+                            page.mouse.click(doc_coords["x"], doc_coords["y"])
 
                         fc = fc_info.value
                         fc.set_files(str(att_file))
@@ -280,19 +267,14 @@ class PlaywrightWhatsAppProvider:
                         _dbg(f"[attach] failed: {e}")
                         time.sleep(random.uniform(2.5, 4.0))
 
-
                 return ProviderSendResult(
                     success=True,
                     status=OutreachStatus.SENT,
                     provider_reference=f"wa_{clean_phone}_{int(time.time())}",
                 )
 
-
-
         except Exception as exc:
-            return ProviderSendResult.unknown(
-                reason=f"Camoufox automation encountered unexpected exception: {exc}"
-            )
+            return ProviderSendResult.unknown(reason=f"Camoufox automation encountered unexpected exception: {exc}")
 
     def check_status(self, provider_reference: str) -> ProviderStatusResult:
         """Check delivery status."""

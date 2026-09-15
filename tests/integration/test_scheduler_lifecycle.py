@@ -1,7 +1,7 @@
 """Integration tests for Persistent Campaign Scheduler lifecycle, prioritization, and execution."""
 
 import time
-from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -25,7 +25,7 @@ from app.infrastructure.repositories import (
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.ports.providers import ProviderSendResult, WhatsAppProvider
+from app.ports.providers import ProviderSendResult
 
 
 class MockFastWhatsAppProvider:
@@ -136,7 +136,6 @@ class TestSchedulerLifecycle:
     def test_campaign_company_first_prioritization_and_completion(self, scheduler_env):
         session_factory = scheduler_env["session_factory"]
         scheduler = scheduler_env["scheduler"]
-        provider = scheduler_env["provider"]
 
         with session_factory() as session:
             camp_repo = SqliteCampaignRepository(session)
@@ -176,7 +175,7 @@ class TestSchedulerLifecycle:
             # Verify company-first ordering: comp_a, comp_b, comp_c, comp_a, comp_b, comp_c
             contact_ids = [a.contact_id for a in attempts]
             expected_prefix = ["cnt_comp_a", "cnt_comp_b", "cnt_comp_c", "cnt_comp_a", "cnt_comp_b", "cnt_comp_c"]
-            for cid, exp_pref in zip(contact_ids, expected_prefix):
+            for cid, exp_pref in zip(contact_ids, expected_prefix, strict=False):
                 assert cid.startswith(exp_pref)
 
             # Verify template rotation: V1, V2, V1, V2...

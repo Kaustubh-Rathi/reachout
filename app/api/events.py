@@ -6,9 +6,9 @@ Message failed, Sender expired, Follow-up due) via Server-Sent Events (SSE).
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any, Dict, List
+
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
@@ -25,7 +25,7 @@ async def stream_events():
     async def event_generator():
         # Yield an initial connected event
         yield f"event: connected\ndata: {json.dumps({'status': 'connected'})}\n\n"
-        
+
         async for event in event_bus.subscribe():
             data_payload = {
                 "event_id": event.event_id,
@@ -67,6 +67,7 @@ async def websocket_events(websocket: WebSocket):
     except Exception as exc:
         # Surface a failing event-stream subscriber instead of silently killing the socket.
         import traceback
+
         traceback.print_exc()
         print(f"[Events] WebSocket event-stream error: {exc}")
 

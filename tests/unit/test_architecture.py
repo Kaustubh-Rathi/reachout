@@ -12,7 +12,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 from typing import List, Set
-import pytest
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 APP_DIR = ROOT_DIR / "app"
@@ -192,10 +191,8 @@ class TestArchitecturalBoundaries:
 
     def test_domain_entities_use_value_semantics_and_encapsulation(self):
         """Key domain models enforce immutability or explicit mutation methods."""
-        from app.domain.enums import Channel, OutreachStatus, CampaignStatus, CRMOutcome, InterviewState
         from app.domain.company import Company
-        from app.domain.contact import Contact
-        from app.domain.enums import AttemptType
+        from app.domain.enums import AttemptType, CampaignStatus, Channel, CRMOutcome, InterviewState, OutreachStatus
         from app.domain.outreach_attempt import OutreachAttempt
 
         # Enums are unique strings

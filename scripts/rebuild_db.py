@@ -14,7 +14,6 @@ from __future__ import annotations
 import csv
 import shutil
 import sys
-import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -64,12 +63,12 @@ def main() -> None:
                 p.unlink()
 
     sys.path.insert(0, str(ROOT))
-    from app.infrastructure.database import SessionFactory, init_db
-    from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
-    from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-    from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
     from app.domain.enums import AttemptType, Channel, OutreachStatus
     from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
+    from app.infrastructure.database import SessionFactory, init_db
+    from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
+    from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
+    from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 
     # 2. Create schema from corrected models
     init_db()
@@ -79,9 +78,11 @@ def main() -> None:
     with SessionFactory() as session:
         syncer = DatabaseSourceSynchronizer(session)
         summary = syncer.sync_source(str(SOURCE), SHEET)
-        print(f"[rebuild] Sync done: new={summary.new_contacts} updated={summary.updated_contacts} "
-              f"companies={summary.new_companies} phones={summary.new_phone_endpoints} emails={summary.new_email_endpoints} "
-              f"skipped={summary.skipped_invalid} errors={len(summary.errors)}")
+        print(
+            f"[rebuild] Sync done: new={summary.new_contacts} updated={summary.updated_contacts} "
+            f"companies={summary.new_companies} phones={summary.new_phone_endpoints} emails={summary.new_email_endpoints} "
+            f"skipped={summary.skipped_invalid} errors={len(summary.errors)}"
+        )
         for e in summary.errors[:20]:
             print(f"    ! {e}")
 
@@ -161,12 +162,15 @@ def main() -> None:
                 updated_contacts += 1
 
         session.commit()
-        print(f"[rebuild] Log replay: matched={matched} attempts_created={created} "
-              f"unmatched={unmatched} contacts_touched={updated_contacts}")
+        print(
+            f"[rebuild] Log replay: matched={matched} attempts_created={created} "
+            f"unmatched={unmatched} contacts_touched={updated_contacts}"
+        )
 
 
 def hashlib_hex(text: str) -> str:
     import hashlib
+
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:20]
 
 

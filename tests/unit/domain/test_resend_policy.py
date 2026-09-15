@@ -1,7 +1,6 @@
 """Unit tests for Manual Resend Policy."""
 
 from datetime import datetime, timezone
-import pytest
 
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus

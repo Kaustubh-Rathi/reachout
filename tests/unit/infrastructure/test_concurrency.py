@@ -10,20 +10,17 @@ Verifies:
 from __future__ import annotations
 
 import concurrent.futures
-import tempfile
 import threading
-import time
 from pathlib import Path
-from typing import List
-import pytest
-from sqlalchemy import create_engine, select, func, event
+
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, Channel, OutreachStatus
+from app.domain.enums import AttemptType, Channel
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
@@ -40,6 +37,7 @@ def create_wal_test_engine(db_path: Path) -> Engine:
         f"sqlite:///{db_path.as_posix()}",
         connect_args={"timeout": 15, "check_same_thread": False},
     )
+
     @event.listens_for(eng, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
@@ -47,6 +45,7 @@ def create_wal_test_engine(db_path: Path) -> Engine:
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=5000")
         cursor.close()
+
     return eng
 
 

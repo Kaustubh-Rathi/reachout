@@ -6,6 +6,7 @@ Handles manual sends, resends, historical audit trails, and recovery queue manag
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -60,7 +61,7 @@ def send_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_s
             destination=payload.destination,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/send-email")
@@ -78,7 +79,7 @@ def send_email(payload: SendEmailRequest, session: Session = Depends(get_session
             destination=payload.destination,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/resend-whatsapp")
@@ -95,7 +96,7 @@ def resend_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get
             destination=payload.destination,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/resend-email")
@@ -113,7 +114,7 @@ def resend_email(payload: SendEmailRequest, session: Session = Depends(get_sessi
             destination=payload.destination,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/history/{contact_id}")
@@ -143,4 +144,4 @@ def resolve_recovery_attempt(
             recovery_notes=payload.recovery_notes,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

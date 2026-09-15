@@ -11,11 +11,10 @@ from typing import Container, List, Optional, Sequence, Tuple
 
 from app.domain.contact import Contact
 from app.domain.endpoint import CommunicationEndpoint
-from app.domain.enums import Channel, OutreachStatus
+from app.domain.enums import Channel
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.endpoint_coverage_policy import (
     get_next_uncovered_endpoint,
-    get_uncovered_endpoints,
     has_ambiguous_or_inflight_blocker,
     is_contact_fully_covered,
 )
@@ -32,6 +31,7 @@ DEFAULT_ROTATION_SEQUENCE: List[Channel] = [
 @dataclass(frozen=True)
 class ChannelDispatchDecision:
     """Outcome of channel and endpoint evaluation for a candidate contact."""
+
     is_eligible: bool
     channel: Optional[Channel]
     endpoint: Optional[CommunicationEndpoint]

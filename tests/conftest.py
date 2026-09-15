@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import datetime
-from datetime import timezone
 import hashlib
 import os
-from pathlib import Path
 import tempfile
-from typing import Generator, List, Optional
+from datetime import timezone
+from pathlib import Path
+from typing import Generator, Optional
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -129,38 +130,18 @@ def pytest_sessionfinish(session, exitstatus):
             )
 
 
-from tests.doubles.fake_providers import (
-    FakeEmailProvider,
-    FakeWhatsAppProvider,
-    MockEmailProvider,
-    MockWhatsAppProvider,
-)
-from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import (
-    AttemptType,
-    CampaignStatus,
     Channel,
-    CRMOutcome,
-    InterviewState,
-    OutreachStatus,
-    ReminderStatus,
-    SenderStatus,
 )
 from app.domain.message_template import MessageTemplate
-from app.domain.outreach_attempt import OutreachAttempt
-from app.domain.reminder import FollowUpReminder
 from app.domain.sender_account import SenderAccount
-from app.domain.source_record import SourceRecord
 from app.infrastructure.database import Base
-import app.infrastructure.models  # ensure models are loaded
 from app.ports.infrastructure import FrozenClock
-from app.ports.providers import (
-    EmailProvider,
-    ProviderSendResult,
-    ProviderStatusResult,
-    WhatsAppProvider,
+from tests.doubles.fake_providers import (
+    MockEmailProvider,
+    MockWhatsAppProvider,
 )
 
 

@@ -1,6 +1,5 @@
 """Unit tests for Phase 8 Excel multi-endpoint normalization and sync metrics."""
 
-import pytest
 from app.infrastructure.source.synchronizer import extract_emails, extract_phone_numbers
 from app.ports.source import SyncSummary
 

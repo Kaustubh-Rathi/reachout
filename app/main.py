@@ -6,26 +6,24 @@ serving the operational dashboard UI, and managing startup/shutdown lifecycle.
 
 from __future__ import annotations
 
-import io
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse
 
 from app.api import api_router
 from app.config import (
+    DEFAULT_OUTREACH_LIMIT,
     HTML_DEFAULT_LIMIT_TOKEN,
     HTML_MAX_LIMIT_TOKEN,
-    DEFAULT_OUTREACH_LIMIT,
     MAX_OUTREACH_LIMIT,
 )
 from app.infrastructure.database import SessionFactory, init_db
 from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
 from app.services.crm_service import CrmService
-from app.services.event_bus import event_bus
 from app.services.sender_service import SenderService
 from app.services.sync_service import SyncService
 from app.services.template_service import TemplateService
@@ -83,12 +81,9 @@ app.add_middleware(
 app.include_router(api_router)
 
 
-
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return Response(status_code=204)
-
-
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -115,6 +110,7 @@ def main():
             pass
 
     import argparse
+
     import uvicorn
 
     parser = argparse.ArgumentParser(description="Start Reachout CRM Control Plane")

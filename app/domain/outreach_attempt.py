@@ -26,7 +26,7 @@ def generate_idempotency_key(
     destination: Optional[str] = None,
 ) -> str:
     """Generate a deterministic idempotency key for an outreach attempt.
-    
+
     Prevents duplicate submissions to message providers.
     For manual resends, `attempt_sequence` or `custom_salt` distinguishes
     consecutive deliberate resends.
@@ -42,7 +42,7 @@ def generate_idempotency_key(
 @dataclass
 class OutreachAttempt:
     """Represents a discrete historical attempt to deliver a message to a contact.
-    
+
     Attributes:
         id: Unique attempt identifier.
         contact_id: Target contact entity reference.
@@ -65,6 +65,7 @@ class OutreachAttempt:
         provider_reference: Provider-assigned message ID or tracking token.
         recovery_notes: Diagnostics recorded during recovery audit.
     """
+
     id: str
     contact_id: str
     sender_account_id: str

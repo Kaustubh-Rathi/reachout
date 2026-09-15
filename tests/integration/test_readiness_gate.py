@@ -33,7 +33,9 @@ def test_readiness_gate_blocks_when_no_active_whatsapp(client):
         if not comp_repo.list_all():
             comp_repo.save(Company.create(name="Gate Company", domain="gate.com", company_id="cmp_gate_test"))
         if not cnt_repo.list_all():
-            cnt_repo.save(Contact(contact_id="cnt_gate_test", company_id="cmp_gate_test", name="Gate Test", phone="919999900000"))
+            cnt_repo.save(
+                Contact(contact_id="cnt_gate_test", company_id="cmp_gate_test", name="Gate Test", phone="919999900000")
+            )
         if not tpl_repo.list_by_channel(Channel.WHATSAPP):
             tpl_repo.save(MessageTemplate.create(name="WA Tpl", channel=Channel.WHATSAPP, body="Hello"))
 

@@ -1,7 +1,6 @@
 """Unit tests for SenderAccount domain entity and cardinality independence."""
 
 from datetime import datetime, timezone
-import pytest
 
 from app.domain.enums import Channel, SenderStatus
 from app.domain.sender_account import SenderAccount

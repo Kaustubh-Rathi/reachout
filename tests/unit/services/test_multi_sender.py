@@ -11,9 +11,10 @@ Verifies:
 from __future__ import annotations
 
 from typing import List, Optional
+
 import pytest
 
-from app.domain.enums import Channel, SenderStatus
+from app.domain.enums import Channel
 from app.domain.sender_account import SenderAccount
 
 
@@ -24,7 +25,8 @@ def select_least_loaded_sender(
 ) -> Optional[SenderAccount]:
     """Domain policy helper: Select available sender with lowest usage under quota."""
     eligible = [
-        s for s in senders
+        s
+        for s in senders
         if s.channel == channel
         and s.is_available()
         and (s.daily_limit is None or current_usage_map.get(s.id, 0) < s.daily_limit)
@@ -79,9 +81,15 @@ class TestMultiSenderScalability:
 
     def test_least_loaded_sender_rotation(self):
         """Senders are selected according to least-loaded usage distribution."""
-        s1 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", daily_limit=50)
-        s2 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="S2", daily_limit=50)
-        s3 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91003", display_name="S3", daily_limit=50)
+        s1 = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", daily_limit=50
+        )
+        s2 = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="S2", daily_limit=50
+        )
+        s3 = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91003", display_name="S3", daily_limit=50
+        )
 
         senders = [s1, s2, s3]
         usage = {s1.id: 10, s2.id: 5, s3.id: 8}
@@ -99,8 +107,12 @@ class TestMultiSenderScalability:
 
     def test_daily_quota_exhaustion_handling(self):
         """When senders hit daily limits, they are bypassed; returns None when all exhausted."""
-        s1 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", daily_limit=10)
-        s2 = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="S2", daily_limit=10)
+        s1 = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="S1", daily_limit=10
+        )
+        s2 = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91002", display_name="S2", daily_limit=10
+        )
 
         senders = [s1, s2]
         usage = {s1.id: 10, s2.id: 9}
@@ -117,8 +129,12 @@ class TestMultiSenderScalability:
 
     def test_channel_isolation(self):
         """WhatsApp query never selects Email senders and vice versa."""
-        wa_sender = SenderAccount.create(channel=Channel.WHATSAPP, provider="MOCK", identity="+91111", display_name="WA")
-        email_sender = SenderAccount.create(channel=Channel.EMAIL, provider="MOCK", identity="user@test.com", display_name="EM")
+        wa_sender = SenderAccount.create(
+            channel=Channel.WHATSAPP, provider="MOCK", identity="+91111", display_name="WA"
+        )
+        email_sender = SenderAccount.create(
+            channel=Channel.EMAIL, provider="MOCK", identity="user@test.com", display_name="EM"
+        )
 
         senders = [wa_sender, email_sender]
         usage = {wa_sender.id: 0, email_sender.id: 0}

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -21,8 +22,6 @@ from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.models import (
     MessageTemplateModel,
-    OutreachAttemptModel,
-    SenderAccountModel,
 )
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository

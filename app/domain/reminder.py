@@ -13,7 +13,7 @@ from app.domain.enums import ReminderStatus
 @dataclass
 class FollowUpReminder:
     """Represents a scheduled follow-up reminder for a contact.
-    
+
     Attributes:
         id: Unique identifier for the reminder.
         contact_id: Target contact entity reference.
@@ -23,6 +23,7 @@ class FollowUpReminder:
         created_at: Creation timestamp.
         completed_at: Timestamp when reminder was acted upon or dismissed.
     """
+
     id: str
     contact_id: str
     due_at: datetime
@@ -70,8 +71,3 @@ class FollowUpReminder:
     def complete(self, timestamp: Optional[datetime] = None) -> None:
         """Mark reminder as completed (alias for mark_completed)."""
         self.mark_completed(timestamp)
-
-    def dismiss(self, timestamp: Optional[datetime] = None) -> None:
-        """Dismiss reminder without taking action."""
-        self.status = ReminderStatus.DISMISSED
-        self.completed_at = timestamp or datetime.now(timezone.utc)

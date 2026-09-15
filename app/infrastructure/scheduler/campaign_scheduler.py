@@ -10,31 +10,18 @@ from __future__ import annotations
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
-
-from app.domain.campaign import Campaign
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus, SenderStatus
-from app.domain.message_template import MessageTemplate
+from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.channel_rotation_policy import (
-    ChannelDispatchDecision,
     ChannelRotationPolicy,
 )
-from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
 from app.domain.policies.endpoint_coverage_policy import (
-    get_next_uncovered_endpoint,
-    get_uncovered_endpoints,
     is_contact_fully_covered,
-    is_endpoint_covered,
 )
-from app.domain.policies.fallback_policy import ChannelFallbackPolicy
 from app.domain.policies.prioritization import (
-    CompanyRoundMetrics,
-    ContactPrioritizer,
-    calculate_company_round_state,
     prioritize_company_first,
 )
 from app.domain.policies.sender_rotation import SenderRotationPolicy
@@ -50,7 +37,7 @@ from app.infrastructure.repositories.sqlite_suppression_repository import Sqlite
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.ports.infrastructure import DomainEvent, EventPublisher, Scheduler
+from app.ports.infrastructure import DomainEvent, EventPublisher
 
 
 class PersistentCampaignScheduler:
@@ -348,14 +335,21 @@ class PersistentCampaignScheduler:
                         attempts_by_contact[a.contact_id] = []
                     attempts_by_contact[a.contact_id].append(a)
 
-                # Prioritize WHO (Company-First Round-Robin selection)
-                def eligibility_check(cnt: Contact) -> bool:
-                    hist = attempts_by_contact.get(cnt.contact_id, [])
+                # Prioritize WHO (Company-First Round-Robin selection).
+                # Bind the loop-scoped values as defaults so the closure does not
+                # capture a variable that changes on the next loop iteration (B023).
+                def eligibility_check(
+                    cnt: Contact,
+                    _attempts=attempts_by_contact,
+                    _channel=preferred_channel,
+                    _suppressed=suppressed_set,
+                ) -> bool:
+                    hist = _attempts.get(cnt.contact_id, [])
                     decision = ChannelRotationPolicy.evaluate_contact_dispatch(
                         contact=cnt,
-                        preferred_channel=preferred_channel,
+                        preferred_channel=_channel,
                         historical_attempts=hist,
-                        suppressed_identifiers=suppressed_set,
+                        suppressed_identifiers=_suppressed,
                     )
                     return decision.is_eligible
 

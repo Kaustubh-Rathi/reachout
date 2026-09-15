@@ -12,8 +12,8 @@ from __future__ import annotations
 import csv
 import re
 from collections import defaultdict
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,7 +24,7 @@ from sqlalchemy.pool import StaticPool
 from app.config import DEFAULT_OUTREACH_LIMIT, MAX_OUTREACH_LIMIT
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, Channel, CRMOutcome, InterviewState, OutreachStatus
+from app.domain.enums import AttemptType, Channel, CRMOutcome, InterviewState
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
@@ -34,7 +34,6 @@ from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOut
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.main import app
 from app.services.company_service import CompanyService
-
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 SEND_LOG_CSV = ROOT_DIR / "logs" / "mnc_whatsapp_send_log.csv"

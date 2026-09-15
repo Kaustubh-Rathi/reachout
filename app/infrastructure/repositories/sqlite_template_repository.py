@@ -27,7 +27,7 @@ class SqliteTemplateRepository(TemplateRepository):
         channel_val = channel.value if hasattr(channel, "value") else str(channel)
         stmt = select(MessageTemplateModel).where(MessageTemplateModel.channel == channel_val)
         if active_only:
-            stmt = stmt.where(MessageTemplateModel.active == True)
+            stmt = stmt.where(MessageTemplateModel.active)
         stmt = stmt.order_by(MessageTemplateModel.id)
         models = self.session.scalars(stmt).all()
         return [m.to_domain() for m in models]
@@ -35,7 +35,7 @@ class SqliteTemplateRepository(TemplateRepository):
     def list_all(self, active_only: bool = False) -> List[MessageTemplate]:
         stmt = select(MessageTemplateModel)
         if active_only:
-            stmt = stmt.where(MessageTemplateModel.active == True)
+            stmt = stmt.where(MessageTemplateModel.active)
         stmt = stmt.order_by(MessageTemplateModel.id)
         models = self.session.scalars(stmt).all()
         return [m.to_domain() for m in models]

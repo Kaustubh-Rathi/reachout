@@ -7,7 +7,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.enums import Channel, SenderStatus
+from app.domain.enums import Channel
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.models import SenderAccountModel
 from app.ports.repositories import SenderRepository

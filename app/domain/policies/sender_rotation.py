@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Callable, List, Optional, Sequence, Tuple
 
-from app.domain.enums import Channel, SenderStatus
+from app.domain.enums import Channel
 from app.domain.sender_account import SenderAccount
 
 
@@ -24,7 +24,7 @@ class SenderRotationPolicy:
         channels: Optional[Sequence[Channel]] = None,
     ) -> List[SenderAccount]:
         """Build a deterministic rotation sequence from active sender accounts.
-        
+
         If channels are specified (e.g. [WHATSAPP, EMAIL]), groups senders by channel
         in deterministic order (sorted by sender ID).
         """
@@ -52,7 +52,7 @@ class SenderRotationPolicy:
         availability_checker: Optional[Callable[[SenderAccount], bool]] = None,
     ) -> Tuple[Optional[SenderAccount], int]:
         """Select next eligible sender account starting from cursor, skipping unavailable ones.
-        
+
         Args:
             senders: List of candidate senders.
             cursor: Current rotation cursor offset.

@@ -7,7 +7,6 @@ Uses HMAC-SHA256 authenticated encryption with PBKDF2 key derivation.
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
@@ -46,7 +45,7 @@ def _encrypt_payload(data: bytes, master_key: bytes) -> bytes:
     iv = secrets.token_bytes(16)
     enc_key, mac_key = _derive_keys(master_key, salt)
     ks = _keystream(enc_key, iv, len(data))
-    ciphertext = bytes(a ^ b for a, b in zip(data, ks))
+    ciphertext = bytes(a ^ b for a, b in zip(data, ks, strict=False))
     tag = hmac.new(mac_key, salt + iv + ciphertext, hashlib.sha256).digest()
     return salt + iv + ciphertext + tag
 
@@ -64,7 +63,7 @@ def _decrypt_payload(blob: bytes, master_key: bytes) -> bytes:
     if not hmac.compare_digest(tag, expected_tag):
         raise ValueError("Decryption error: MAC integrity verification failed")
     ks = _keystream(enc_key, iv, len(ciphertext))
-    return bytes(a ^ b for a, b in zip(ciphertext, ks))
+    return bytes(a ^ b for a, b in zip(ciphertext, ks, strict=False))
 
 
 class CredentialVault:
@@ -122,9 +121,7 @@ class CredentialVault:
             # A corrupt/undecryptable vault is an integrity violation, NOT "no
             # credentials". Return {} silently would let a subsequent save overwrite the
             # vault with an empty cache (data loss). Surface it instead.
-            raise RuntimeError(
-                f"Credential vault is corrupt or undecryptable at {self.vault_path}: {exc}"
-            ) from exc
+            raise RuntimeError(f"Credential vault is corrupt or undecryptable at {self.vault_path}: {exc}") from exc
 
     def _save_vault(self, data: Dict[str, Dict[str, str]]) -> None:
         """Encrypt and persist vault contents to disk atomically."""
@@ -132,7 +129,7 @@ class CredentialVault:
         master_key = self._get_master_key()
         serialized = json.dumps(data).encode("utf-8")
         encrypted = _encrypt_payload(serialized, master_key)
-        
+
         tmp_file = self.vault_path.with_suffix(".tmp")
         tmp_file.write_bytes(encrypted)
         tmp_file.replace(self.vault_path)
@@ -152,27 +149,6 @@ class CredentialVault:
                 self._cache = self._load_vault()
             res = self._cache.get(sender_account_id)
             return dict(res) if res is not None else None
-
-    def has_credentials(self, sender_account_id: str) -> bool:
-        """Check if valid credentials exist for sender."""
-        with self._lock:
-            if self._cache is None:
-                self._cache = self._load_vault()
-            creds = self._cache.get(sender_account_id)
-            if not creds:
-                return False
-            return bool(creds.get("user") and creds.get("password"))
-
-    def delete_credentials(self, sender_account_id: str) -> bool:
-        """Delete credentials for a sender."""
-        with self._lock:
-            if self._cache is None:
-                self._cache = self._load_vault()
-            if sender_account_id in self._cache:
-                del self._cache[sender_account_id]
-                self._save_vault(self._cache)
-                return True
-            return False
 
     def list_senders_with_credentials(self) -> List[str]:
         """List all sender IDs that have stored credentials."""

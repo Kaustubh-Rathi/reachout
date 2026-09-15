@@ -1,11 +1,9 @@
 """Unit tests for Contact domain entity and behaviors."""
 
-from datetime import datetime, timezone, timedelta
-import pytest
+from datetime import datetime, timedelta, timezone
 
 from app.domain.contact import Contact, extract_first_name
 from app.domain.enums import Channel, CRMOutcome, InterviewState
-from app.domain.source_record import SourceRecord
 
 
 class TestContactModel:

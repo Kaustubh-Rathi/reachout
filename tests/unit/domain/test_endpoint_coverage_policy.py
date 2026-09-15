@@ -1,10 +1,6 @@
 """Unit tests for EndpointCoveragePolicy in Phase 7."""
 
-from datetime import datetime, timezone
-import pytest
-
 from app.domain.contact import Contact
-from app.domain.endpoint import CommunicationEndpoint
 from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.endpoint_coverage_policy import (
@@ -63,7 +59,6 @@ def test_is_endpoint_covered():
 
 def test_has_ambiguous_or_inflight_blocker():
     contact = _make_contact()
-    ep_wa1 = contact.endpoints[0]
 
     # Clean history
     assert not has_ambiguous_or_inflight_blocker(contact, [])

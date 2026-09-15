@@ -1,6 +1,7 @@
 """Unit tests for OutreachAttempt domain entity and state machine."""
 
 from datetime import datetime, timezone
+
 import pytest
 
 from app.domain.enums import AttemptType, Channel, OutreachStatus

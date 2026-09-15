@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.domain.contact import Contact
-from app.domain.enums import CRMOutcome, InterviewState
+from app.domain.enums import CRMOutcome
 from app.domain.policies.endpoint_coverage_policy import get_contact_endpoint_metrics
 from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, check_contact_follow_up_eligibility
 from app.services.context import ServiceContext, build_service_context

@@ -61,19 +61,6 @@ class SqliteOutreachRepository(OutreachRepository):
         models = self.session.scalars(stmt).all()
         return [m.to_domain() for m in models]
 
-    def list_by_destination(self, contact_id: str, destination: str) -> List[OutreachAttempt]:
-        dest_clean = destination.strip()
-        stmt = (
-            select(OutreachAttemptModel)
-            .where(
-                OutreachAttemptModel.contact_id == contact_id,
-                OutreachAttemptModel.destination == dest_clean,
-            )
-            .order_by(OutreachAttemptModel.prepared_at.desc())
-        )
-        models = self.session.scalars(stmt).all()
-        return [m.to_domain() for m in models]
-
     def save(self, attempt: OutreachAttempt) -> OutreachAttempt:
         existing = self.session.get(OutreachAttemptModel, attempt.id)
         if existing:

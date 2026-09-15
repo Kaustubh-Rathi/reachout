@@ -1,10 +1,9 @@
 """Unit tests for Automatic Duplicate Prevention Policy."""
 
 from datetime import datetime, timezone
-import pytest
 
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, Channel, OutreachStatus
+from app.domain.enums import AttemptType, Channel
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
 
@@ -80,9 +79,7 @@ class TestDuplicatePolicy:
         attempt_sent.mark_sending()
         attempt_sent.mark_sent()
 
-        res = evaluate_automatic_eligibility(
-            contact, Channel.WHATSAPP, historical_attempts=[attempt_sent]
-        )
+        res = evaluate_automatic_eligibility(contact, Channel.WHATSAPP, historical_attempts=[attempt_sent])
         assert not res.is_eligible
         assert "ALREADY_SENT" in res.reason
         assert res.blocking_attempt_id == attempt_sent.id
@@ -103,9 +100,7 @@ class TestDuplicatePolicy:
         )
         attempt_queued.mark_queued()
 
-        res = evaluate_automatic_eligibility(
-            contact, Channel.WHATSAPP, historical_attempts=[attempt_queued]
-        )
+        res = evaluate_automatic_eligibility(contact, Channel.WHATSAPP, historical_attempts=[attempt_queued])
         assert not res.is_eligible
         assert "ATTEMPT_IN_FLIGHT" in res.reason
         assert res.blocking_attempt_id == attempt_queued.id
@@ -127,8 +122,6 @@ class TestDuplicatePolicy:
         attempt_failed.mark_sending()
         attempt_failed.mark_failed("ERR_TIMEOUT", "Network timeout")
 
-        res = evaluate_automatic_eligibility(
-            contact, Channel.WHATSAPP, historical_attempts=[attempt_failed]
-        )
+        res = evaluate_automatic_eligibility(contact, Channel.WHATSAPP, historical_attempts=[attempt_failed])
         assert res.is_eligible
         assert res.reason == "ELIGIBLE"

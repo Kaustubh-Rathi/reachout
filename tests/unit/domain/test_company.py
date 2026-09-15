@@ -1,7 +1,6 @@
 """Unit tests for Company domain entity."""
 
 from datetime import datetime, timezone
-import pytest
 
 from app.domain.company import Company, normalize_company_name
 

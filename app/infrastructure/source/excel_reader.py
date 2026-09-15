@@ -10,11 +10,11 @@ import csv
 import re
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from xml.etree import ElementTree as ET
 
 from app.domain.source_record import compute_source_fingerprint
-from app.ports.source import SourceReader, SourceRow
+from app.ports.source import SourceRow
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 DOC_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -39,9 +39,7 @@ def column_name(cell_reference: str) -> str:
 class TabularSourceReader:
     """Implements SourceReader port for .xlsx and .csv files."""
 
-    def read_source(
-        self, source_path: str, sheet_name: Optional[str] = None
-    ) -> List[SourceRow]:
+    def read_source(self, source_path: str, sheet_name: Optional[str] = None) -> List[SourceRow]:
         path = Path(source_path).resolve()
         if not path.exists():
             raise FileNotFoundError(f"Source file not found: {path}")
@@ -85,22 +83,24 @@ class TabularSourceReader:
             if "xl/sharedStrings.xml" in names:
                 root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
                 shared_strings = [
-                    "".join(node.text or "" for node in item.findall(".//m:t", NS))
-                    for item in root.findall("m:si", NS)
+                    "".join(node.text or "" for node in item.findall(".//m:t", NS)) for item in root.findall("m:si", NS)
                 ]
 
             workbook = ET.fromstring(archive.read("xl/workbook.xml"))
             relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
             targets = {
-                item.attrib["Id"]: item.attrib["Target"]
-                for item in relationships.findall("pr:Relationship", NS)
+                item.attrib["Id"]: item.attrib["Target"] for item in relationships.findall("pr:Relationship", NS)
             }
 
             sheets = workbook.findall(".//m:sheet", NS)
             sheet = None
             if target_sheet:
                 sheet = next(
-                    (s for s in sheets if s.attrib.get("name", "").strip().casefold() == target_sheet.strip().casefold()),
+                    (
+                        s
+                        for s in sheets
+                        if s.attrib.get("name", "").strip().casefold() == target_sheet.strip().casefold()
+                    ),
                     None,
                 )
             if sheet is None:

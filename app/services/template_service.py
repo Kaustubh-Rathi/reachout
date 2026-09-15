@@ -6,12 +6,12 @@ Manages message template inventory, validation, personalization previews, and ro
 from __future__ import annotations
 
 from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel
 from app.domain.message_template import ALL_OFFICIAL_TEMPLATES, MessageTemplate
 from app.services.context import ServiceContext, build_service_context
-
 
 DEFAULT_TEMPLATES = ALL_OFFICIAL_TEMPLATES
 

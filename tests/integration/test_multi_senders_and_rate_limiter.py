@@ -1,12 +1,12 @@
 """Integration tests for N independent senders, rate limiting, concurrency, and backoff."""
 
 import time
-from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.domain.enums import Channel, SenderStatus
+from app.domain.enums import Channel
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.repositories import SqliteSenderRepository
@@ -97,7 +97,9 @@ class TestMultiSendersAndRateLimiter:
         assert can1_after_delay is True
 
     def test_rate_limiter_exponential_backoff_on_failure(self):
-        limiter = RateLimiter(default_channel_delay={"WHATSAPP": 0.0}, base_backoff_seconds=1.0, max_backoff_seconds=10.0)
+        limiter = RateLimiter(
+            default_channel_delay={"WHATSAPP": 0.0}, base_backoff_seconds=1.0, max_backoff_seconds=10.0
+        )
 
         # 1st failure -> 1.0s backoff
         backoff1 = limiter.record_dispatch_failure("snd_err_1")

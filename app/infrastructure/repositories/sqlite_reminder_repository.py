@@ -8,7 +8,6 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.enums import ReminderStatus
 from app.domain.reminder import FollowUpReminder
 from app.infrastructure.models import FollowUpReminderModel
 from app.ports.repositories import ReminderRepository

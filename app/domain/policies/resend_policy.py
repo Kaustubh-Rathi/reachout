@@ -37,13 +37,12 @@ def prepare_manual_resend(
     Calculates a distinct sequence-aware or timestamp-seeded idempotency key.
     """
     now = resend_timestamp or datetime.now(timezone.utc)
-    
+
     # Calculate resend sequence count from historical records
     resend_count = 1
     if historical_attempts:
         channel_attempts = [
-            a for a in historical_attempts
-            if a.contact_id == contact.contact_id and a.channel == channel
+            a for a in historical_attempts if a.contact_id == contact.contact_id and a.channel == channel
         ]
         resend_count = len(channel_attempts) + 1
 

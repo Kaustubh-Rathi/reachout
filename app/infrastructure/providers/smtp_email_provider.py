@@ -10,16 +10,14 @@ import mimetypes
 import os
 import smtplib
 import ssl
-import time
 import uuid
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Dict, Optional
 
-from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.infrastructure.security.credential_vault import default_credential_vault
-from app.ports.providers import EmailProvider, ProviderSendResult
+from app.ports.providers import ProviderSendResult
 
 
 class SmtpEmailProvider:
@@ -204,10 +202,6 @@ class SmtpEmailProvider:
             )
         except (smtplib.SMTPServerDisconnected, TimeoutError, OSError) as conn_err:
             # Network drop or server timeout mid-send is ambiguous -> UNKNOWN
-            return ProviderSendResult.unknown(
-                reason=f"SMTP connection timeout or interruption: {conn_err}"
-            )
+            return ProviderSendResult.unknown(reason=f"SMTP connection timeout or interruption: {conn_err}")
         except Exception as exc:
-            return ProviderSendResult.unknown(
-                reason=f"Unexpected error during SMTP transmission: {exc}"
-            )
+            return ProviderSendResult.unknown(reason=f"Unexpected error during SMTP transmission: {exc}")

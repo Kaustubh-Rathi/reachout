@@ -7,12 +7,13 @@ pausing, resuming, stopping, quota configuration, and progress inspection.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.domain.enums import Channel
 from app.config import DEFAULT_OUTREACH_LIMIT
+from app.domain.enums import Channel
 from app.infrastructure.database import get_session
 from app.services.campaign_service import CampaignService
 
@@ -51,7 +52,9 @@ def create_campaign(payload: CampaignCreateRequest, session: Session = Depends(g
     try:
         ch = Channel(payload.channel.upper())
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel '{payload.channel}'. Must be 'WHATSAPP' or 'EMAIL'.")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid channel '{payload.channel}'. Must be 'WHATSAPP' or 'EMAIL'."
+        ) from None
 
     campaign = svc.create_campaign(
         name=payload.name,
@@ -74,19 +77,21 @@ def check_outreach_readiness(
     try:
         ch = Channel(channel.upper() if channel else "WHATSAPP")
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel '{channel}'")
+        raise HTTPException(status_code=400, detail=f"Invalid channel '{channel}'") from None
     return svc.validate_outreach_readiness(channel=ch, campaign_id=campaign_id)
 
 
 @router.post("/quick-start")
-def quick_start_campaign(payload: QuickStartRequest = QuickStartRequest(), session: Session = Depends(get_session)) -> Dict[str, Any]:
+def quick_start_campaign(
+    payload: QuickStartRequest = QuickStartRequest(), session: Session = Depends(get_session)
+) -> Dict[str, Any]:
     """Convenience endpoint to launch an outreach campaign immediately on eligible DB contacts."""
     svc = CampaignService(session)
     channel_str = payload.channel or "WHATSAPP"
     try:
         ch = Channel(channel_str.upper())
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel '{channel_str}'")
+        raise HTTPException(status_code=400, detail=f"Invalid channel '{channel_str}'") from None
 
     # Upfront readiness check
     readiness = svc.validate_outreach_readiness(channel=ch)
@@ -115,7 +120,7 @@ def quick_start_campaign(payload: QuickStartRequest = QuickStartRequest(), sessi
                 "reason": "VALIDATION_FAILED",
                 "message": str(exc),
             },
-        )
+        ) from exc
 
 
 @router.get("/{campaign_id}")
@@ -125,11 +130,13 @@ def get_campaign(campaign_id: str, session: Session = Depends(get_session)) -> D
     try:
         return svc.get_campaign_progress(campaign_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/{campaign_id}/start")
-def start_campaign(campaign_id: str, max_count: Optional[int] = Query(None), session: Session = Depends(get_session)) -> Dict[str, Any]:
+def start_campaign(
+    campaign_id: str, max_count: Optional[int] = Query(None), session: Session = Depends(get_session)
+) -> Dict[str, Any]:
     """Start campaign. Computes eligible contacts dynamically from current DB state."""
     svc = CampaignService(session)
     try:
@@ -146,8 +153,8 @@ def start_campaign(campaign_id: str, max_count: Optional[int] = Query(None), ses
                     "reason": reason_detail.split(" - ")[0] if " - " in reason_detail else "VALIDATION_FAILED",
                     "message": reason_detail,
                 },
-            )
-        raise HTTPException(status_code=400, detail=msg)
+            ) from exc
+        raise HTTPException(status_code=400, detail=msg) from exc
 
 
 @router.post("/{campaign_id}/pause")
@@ -157,7 +164,7 @@ def pause_campaign(campaign_id: str, session: Session = Depends(get_session)) ->
     try:
         return svc.pause_campaign(campaign_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/{campaign_id}/resume")
@@ -169,7 +176,7 @@ def resume_campaign(campaign_id: str, session: Session = Depends(get_session)) -
     except ValueError as exc:
         msg = str(exc)
         if "not found" in msg.lower():
-            raise HTTPException(status_code=404, detail=msg)
+            raise HTTPException(status_code=404, detail=msg) from exc
         if "OUTREACH_NOT_READY" in msg:
             parts = msg.split(":", 1)
             reason_detail = parts[1].strip() if len(parts) > 1 else msg
@@ -180,9 +187,8 @@ def resume_campaign(campaign_id: str, session: Session = Depends(get_session)) -
                     "reason": reason_detail.split(" - ")[0] if " - " in reason_detail else "VALIDATION_FAILED",
                     "message": reason_detail,
                 },
-            )
-        raise HTTPException(status_code=400, detail=msg)
-
+            ) from exc
+        raise HTTPException(status_code=400, detail=msg) from exc
 
 
 @router.post("/{campaign_id}/stop")
@@ -192,7 +198,7 @@ def stop_campaign(campaign_id: str, session: Session = Depends(get_session)) -> 
     try:
         return svc.stop_campaign(campaign_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/{campaign_id}/progress")
@@ -202,7 +208,7 @@ def get_campaign_progress(campaign_id: str, session: Session = Depends(get_sessi
     try:
         return svc.get_campaign_progress(campaign_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/{campaign_id}/status")
@@ -212,4 +218,4 @@ def get_campaign_status(campaign_id: str, session: Session = Depends(get_session
     try:
         return svc.get_campaign_progress(campaign_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

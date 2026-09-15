@@ -7,8 +7,8 @@ PersistentCampaignScheduler, and real-time progress & round metrics.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.domain.campaign import Campaign

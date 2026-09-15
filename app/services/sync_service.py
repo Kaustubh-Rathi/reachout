@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
+
 from sqlalchemy.orm import Session
 
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer

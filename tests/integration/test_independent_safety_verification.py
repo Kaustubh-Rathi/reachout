@@ -20,14 +20,12 @@ Comprehensive verification for:
 from __future__ import annotations
 
 import csv
-from datetime import datetime, timedelta, timezone
 import hashlib
 import os
-import shutil
-import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -42,29 +40,14 @@ from app.domain.enums import (
     CRMOutcome,
     InterviewState,
     OutreachStatus,
-    ReminderStatus,
     SenderStatus,
 )
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.prioritization import prioritize_company_first
 from app.domain.policies.reminder_policy import check_contact_follow_up_eligibility, generate_due_reminders
-from app.domain.policies.resend_policy import prepare_manual_resend
-from app.domain.reminder import FollowUpReminder
 from app.domain.sender_account import SenderAccount
-from app.domain.source_record import SourceRecord
 from app.infrastructure.database import Base
-from app.infrastructure.events.event_bus import EventBus
-from app.infrastructure.models import (
-    CampaignModel,
-    CompanyModel,
-    ContactModel,
-    FollowUpReminderModel,
-    MessageTemplateModel,
-    OutreachAttemptModel,
-    SenderAccountModel,
-    SourceRecordModel,
-)
 from app.infrastructure.providers.factory import (
     create_email_provider,
     create_whatsapp_provider,
@@ -74,33 +57,28 @@ from app.infrastructure.providers.factory import (
     set_email_provider,
     set_whatsapp_provider,
 )
-from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_reminder_repository import SqliteReminderRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import (
     PersistentCampaignScheduler,
-    get_campaign_scheduler,
     reset_campaign_scheduler,
     set_campaign_scheduler,
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
-from app.ports.infrastructure import FrozenClock
-from app.ports.providers import ProviderSendResult, ProviderStatusResult
 from app.services.campaign_service import CampaignService
 from app.services.contact_service import ContactService
 from app.services.crm_service import CrmService
 from app.services.outreach_service import OutreachService
-from app.services.sync_service import SyncService
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
 
 @pytest.fixture

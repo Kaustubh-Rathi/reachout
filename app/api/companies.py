@@ -6,6 +6,7 @@ Handles company directory listings and company detail queries.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -27,7 +28,9 @@ def list_company_hierarchies(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None, description="Company status: NOT_CONTACTED/IN_PROGRESS/CONTACTED/CLOSED"),
     crm_status: Optional[str] = Query(None, description="CRM outcome to match on any HR contact"),
-    priority_filter: Optional[str] = Query(None, description="INTERESTED/NOT_INTERESTED/FOLLOW_UP_DUE/RECENTLY_ACTIVE/UNCONTACTED"),
+    priority_filter: Optional[str] = Query(
+        None, description="INTERESTED/NOT_INTERESTED/FOLLOW_UP_DUE/RECENTLY_ACTIVE/UNCONTACTED"
+    ),
     company: Optional[str] = Query(None, description="Company id or name to filter by"),
     channel_status: Optional[str] = Query(None, description="SENT/NOT_SENT/WHATSAPP_SENT/EMAIL_SENT"),
     session: Session = Depends(get_session),
@@ -62,4 +65,3 @@ def get_company_hierarchy(company_id: str, session: Session = Depends(get_sessio
     if not h:
         raise HTTPException(status_code=404, detail=f"Company '{company_id}' not found")
     return h
-

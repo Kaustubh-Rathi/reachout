@@ -1,12 +1,10 @@
 """Unit tests for CRM Follow-Up Reminder Policy."""
 
 from datetime import datetime, timedelta, timezone
-import pytest
 
 from app.domain.contact import Contact
-from app.domain.enums import CRMOutcome, InterviewState, ReminderStatus
+from app.domain.enums import CRMOutcome, InterviewState
 from app.domain.policies.reminder_policy import (
-    DEFAULT_FOLLOW_UP_THRESHOLD_DAYS,
     check_contact_follow_up_eligibility,
     generate_due_reminders,
 )
