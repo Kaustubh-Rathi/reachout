@@ -218,7 +218,37 @@ class OutreachWorker:
             if existing_attempt:
                 if existing_attempt.status == OutreachStatus.SENT:
                     return existing_attempt
-                attempt = existing_attempt
+                if existing_attempt.status in (OutreachStatus.QUEUED, OutreachStatus.SENDING):
+                    return existing_attempt
+                if existing_attempt.status == OutreachStatus.PREPARED:
+                    attempt = existing_attempt
+                else:
+                    # Previous attempt reached a terminal non-sent status (FAILED, CANCELLED, etc.).
+                    # A retry must generate a distinct idempotency key and create a fresh PREPARED attempt.
+                    retry_key = generate_idempotency_key(
+                        contact_id=contact.contact_id,
+                        channel=channel,
+                        attempt_type=attempt_type,
+                        campaign_id=campaign_id,
+                        destination=effective_destination,
+                        custom_salt=str(int(now.timestamp() * 1000)),
+                    )
+                    attempt = OutreachAttempt.prepare(
+                        contact_id=contact.contact_id,
+                        sender_account_id=sender_account.id,
+                        channel=channel,
+                        attempt_type=attempt_type,
+                        message_body=rendered.body,
+                        destination=effective_destination,
+                        campaign_id=campaign_id,
+                        template_id=template.id,
+                        subject=rendered.subject,
+                        attachment_ref=attachment_to_use,
+                        idempotency_key=retry_key,
+                        prepared_at=now,
+                    )
+                    outreach_repo.save(attempt)
+                    session.commit()
             else:
                 # Create PREPARED attempt
                 attempt = OutreachAttempt.prepare(
@@ -323,10 +353,15 @@ class OutreachWorker:
                 outreach_repo = SqliteOutreachRepository(session)
                 db_attempt = outreach_repo.get_by_id(attempt.id)
                 if db_attempt:
-                    db_attempt.mark_sending()
-                    outreach_repo.save(db_attempt)
-                    session.commit()
-                    attempt = db_attempt
+                    if db_attempt.status in (OutreachStatus.PREPARED, OutreachStatus.QUEUED):
+                        db_attempt.mark_sending()
+                        outreach_repo.save(db_attempt)
+                        session.commit()
+                        attempt = db_attempt
+                    elif db_attempt.status == OutreachStatus.SENDING:
+                        attempt = db_attempt
+                    else:
+                        raise ValueError(f"Cannot begin sending from status '{db_attempt.status.value}'")
 
             self.event_publisher.publish(
                 DomainEvent(
