@@ -6,6 +6,7 @@ relational database.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 from sqlalchemy.orm import Session
@@ -18,7 +19,10 @@ from app.services.event_bus import event_bus
 class SyncService:
     """Application service for source synchronization."""
 
+    # Most recent sync summary, cached process-wide (the summary endpoint runs in
+    # a separate request/instance from the sync that produced it).
     _last_summary: Optional[SyncSummary] = None
+    _summary_lock = threading.Lock()
 
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -56,7 +60,8 @@ class SyncService:
 
         try:
             summary = self.synchronizer.sync_source(path, sheet_name)
-            SyncService._last_summary = summary
+            with SyncService._summary_lock:
+                SyncService._last_summary = summary
 
             payload = {
                 "source_file": filename,
@@ -87,7 +92,9 @@ class SyncService:
 
     def get_last_sync_summary(self) -> Dict[str, Any]:
         """Retrieve the outcome metrics of the most recent sync."""
-        if not SyncService._last_summary:
+        with SyncService._summary_lock:
+            s = SyncService._last_summary
+        if not s:
             return {
                 "total_read": 0,
                 "new_companies": 0,
@@ -101,7 +108,6 @@ class SyncService:
                 "history_preserved": True,
                 "errors": [],
             }
-        s = SyncService._last_summary
         return {
             "total_read": s.total_read,
             "new_companies": s.new_companies,

@@ -10,15 +10,14 @@ Encapsulates state transitions for:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from app.domain.enums import Channel, CRMOutcome, InterviewState, OutreachStatus, ReminderStatus
+from app.domain.enums import CRMOutcome, InterviewState, OutreachStatus, ReminderStatus
 from app.domain.policies.reminder_policy import (
     DEFAULT_FOLLOW_UP_THRESHOLD_DAYS,
     check_contact_follow_up_eligibility,
-    generate_due_reminders,
 )
 from app.domain.reminder import FollowUpReminder
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
@@ -37,7 +36,12 @@ class CrmService:
         self.reminder_repo = SqliteReminderRepository(session)
 
     def update_status(self, contact_id: str, status: str, timestamp: Optional[datetime] = None) -> Dict[str, Any]:
-        """Update contact CRM business status directly."""
+        """Update contact CRM business status directly.
+
+        All transitions are applied to the single loaded aggregate and persisted
+        once, so side-effects (tags, interview state, interested_at) are never
+        discarded by a later re-fetch.
+        """
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
             raise ValueError(f"Contact not found: {contact_id}")
@@ -46,36 +50,48 @@ class CrmService:
         status_upper = status.strip().upper()
 
         if status_upper == "INTERESTED":
-            return self.mark_interested(contact_id, now)
+            contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
         elif status_upper in ("NOT_INTERESTED", "DO_NOT_CONTACT"):
-            if status_upper == "DO_NOT_CONTACT":
-                if not contact.tags:
-                    contact.tags = []
-                if "do_not_contact" not in contact.tags:
-                    contact.tags.append("do_not_contact")
-            return self.mark_not_interested(contact_id, now)
+            if status_upper == "DO_NOT_CONTACT" and "do_not_contact" not in contact.tags:
+                contact.tags.append("do_not_contact")
+            contact.update_crm_outcome(CRMOutcome.NOT_INTERESTED, now)
+            self._complete_pending_reminders(contact_id, now)
         elif status_upper == "INTERVIEW":
             contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
-            return self.mark_interview(contact_id, now)
+            contact.update_interview_status(InterviewState.INTERVIEW, now)
+            self._complete_pending_reminders(contact_id, now)
         elif status_upper == "OFFER":
             contact.update_crm_outcome(CRMOutcome.OFFER, now)
             contact.update_interview_status(InterviewState.INTERVIEW, now)
-            self.contact_repo.save(contact)
-            self.session.commit()
         elif status_upper == "CLOSED":
             contact.update_crm_outcome(CRMOutcome.CLOSED, now)
-            self.contact_repo.save(contact)
-            self.session.commit()
         elif status_upper == "REJECTED":
-            return self.mark_not_interview(contact_id, now)
+            contact.update_interview_status(InterviewState.NOT_INTERVIEW, now)
+            self._complete_pending_reminders(contact_id, now)
         elif status_upper in CRMOutcome.__members__:
-            outcome = CRMOutcome(status_upper)
-            contact.update_crm_outcome(outcome, now)
-            self.contact_repo.save(contact)
-            self.session.commit()
+            contact.update_crm_outcome(CRMOutcome(status_upper), now)
         else:
             raise ValueError(f"Invalid status: {status}")
 
+        self.contact_repo.save(contact)
+        self.session.commit()
+
+        self._publish_status_events(contact, now)
+        return {
+            "contact_id": contact.contact_id,
+            "crm_outcome": contact.crm_outcome.value,
+            "interview_status": contact.interview_status.value,
+        }
+
+    def _complete_pending_reminders(self, contact_id: str, now: datetime) -> None:
+        """Mark any pending follow-up reminders for a contact as completed."""
+        for r in self.reminder_repo.list_by_contact(contact_id):
+            if r.status == ReminderStatus.PENDING:
+                r.complete(now)
+                self.reminder_repo.save(r)
+
+    def _publish_status_events(self, contact, now: datetime) -> None:
+        """Emit the canonical CRM status events for a persisted contact."""
         event_payload = {
             "contact_id": contact.contact_id,
             "name": contact.name,
@@ -88,12 +104,6 @@ class CrmService:
         event_bus.publish_event("CRM_STATUS_CHANGED", event_payload)
         event_bus.publish_event("CRM_OUTCOME_UPDATED", event_payload)
         event_bus.publish_event("CONTACT_UPDATED", event_payload)
-
-        return {
-            "contact_id": contact.contact_id,
-            "crm_outcome": contact.crm_outcome.value,
-            "interview_status": contact.interview_status.value,
-        }
 
     def mark_interested(self, contact_id: str, timestamp: Optional[datetime] = None) -> Dict[str, Any]:
         """Mark contact as interested, setting interested_at and resetting interview to PENDING."""
@@ -136,11 +146,7 @@ class CrmService:
         self.contact_repo.save(contact)
 
         # Complete/dismiss any pending reminders
-        reminders = self.reminder_repo.list_by_contact(contact_id)
-        for r in reminders:
-            if r.status == ReminderStatus.PENDING:
-                r.complete(now)
-                self.reminder_repo.save(r)
+        self._complete_pending_reminders(contact_id, now)
 
         self.session.commit()
 
@@ -171,11 +177,7 @@ class CrmService:
         self.contact_repo.save(contact)
 
         # Clear any active follow-up reminders
-        reminders = self.reminder_repo.list_by_contact(contact_id)
-        for r in reminders:
-            if r.status == ReminderStatus.PENDING:
-                r.complete(now)
-                self.reminder_repo.save(r)
+        self._complete_pending_reminders(contact_id, now)
 
         self.session.commit()
 
@@ -206,11 +208,7 @@ class CrmService:
         self.contact_repo.save(contact)
 
         # Clear any active follow-up reminders
-        reminders = self.reminder_repo.list_by_contact(contact_id)
-        for r in reminders:
-            if r.status == ReminderStatus.PENDING:
-                r.complete(now)
-                self.reminder_repo.save(r)
+        self._complete_pending_reminders(contact_id, now)
 
         self.session.commit()
 
@@ -252,24 +250,26 @@ class CrmService:
         if only_due:
             reminders = self.reminder_repo.list_due(now)
         else:
-            reminders = self.reminder_repo.list_due(now + timedelta_days(365))  # all pending
+            reminders = self.reminder_repo.list_due(now + timedelta(days=365))  # all pending
 
         results = []
         for r in reminders:
             cnt = self.contact_repo.get_by_id(r.contact_id)
-            results.append({
-                "id": r.id,
-                "contact_id": r.contact_id,
-                "contact_name": cnt.name if cnt else "Unknown",
-                "company": cnt.company_id if cnt else "Unknown",
-                "phone": cnt.phone if cnt else None,
-                "email": cnt.email if cnt else None,
-                "due_at": r.due_at.isoformat(),
-                "is_due": r.is_due(now),
-                "reason": r.reason,
-                "status": r.status.value,
-                "created_at": r.created_at.isoformat(),
-            })
+            results.append(
+                {
+                    "id": r.id,
+                    "contact_id": r.contact_id,
+                    "contact_name": cnt.name if cnt else "Unknown",
+                    "company": cnt.company_id if cnt else "Unknown",
+                    "phone": cnt.phone if cnt else None,
+                    "email": cnt.email if cnt else None,
+                    "due_at": r.due_at.isoformat(),
+                    "is_due": r.is_due(now),
+                    "reason": r.reason,
+                    "status": r.status.value,
+                    "created_at": r.created_at.isoformat(),
+                }
+            )
         return results
 
     def generate_due_reminders(
@@ -371,8 +371,3 @@ class CrmService:
             "failed": failed_attempts,
             "recovery_required": recovery_required,
         }
-
-
-def timedelta_days(days: int):
-    from datetime import timedelta
-    return timedelta(days=days)

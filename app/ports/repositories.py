@@ -47,6 +47,10 @@ class ContactRepository(Protocol):
         """Upsert multiple contacts atomically or in batch."""
         ...
 
+    def delete(self, contact_id: str) -> bool:
+        """Delete a contact by ID, returning whether a record was removed."""
+        ...
+
 
 @runtime_checkable
 class CompanyRepository(Protocol):

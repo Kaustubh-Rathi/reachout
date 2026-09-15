@@ -6,7 +6,10 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional, Sequence
+
+if TYPE_CHECKING:
+    from app.domain.enums import CompanyStatus
 
 
 def normalize_company_name(name: str) -> str:
@@ -20,7 +23,7 @@ def normalize_company_name(name: str) -> str:
 @dataclass
 class Company:
     """Represents an employer organization or target company.
-    
+
     Attributes:
         id: Stable unique identifier for the company.
         name: Canonical display name (e.g. 'Google', 'Amazon').
@@ -29,6 +32,7 @@ class Company:
         created_at: Entity creation timestamp.
         updated_at: Entity last-modification timestamp.
     """
+
     id: str
     name: str
     normalized_name: str = field(default="")
@@ -81,7 +85,7 @@ def calculate_company_status(
     is_closed: bool = False,
 ) -> CompanyStatus:
     """Calculate company-level aggregate status according to prompt Requirement 13.
-    
+
     Statuses:
     - CLOSED (⚫ CLOSED): Operator explicitly closed or all contacts opted out / DNC / closed.
     - NOT_CONTACTED (🔴 NOT_CONTACTED): No eligible HR endpoint has been successfully contacted.
@@ -125,4 +129,3 @@ def calculate_company_status(
         return CompanyStatus.CONTACTED
     else:
         return CompanyStatus.IN_PROGRESS
-

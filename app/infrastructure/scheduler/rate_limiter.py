@@ -159,7 +159,11 @@ class RateLimiter:
     ) -> bool:
         """Block until sender is ready or timeout expires."""
         deadline = time.monotonic() + timeout_seconds
-        min_delay = min_delay_override if min_delay_override is not None else self.default_channel_delay.get(channel.upper(), 0.01)
+        min_delay = (
+            min_delay_override
+            if min_delay_override is not None
+            else self.default_channel_delay.get(channel.upper(), 0.01)
+        )
         sleep_step = max(0.001, min(0.05, min_delay / 2.0))
         while time.monotonic() < deadline:
             can, _ = self.can_send(sender_id, channel, daily_limit, hourly_limit, min_delay_override)
@@ -177,6 +181,16 @@ class RateLimiter:
             self._backoff_until.pop(sender_id, None)
             self._target_delay.pop(sender_id, None)
             self._dispatch_history.pop(sender_id, None)
+
+    def reset(self) -> None:
+        """Clear all pacing, backoff, and concurrency state for every sender."""
+        with self._lock:
+            self._last_send_time.clear()
+            self._sender_busy.clear()
+            self._consecutive_failures.clear()
+            self._backoff_until.clear()
+            self._dispatch_history.clear()
+            self._target_delay.clear()
 
     def is_sender_busy(self, sender_id: str) -> bool:
         with self._lock:

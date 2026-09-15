@@ -7,6 +7,7 @@ methods to/from pure domain entities.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -44,6 +45,21 @@ from app.domain.sender_account import SenderAccount
 from app.domain.source_record import SourceRecord
 from app.infrastructure.database import Base
 
+logger = logging.getLogger(__name__)
+
+
+def _coerce_enum(enum_cls, raw, field: str):
+    """Strictly coerce a persisted string into its enum value.
+
+    Unknown/corrupt values raise instead of silently defaulting, which would
+    hide data corruption and could fail open for security-sensitive fields
+    such as sender status.
+    """
+    try:
+        return enum_cls(raw)
+    except (ValueError, KeyError) as exc:
+        raise ValueError(f"Invalid persisted {field}: {raw!r}") from exc
+
 
 class CompanyModel(Base):
     __tablename__ = "companies"
@@ -56,11 +72,16 @@ class CompanyModel(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relationships
-    contacts: Mapped[List[ContactModel]] = relationship("ContactModel", back_populates="company", cascade="all, delete-orphan")
+    contacts: Mapped[List[ContactModel]] = relationship(
+        "ContactModel", back_populates="company", cascade="all, delete-orphan"
+    )
 
     def to_domain(self) -> Company:
         return Company(
@@ -88,7 +109,9 @@ class ContactModel(Base):
     __tablename__ = "contacts"
 
     contact_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    company_id: Mapped[str] = mapped_column(String(128), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     designation: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
@@ -97,7 +120,10 @@ class ContactModel(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
     last_whatsapp_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_email_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -155,8 +181,8 @@ class ContactModel(Base):
             last_whatsapp_at=self.last_whatsapp_at,
             last_email_at=self.last_email_at,
             last_activity_at=self.last_activity_at,
-            crm_outcome=CRMOutcome(self.crm_outcome) if self.crm_outcome in CRMOutcome.__members__.values() else CRMOutcome.NONE,
-            interview_status=InterviewState(self.interview_status) if self.interview_status in InterviewState.__members__.values() else InterviewState.NOT_APPLICABLE,
+            crm_outcome=_coerce_enum(CRMOutcome, self.crm_outcome, "contact.crm_outcome"),
+            interview_status=_coerce_enum(InterviewState, self.interview_status, "contact.interview_status"),
             interested_at=self.interested_at,
             interview_status_changed_at=self.interview_status_changed_at,
             notes=self.notes,
@@ -177,8 +203,12 @@ class ContactModel(Base):
             last_whatsapp_at=entity.last_whatsapp_at,
             last_email_at=entity.last_email_at,
             last_activity_at=entity.last_activity_at,
-            crm_outcome=entity.crm_outcome.value if isinstance(entity.crm_outcome, CRMOutcome) else str(entity.crm_outcome),
-            interview_status=entity.interview_status.value if isinstance(entity.interview_status, InterviewState) else str(entity.interview_status),
+            crm_outcome=entity.crm_outcome.value
+            if isinstance(entity.crm_outcome, CRMOutcome)
+            else str(entity.crm_outcome),
+            interview_status=entity.interview_status.value
+            if isinstance(entity.interview_status, InterviewState)
+            else str(entity.interview_status),
             interested_at=entity.interested_at,
             interview_status_changed_at=entity.interview_status_changed_at,
             notes=entity.notes or "",
@@ -190,7 +220,9 @@ class SourceRecordModel(Base):
     __tablename__ = "source_records"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    contact_id: Mapped[str] = mapped_column(String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True)
+    contact_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True
+    )
     source_file: Mapped[str] = mapped_column(String(255), nullable=False)
     source_sheet: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     source_row: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -206,9 +238,7 @@ class SourceRecordModel(Base):
     # Relationships
     contact: Mapped[ContactModel] = relationship("ContactModel", back_populates="source_records")
 
-    __table_args__ = (
-        Index("ix_source_file_row", "source_file", "source_row"),
-    )
+    __table_args__ = (Index("ix_source_file_row", "source_file", "source_row"),)
 
     def to_domain(self) -> SourceRecord:
         return SourceRecord(
@@ -223,6 +253,7 @@ class SourceRecordModel(Base):
     @classmethod
     def from_domain(cls, entity: SourceRecord, contact_id: str, id_override: Optional[str] = None) -> SourceRecordModel:
         import uuid
+
         rid = id_override or f"src_{uuid.uuid4().hex[:16]}"
         return cls(
             id=rid,
@@ -275,7 +306,7 @@ class SenderAccountModel(Base):
             provider=self.provider,
             identity=self.identity,
             display_name=self.display_name,
-            status=SenderStatus(self.status) if self.status in SenderStatus.__members__.values() else SenderStatus.ACTIVE,
+            status=_coerce_enum(SenderStatus, self.status, "sender_account.status"),
             credential_ref=self.credential_ref,
             session_ref=self.session_ref,
             created_at=self.created_at,
@@ -342,7 +373,7 @@ class CampaignModel(Base):
             id=self.id,
             name=self.name,
             channel=Channel(self.channel),
-            status=CampaignStatus(self.status) if self.status in CampaignStatus.__members__.values() else CampaignStatus.IDLE,
+            status=_coerce_enum(CampaignStatus, self.status, "campaign.status"),
             template_ids=t_ids,
             sender_account_ids=s_ids,
             created_at=self.created_at,
@@ -382,7 +413,10 @@ class MessageTemplateModel(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     def to_domain(self) -> MessageTemplate:
@@ -419,16 +453,24 @@ class OutreachAttemptModel(Base):
     __tablename__ = "outreach_attempts"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    contact_id: Mapped[str] = mapped_column(String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True)
-    sender_account_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("sender_accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+    contact_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    sender_account_id: Mapped[Optional[str]] = mapped_column(
+        String(64), ForeignKey("sender_accounts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     channel: Mapped[str] = mapped_column(String(32), nullable=False)
     attempt_type: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     idempotency_key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     message_body_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     destination: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    campaign_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True)
-    template_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("message_templates.id", ondelete="SET NULL"), nullable=True)
+    campaign_id: Mapped[Optional[str]] = mapped_column(
+        String(64), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    template_id: Mapped[Optional[str]] = mapped_column(
+        String(64), ForeignKey("message_templates.id", ondelete="SET NULL"), nullable=True
+    )
     subject_snapshot: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     attachment_snapshot: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     prepared_at: Mapped[datetime] = mapped_column(
@@ -451,8 +493,8 @@ class OutreachAttemptModel(Base):
             contact_id=self.contact_id,
             sender_account_id=self.sender_account_id,
             channel=Channel(self.channel),
-            attempt_type=AttemptType(self.attempt_type) if self.attempt_type in AttemptType.__members__.values() else AttemptType.AUTOMATIC,
-            status=OutreachStatus(self.status) if self.status in OutreachStatus.__members__.values() else OutreachStatus.PREPARED,
+            attempt_type=_coerce_enum(AttemptType, self.attempt_type, "outreach_attempt.attempt_type"),
+            status=_coerce_enum(OutreachStatus, self.status, "outreach_attempt.status"),
             idempotency_key=self.idempotency_key,
             message_body_snapshot=self.message_body_snapshot,
             destination=self.destination,
@@ -476,7 +518,9 @@ class OutreachAttemptModel(Base):
             contact_id=entity.contact_id,
             sender_account_id=entity.sender_account_id,
             channel=entity.channel.value if isinstance(entity.channel, Channel) else str(entity.channel),
-            attempt_type=entity.attempt_type.value if isinstance(entity.attempt_type, AttemptType) else str(entity.attempt_type),
+            attempt_type=entity.attempt_type.value
+            if isinstance(entity.attempt_type, AttemptType)
+            else str(entity.attempt_type),
             status=entity.status.value if isinstance(entity.status, OutreachStatus) else str(entity.status),
             idempotency_key=entity.idempotency_key,
             message_body_snapshot=entity.message_body_snapshot,
@@ -499,7 +543,9 @@ class FollowUpReminderModel(Base):
     __tablename__ = "follow_up_reminders"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    contact_id: Mapped[str] = mapped_column(String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True)
+    contact_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True
+    )
     due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     reason: Mapped[str] = mapped_column(String(500), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="PENDING", nullable=False)
@@ -517,7 +563,7 @@ class FollowUpReminderModel(Base):
             contact_id=self.contact_id,
             due_at=self.due_at,
             reason=self.reason,
-            status=ReminderStatus(self.status) if self.status in ReminderStatus.__members__.values() else ReminderStatus.PENDING,
+            status=_coerce_enum(ReminderStatus, self.status, "reminder.status"),
             created_at=self.created_at,
             completed_at=self.completed_at,
         )
@@ -539,7 +585,9 @@ class CRMEventModel(Base):
     __tablename__ = "crm_events"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    contact_id: Mapped[str] = mapped_column(String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True)
+    contact_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True
+    )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     previous_state_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     new_state_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -554,13 +602,13 @@ class SuppressionRecordModel(Base):
     __tablename__ = "suppression_records"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    suppression_type: Mapped[str] = mapped_column(String(32), nullable=False)  # "PHONE", "EMAIL", "CANONICAL_KEY", "SOURCE_ROW"
+    suppression_type: Mapped[str] = mapped_column(
+        String(32), nullable=False
+    )  # "PHONE", "EMAIL", "CANONICAL_KEY", "SOURCE_ROW"
     identifier: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     reason: Mapped[str] = mapped_column(String(500), default="MANUAL_CRM_DELETION", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
-    __table_args__ = (
-        UniqueConstraint("suppression_type", "identifier", name="uq_suppression_type_identifier"),
-    )
+    __table_args__ = (UniqueConstraint("suppression_type", "identifier", name="uq_suppression_type_identifier"),)
