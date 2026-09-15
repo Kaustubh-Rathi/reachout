@@ -18,6 +18,7 @@ from app.domain.campaign import Campaign
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus, SenderStatus
 from app.domain.message_template import MessageTemplate
+from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.channel_rotation_policy import (
     ChannelDispatchDecision,
     ChannelRotationPolicy,
@@ -428,7 +429,10 @@ class PersistentCampaignScheduler:
                     self.event_publisher.publish(
                         DomainEvent(
                             event_type="CampaignFailed",
-                            payload={"campaign_id": campaign.id, "reason": f"Missing {effective_channel.value} templates"},
+                            payload={
+                                "campaign_id": campaign.id,
+                                "reason": f"Missing {effective_channel.value} templates",
+                            },
                         )
                     )
                     break
@@ -514,15 +518,19 @@ class PersistentCampaignScheduler:
                 # contact. Mark the attempt FAILED (if one was created) so it is visible
                 # in the audit trail and does not linger in an in-flight state.
                 import traceback
+
                 traceback.print_exc()
                 print(f"[Scheduler] Attempt error for contact {contact_id}: {exc}")
                 try:
                     with self.session_factory() as sess:
                         orep = SqliteOutreachRepository(sess)
-                        att = orep.get_by_id(selected_sender.id) if False else None
                         # Find any PREPARED/SENDING attempt for this contact+channel
+                        target_channel = selected_template.channel if selected_template else None
                         for a in orep.list_by_contact(contact_id):
-                            if a.channel == (selected_template.channel if selected_template else None) and                                a.status in (OutreachStatus.PREPARED, OutreachStatus.SENDING):
+                            if a.channel == target_channel and a.status in (
+                                OutreachStatus.PREPARED,
+                                OutreachStatus.SENDING,
+                            ):
                                 a.mark_failed("ERR_WORKER_EXCEPTION", str(exc), datetime.now(timezone.utc))
                                 orep.save(a)
                         sess.commit()

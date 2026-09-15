@@ -11,10 +11,9 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.domain.contact import Contact
-from app.domain.enums import Channel, CRMOutcome, InterviewState, OutreachStatus
+from app.domain.enums import CRMOutcome, InterviewState
 from app.domain.policies.endpoint_coverage_policy import get_contact_endpoint_metrics
 from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, check_contact_follow_up_eligibility
-from app.infrastructure.models import ContactModel
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
@@ -71,7 +70,7 @@ class ContactService:
             # Determine channel statuses
             wa_status = "SENT" if (c.last_whatsapp_at or coverage["whatsapp_covered"] > 0) else "NOT_SENT"
             email_status = "SENT" if (c.last_email_at or coverage["email_covered"] > 0) else "NOT_SENT"
-            
+
             # Check follow-up due status
             follow_up = check_contact_follow_up_eligibility(c, now, DEFAULT_FOLLOW_UP_THRESHOLD_DAYS)
 
@@ -165,7 +164,11 @@ class ContactService:
             ]
 
         if company and company != "ALL":
-            items = [x for x in items if x["company"].lower() == company.lower() or x["company_id"].lower() == company.lower()]
+            items = [
+                x
+                for x in items
+                if x["company"].lower() == company.lower() or x["company_id"].lower() == company.lower()
+            ]
 
         if crm_status and crm_status != "ALL":
             items = [x for x in items if x["crm_outcome"].lower() == crm_status.lower()]
@@ -189,7 +192,13 @@ class ContactService:
             elif pf == "RECENTLY_ACTIVE":
                 items = [x for x in items if x["last_activity_at"] or x["last_contacted"]]
             elif pf == "UNCONTACTED":
-                items = [x for x in items if x["whatsapp_status"] == "NOT_SENT" and x["email_status"] == "NOT_SENT" and x["crm_outcome"] != "NOT_INTERESTED"]
+                items = [
+                    x
+                    for x in items
+                    if x["whatsapp_status"] == "NOT_SENT"
+                    and x["email_status"] == "NOT_SENT"
+                    and x["crm_outcome"] != "NOT_INTERESTED"
+                ]
             elif pf == "NOT_INTERESTED":
                 items = [x for x in items if x["crm_outcome"] == "NOT_INTERESTED"]
 
@@ -349,11 +358,9 @@ class ContactService:
             self.suppression_repo.add_suppression("EMAIL", contact.email, reason)
         self.suppression_repo.add_suppression("CANONICAL_KEY", contact.canonical_key, reason)
 
-        # Delete from SQLAlchemy ORM
-        model = self.session.get(ContactModel, contact.contact_id)
-        if model:
-            self.session.delete(model)
-            self.session.commit()
+        # Delete through the repository abstraction
+        self.contact_repo.delete(contact.contact_id)
+        self.session.commit()
 
         event_bus.publish_event(
             "CONTACT_ARCHIVED",

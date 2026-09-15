@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Sequence
+from typing import Any, List, Optional, Sequence
 
 from app.domain.enums import Channel
 
@@ -41,7 +41,7 @@ def normalize_phone_numbers(phone_str: Optional[str]) -> List[str]:
         digits = re.sub(r"\D", "", clean)
         if len(digits) < 7:
             continue
-        
+
         # Keep canonical digits format (e.g. '919876543210')
         norm = digits
         if norm not in seen:
@@ -94,6 +94,7 @@ class CommunicationEndpoint:
         normalized_address: Canonical normalized address used for dispatch and matching.
         ordinal: 0-indexed position of this endpoint within its channel for the contact.
     """
+
     channel: Channel
     address: str
     normalized_address: str

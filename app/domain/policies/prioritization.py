@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Callable, Container, Dict, Iterable, List, Optional, Sequence, Set
+from typing import Any, Callable, Container, Dict, Iterable, List, Optional, Sequence, Set
 
 from app.domain.contact import Contact
 
@@ -19,6 +19,7 @@ from app.domain.contact import Contact
 @dataclass(frozen=True)
 class CompanyRoundMetrics:
     """Snapshot of company round-robin progress."""
+
     current_round: int
     total_rounds: int
     companies_total: int
@@ -105,9 +106,7 @@ def prioritize_company_first(
                     eligible_remaining.append(cnt)
             else:
                 is_done = (
-                    cnt.contact_id in dispatched
-                    or cnt.last_whatsapp_at is not None
-                    or cnt.last_email_at is not None
+                    cnt.contact_id in dispatched or cnt.last_whatsapp_at is not None or cnt.last_email_at is not None
                 )
                 if not is_done:
                     eligible_remaining.append(cnt)
@@ -207,18 +206,12 @@ def calculate_company_round_state(
         comp_remaining_counts[ckey] = comp_rem
 
     # Calculate total rounds and current round
-    total_rounds_calc = [
-        comp_dispatched_counts[ckey] + comp_remaining_counts[ckey]
-        for ckey in all_company_keys
-    ]
+    total_rounds_calc = [comp_dispatched_counts[ckey] + comp_remaining_counts[ckey] for ckey in all_company_keys]
     total_rounds = max(total_rounds_calc) if total_rounds_calc else 1
     total_rounds = max(1, total_rounds)
 
     if prioritized_remaining:
-        active_rounds = [
-            comp_dispatched_counts.get(key_extractor(c), 0) + 1
-            for c in prioritized_remaining
-        ]
+        active_rounds = [comp_dispatched_counts.get(key_extractor(c), 0) + 1 for c in prioritized_remaining]
         current_round = min(active_rounds) if active_rounds else 1
     else:
         current_round = total_rounds
@@ -227,9 +220,7 @@ def calculate_company_round_state(
     companies_covered_total = sum(1 for ckey in all_company_keys if comp_dispatched_counts[ckey] > 0)
     companies_with_remaining = sum(1 for ckey in all_company_keys if comp_remaining_counts[ckey] > 0)
 
-    covered_in_curr_round = sum(
-        1 for ckey in all_company_keys if comp_dispatched_counts[ckey] >= current_round
-    )
+    covered_in_curr_round = sum(1 for ckey in all_company_keys if comp_dispatched_counts[ckey] >= current_round)
     remaining_in_curr_round = companies_total - covered_in_curr_round
 
     return CompanyRoundMetrics(
