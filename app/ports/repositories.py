@@ -7,7 +7,7 @@ Defined using typing.Protocol to decouple domain logic from persistence mechanis
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, List, Optional, Protocol, Sequence, runtime_checkable
 
 from app.domain.campaign import Campaign
 from app.domain.company import Company
@@ -114,6 +114,10 @@ class OutreachRepository(Protocol):
         """Return all attempts currently in a given status (e.g. RECOVERY_REQUIRED)."""
         ...
 
+    def list_all(self) -> List[OutreachAttempt]:
+        """Return every stored outreach attempt."""
+        ...
+
     def save(self, attempt: OutreachAttempt) -> OutreachAttempt:
         """Save/upsert an outreach attempt record."""
         ...
@@ -148,8 +152,12 @@ class TemplateRepository(Protocol):
         """Retrieve a template by ID."""
         ...
 
-    def list_by_channel(self, channel: Channel) -> List[MessageTemplate]:
-        """List all message templates available for a given channel."""
+    def list_by_channel(self, channel: Channel, active_only: bool = False) -> List[MessageTemplate]:
+        """List message templates for a given channel, optionally only active ones."""
+        ...
+
+    def list_all(self, active_only: bool = False) -> List[MessageTemplate]:
+        """List all message templates, optionally only active ones."""
         ...
 
     def save(self, template: MessageTemplate) -> MessageTemplate:
@@ -175,4 +183,32 @@ class ReminderRepository(Protocol):
 
     def save(self, reminder: FollowUpReminder) -> FollowUpReminder:
         """Upsert a reminder."""
+        ...
+
+
+@runtime_checkable
+class SuppressionRepository(Protocol):
+    """Port for tombstone/suppression records that block resurrected contacts."""
+
+    def is_suppressed(
+        self,
+        phone: Optional[str] = None,
+        email: Optional[str] = None,
+        canonical_key: Optional[str] = None,
+    ) -> bool:
+        """Return whether any of the given identifiers is suppressed."""
+        ...
+
+    def add_suppression(
+        self,
+        suppression_type: str,
+        identifier: str,
+        reason: str = "MANUAL_CRM_DELETION",
+        timestamp: Optional[datetime] = None,
+    ) -> Any:
+        """Record a tombstone suppression for an identifier."""
+        ...
+
+    def list_all(self) -> List[Any]:
+        """Return all suppression records."""
         ...

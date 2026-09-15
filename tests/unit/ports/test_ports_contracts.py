@@ -123,6 +123,9 @@ class InMemoryOutreachRepository:
     def list_by_status(self, status: OutreachStatus) -> List[OutreachAttempt]:
         return [a for a in self._store.values() if a.status == status]
 
+    def list_all(self) -> List[OutreachAttempt]:
+        return list(self._store.values())
+
     def save(self, attempt: OutreachAttempt) -> OutreachAttempt:
         self._store[attempt.id] = attempt
         return attempt
@@ -157,6 +160,22 @@ class MockEmailProvider:
             return ProviderSendResult.failed("ERR_INVALID_EMAIL", "Invalid email address format")
         return ProviderSendResult.sent(provider_reference="email_mock_ref_456")
 
+    def get_sender_credentials(self, sender_account_id: str) -> Dict[str, str]:
+        return {"user": "mock@example.com", "password": "secret", "host": "smtp.mock", "port": "587"}
+
+    def set_sender_credentials(
+        self,
+        sender_account_id: str,
+        user: str,
+        password: str,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+    ) -> None:
+        return None
+
+    def verify_credentials(self, sender_account_id: str):
+        return True, None
+
 
 class MockEventPublisher:
     def __init__(self) -> None:
@@ -164,6 +183,11 @@ class MockEventPublisher:
 
     def publish(self, event: DomainEvent) -> None:
         self.published.append(event)
+
+    def publish_event(self, event_type: str, payload: Dict[str, object]) -> DomainEvent:
+        event = DomainEvent(event_type=event_type, payload=payload)
+        self.published.append(event)
+        return event
 
     def publish_batch(self, events: Sequence[DomainEvent]) -> None:
         self.published.extend(events)

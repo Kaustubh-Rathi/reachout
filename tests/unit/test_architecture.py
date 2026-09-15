@@ -44,6 +44,7 @@ FORBIDDEN_DOMAIN_INTERNAL_IMPORTS = {
     "app.adapters",
     "app.services",
     "app.api",
+    "app.config",
     "crm_server",
     "send_mnc_whatsapp",
     "send_people_email",
@@ -98,14 +99,10 @@ class TestArchitecturalBoundaries:
             for mod in imported_modules:
                 base_mod = mod.split(".")[0]
                 if base_mod in FORBIDDEN_DOMAIN_IMPORTS:
-                    violations.append(
-                        f"VIOLATION in {file_path.name}: imports forbidden framework/infra '{mod}'"
-                    )
+                    violations.append(f"VIOLATION in {file_path.name}: imports forbidden framework/infra '{mod}'")
                 for forbidden in FORBIDDEN_DOMAIN_INTERNAL_IMPORTS:
                     if mod.startswith(forbidden):
-                        violations.append(
-                            f"VIOLATION in {file_path.name}: domain imports outer layer '{mod}'"
-                        )
+                        violations.append(f"VIOLATION in {file_path.name}: domain imports outer layer '{mod}'")
 
         assert not violations, "\n".join(violations)
 
@@ -123,15 +120,59 @@ class TestArchitecturalBoundaries:
             for mod in imported_modules:
                 base_mod = mod.split(".")[0]
                 if base_mod in FORBIDDEN_PORTS_IMPORTS:
-                    violations.append(
-                        f"VIOLATION in {file_path.name}: port imports concrete infrastructure '{mod}'"
-                    )
+                    violations.append(f"VIOLATION in {file_path.name}: port imports concrete infrastructure '{mod}'")
                 for forbidden in ["app.infrastructure", "app.adapters", "app.services", "app.api"]:
                     if mod.startswith(forbidden):
                         violations.append(
                             f"VIOLATION in {file_path.name}: port imports concrete adapter/service '{mod}'"
                         )
 
+        assert not violations, "\n".join(violations)
+
+    def test_sqlite_repositories_implement_their_ports(self):
+        """Every concrete SQLite repository must explicitly implement its port."""
+        from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
+        from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
+        from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
+        from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
+        from app.infrastructure.repositories.sqlite_reminder_repository import SqliteReminderRepository
+        from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
+        from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
+        from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
+        from app.ports.repositories import (
+            CampaignRepository,
+            CompanyRepository,
+            ContactRepository,
+            OutreachRepository,
+            ReminderRepository,
+            SenderRepository,
+            SuppressionRepository,
+            TemplateRepository,
+        )
+
+        pairs = [
+            (SqliteContactRepository, ContactRepository),
+            (SqliteCompanyRepository, CompanyRepository),
+            (SqliteCampaignRepository, CampaignRepository),
+            (SqliteOutreachRepository, OutreachRepository),
+            (SqliteSenderRepository, SenderRepository),
+            (SqliteTemplateRepository, TemplateRepository),
+            (SqliteReminderRepository, ReminderRepository),
+            (SqliteSuppressionRepository, SuppressionRepository),
+        ]
+        for impl, port in pairs:
+            assert issubclass(impl, port), f"{impl.__name__} must implement port {port.__name__}"
+
+    def test_services_use_injected_event_publisher_not_global_singleton(self):
+        """Services must not import the global event_bus singleton directly."""
+        services_dir = APP_DIR / "services"
+        violations = []
+        for file_path in services_dir.rglob("*.py"):
+            if file_path.name in {"__init__.py", "event_bus.py", "context.py"}:
+                continue
+            content = file_path.read_text(encoding="utf-8")
+            if "from app.services.event_bus import" in content and "event_bus" in content:
+                violations.append(f"VIOLATION in {file_path.name}: imports global event_bus singleton")
         assert not violations, "\n".join(violations)
 
     def test_domain_policies_are_pure_functions(self):
@@ -154,6 +195,7 @@ class TestArchitecturalBoundaries:
         from app.domain.enums import Channel, OutreachStatus, CampaignStatus, CRMOutcome, InterviewState
         from app.domain.company import Company
         from app.domain.contact import Contact
+        from app.domain.enums import AttemptType
         from app.domain.outreach_attempt import OutreachAttempt
 
         # Enums are unique strings
@@ -173,7 +215,7 @@ class TestArchitecturalBoundaries:
             contact_id="cnt_123",
             sender_account_id="snd_456",
             channel=Channel.WHATSAPP,
-            attempt_type=AttemptType.AUTOMATIC if 'AttemptType' in globals() else None or OutreachStatus.PREPARED and __import__('app.domain.enums', fromlist=['AttemptType']).AttemptType.AUTOMATIC,
+            attempt_type=AttemptType.AUTOMATIC,
             message_body="Hello!",
         )
         assert attempt.idempotency_key.startswith("idemp_whatsapp_")
@@ -219,9 +261,7 @@ class TestArchitecturalBoundaries:
             for mod in imported_modules:
                 base_mod = mod.split(".")[0]
                 if base_mod in forbidden_api_imports:
-                    violations.append(
-                        f"VIOLATION in {file_path.name}: API directly imports '{mod}'"
-                    )
+                    violations.append(f"VIOLATION in {file_path.name}: API directly imports '{mod}'")
 
         assert not violations, "\n".join(violations)
 
@@ -273,9 +313,7 @@ class TestArchitecturalBoundaries:
             imported_modules = extract_imported_modules(file_path)
             for mod in imported_modules:
                 if mod.startswith("tests") or mod.startswith("tests.doubles"):
-                    violations.append(
-                        f"VIOLATION: Production file {file_path.name} imports test module '{mod}'"
-                    )
+                    violations.append(f"VIOLATION: Production file {file_path.name} imports test module '{mod}'")
 
         assert not violations, "\n".join(violations)
 
@@ -292,9 +330,6 @@ class TestArchitecturalBoundaries:
             content = file_path.read_text(encoding="utf-8")
             for token in forbidden_tokens:
                 if token in content:
-                    violations.append(
-                        f"VIOLATION: Production file {file_path.name} references test double '{token}'"
-                    )
+                    violations.append(f"VIOLATION: Production file {file_path.name} references test double '{token}'")
 
         assert not violations, "\n".join(violations)
-

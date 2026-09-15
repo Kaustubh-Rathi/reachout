@@ -17,14 +17,15 @@ from app.domain.contact import Contact
 from app.domain.enums import CRMOutcome, InterviewState
 from app.domain.reminder import FollowUpReminder
 
-# Single source of truth for the follow-up threshold lives in app/config.py to avoid
-# duplicating the value here and drifting. Re-exported for backwards compatibility.
-from app.config import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS  # noqa: E402,F401
+# Single source of truth for the follow-up threshold is a domain rule. app/config.py
+# imports it from here so there is exactly one definition.
+DEFAULT_FOLLOW_UP_THRESHOLD_DAYS = 7
 
 
 @dataclass(frozen=True)
 class FollowUpEligibility:
     """Detailed evaluation result for a contact's follow-up reminder eligibility."""
+
     is_due: bool
     contact_id: str
     elapsed_days: float
@@ -39,7 +40,7 @@ def check_contact_follow_up_eligibility(
 ) -> FollowUpEligibility:
     """Evaluate whether a single contact requires a follow-up reminder."""
     now = current_time or datetime.now(timezone.utc)
-    
+
     if contact.crm_outcome != CRMOutcome.INTERESTED:
         return FollowUpEligibility(
             is_due=False,

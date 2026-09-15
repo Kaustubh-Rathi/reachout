@@ -10,9 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.infrastructure.models import SuppressionRecordModel
+from app.ports.repositories import SuppressionRepository
 
 
-class SqliteSuppressionRepository:
+class SqliteSuppressionRepository(SuppressionRepository):
     """Repository managing suppressed/tombstoned entities so deleted contacts are not resurrected by synchronizer."""
 
     def __init__(self, session: Session) -> None:
@@ -51,10 +52,14 @@ class SqliteSuppressionRepository:
         if suppression_type in ("EMAIL", "CANONICAL_KEY"):
             clean_id = clean_id.lower()
 
-        stmt = select(SuppressionRecordModel).where(
-            SuppressionRecordModel.suppression_type == suppression_type,
-            SuppressionRecordModel.identifier == clean_id,
-        ).limit(1)
+        stmt = (
+            select(SuppressionRecordModel)
+            .where(
+                SuppressionRecordModel.suppression_type == suppression_type,
+                SuppressionRecordModel.identifier == clean_id,
+            )
+            .limit(1)
+        )
         existing = self.session.scalars(stmt).first()
         if existing:
             return existing

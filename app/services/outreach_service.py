@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
-from app.config import DEFAULT_MESSAGE_BODY, DEFAULT_MESSAGE_SUBJECT
+from app.config import DEFAULT_MESSAGE_BODY, DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.message_template import MessageTemplate
@@ -21,13 +21,9 @@ from app.infrastructure.providers.factory import (
     get_email_provider,
     get_whatsapp_provider,
 )
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
-from app.services.event_bus import event_bus
+from app.services.context import ServiceContext, build_service_context
 
 _CHANNEL_LABEL = {Channel.WHATSAPP: "WhatsApp", Channel.EMAIL: "Email"}
 
@@ -64,12 +60,14 @@ class OutreachService:
         email_provider: Optional[EmailProvider] = None,
         rate_limiter=None,
         event_publisher=None,
+        context: Optional[ServiceContext] = None,
     ) -> None:
         self.session = session
-        self.contact_repo = SqliteContactRepository(session)
-        self.outreach_repo = SqliteOutreachRepository(session)
-        self.sender_repo = SqliteSenderRepository(session)
-        self.template_repo = SqliteTemplateRepository(session)
+        ctx = context or build_service_context(session)
+        self.contact_repo = ctx.contact_repo
+        self.outreach_repo = ctx.outreach_repo
+        self.sender_repo = ctx.sender_repo
+        self.template_repo = ctx.template_repo
 
         # Resolve providers from injection or the explicit provider factory.
         self.whatsapp_provider = whatsapp_provider if whatsapp_provider is not None else get_whatsapp_provider()
@@ -77,7 +75,7 @@ class OutreachService:
         # N1: manual sends share the app-wide rate limiter used by campaigns.
         self.rate_limiter = rate_limiter if rate_limiter is not None else default_rate_limiter
         # Event publishing is injectable so the service is unit-testable with a fake bus.
-        self.event_publisher = event_publisher if event_publisher is not None else event_bus
+        self.event_publisher = event_publisher if event_publisher is not None else ctx.event_publisher
 
     # ------------------------------------------------------------------
     # Resolution helpers
@@ -139,7 +137,7 @@ class OutreachService:
         if template_id:
             template = self.template_repo.get_by_id(template_id)
             if template:
-                rendered = template.render(contact)
+                rendered = template.render(contact, sender_profile=SENDER_PROFILE)
                 body = rendered.body
                 if channel == Channel.EMAIL:
                     default_subject = _default_resend_subject(contact) if is_resend else _default_subject(contact)

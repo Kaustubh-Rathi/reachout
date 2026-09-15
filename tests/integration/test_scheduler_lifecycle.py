@@ -30,19 +30,23 @@ from app.ports.providers import ProviderSendResult, WhatsAppProvider
 
 class MockFastWhatsAppProvider:
     """Mock WhatsApp provider for fast deterministic testing."""
+
     def __init__(self):
         self.dispatched = []
 
     def send_message(self, attempt, recipient_phone, message_body, attachment_path=None):
-        self.dispatched.append({
-            "attempt_id": attempt.id,
-            "phone": recipient_phone,
-            "body": message_body,
-        })
+        self.dispatched.append(
+            {
+                "attempt_id": attempt.id,
+                "phone": recipient_phone,
+                "body": message_body,
+            }
+        )
         return ProviderSendResult.sent(provider_reference=f"mock_ref_{len(self.dispatched)}")
 
     def check_status(self, provider_reference):
         from app.ports.providers import ProviderStatusResult
+
         return ProviderStatusResult(status=OutreachStatus.SENT)
 
 
@@ -149,8 +153,14 @@ class TestSchedulerLifecycle:
         # Start campaign
         scheduler.start_campaign("cmp_test_01")
 
-        # Wait for campaign to process all 6 contacts
-        time.sleep(1.0)
+        # Wait for campaign to process all 6 contacts (poll rather than a fixed
+        # sleep so the test is not timing-flaky on a loaded CI machine).
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            with session_factory() as probe:
+                if SqliteCampaignRepository(probe).get_by_id("cmp_test_01").status == CampaignStatus.COMPLETED:
+                    break
+            time.sleep(0.05)
 
         with session_factory() as session:
             camp_repo = SqliteCampaignRepository(session)

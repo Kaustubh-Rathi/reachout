@@ -13,7 +13,7 @@ from app.infrastructure.models import OutreachAttemptModel
 from app.ports.repositories import OutreachRepository
 
 
-class SqliteOutreachRepository:
+class SqliteOutreachRepository(OutreachRepository):
     """Repository handling persistence and queries for OutreachAttempt entities."""
 
     def __init__(self, session: Session) -> None:

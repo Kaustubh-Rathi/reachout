@@ -14,24 +14,21 @@ from app.domain.contact import Contact
 from app.domain.enums import CRMOutcome, InterviewState
 from app.domain.policies.endpoint_coverage_policy import get_contact_endpoint_metrics
 from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, check_contact_follow_up_eligibility
-from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_reminder_repository import SqliteReminderRepository
-from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
-from app.services.event_bus import event_bus
+from app.services.context import ServiceContext, build_service_context
 
 
 class ContactService:
     """Application service for contact listings, detail inspection, and lifecycle management."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, context: Optional[ServiceContext] = None) -> None:
         self.session = session
-        self.contact_repo = SqliteContactRepository(session)
-        self.company_repo = SqliteCompanyRepository(session)
-        self.outreach_repo = SqliteOutreachRepository(session)
-        self.reminder_repo = SqliteReminderRepository(session)
-        self.suppression_repo = SqliteSuppressionRepository(session)
+        ctx = context or build_service_context(session)
+        self.contact_repo = ctx.contact_repo
+        self.company_repo = ctx.company_repo
+        self.outreach_repo = ctx.outreach_repo
+        self.reminder_repo = ctx.reminder_repo
+        self.suppression_repo = ctx.suppression_repo
+        self.event_publisher = ctx.event_publisher
 
     def list_contacts(
         self,
@@ -362,7 +359,7 @@ class ContactService:
         self.contact_repo.delete(contact.contact_id)
         self.session.commit()
 
-        event_bus.publish_event(
+        self.event_publisher.publish_event(
             "CONTACT_ARCHIVED",
             {
                 "contact_id": contact_id,

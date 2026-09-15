@@ -13,7 +13,7 @@ from app.infrastructure.models import ContactModel, SourceRecordModel
 from app.ports.repositories import ContactRepository
 
 
-class SqliteContactRepository:
+class SqliteContactRepository(ContactRepository):
     """Repository handling persistence and queries for Contact entities."""
 
     def __init__(self, session: Session) -> None:

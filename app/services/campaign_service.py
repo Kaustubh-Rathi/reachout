@@ -12,17 +12,14 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.domain.campaign import Campaign
-from app.domain.enums import CampaignStatus, Channel, OutreachStatus
+from app.domain.enums import CampaignStatus, Channel, OutreachStatus, SenderStatus
+from app.domain.policies.endpoint_coverage_policy import is_contact_fully_covered
 from app.domain.policies.prioritization import calculate_company_round_state
-from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import (
     PersistentCampaignScheduler,
     get_campaign_scheduler,
 )
+from app.services.context import ServiceContext, build_service_context
 
 
 class CampaignService:
@@ -32,13 +29,17 @@ class CampaignService:
         self,
         session: Session,
         scheduler: Optional[PersistentCampaignScheduler] = None,
+        context: Optional[ServiceContext] = None,
     ) -> None:
         self.session = session
-        self.campaign_repo = SqliteCampaignRepository(session)
-        self.contact_repo = SqliteContactRepository(session)
-        self.outreach_repo = SqliteOutreachRepository(session)
-        self.sender_repo = SqliteSenderRepository(session)
-        self.template_repo = SqliteTemplateRepository(session)
+        ctx = context or build_service_context(session)
+        self.campaign_repo = ctx.campaign_repo
+        self.contact_repo = ctx.contact_repo
+        self.outreach_repo = ctx.outreach_repo
+        self.sender_repo = ctx.sender_repo
+        self.template_repo = ctx.template_repo
+        self.suppression_repo = ctx.suppression_repo
+        self.event_publisher = ctx.event_publisher
         self.scheduler = scheduler or get_campaign_scheduler()
 
     def create_campaign(
@@ -83,9 +84,13 @@ class CampaignService:
         attempts = self.outreach_repo.list_by_campaign(campaign_id)
         total = len(attempts)
         completed = sum(1 for a in attempts if a.status == OutreachStatus.SENT)
-        pending = sum(1 for a in attempts if a.status in (OutreachStatus.PREPARED, OutreachStatus.QUEUED, OutreachStatus.SENDING))
+        pending = sum(
+            1 for a in attempts if a.status in (OutreachStatus.PREPARED, OutreachStatus.QUEUED, OutreachStatus.SENDING)
+        )
         failed = sum(1 for a in attempts if a.status == OutreachStatus.FAILED)
-        unknown_recovery = sum(1 for a in attempts if a.status in (OutreachStatus.UNKNOWN, OutreachStatus.RECOVERY_REQUIRED))
+        unknown_recovery = sum(
+            1 for a in attempts if a.status in (OutreachStatus.UNKNOWN, OutreachStatus.RECOVERY_REQUIRED)
+        )
 
         pct = round((completed / total) * 100, 1) if total > 0 else 0.0
 
@@ -122,8 +127,12 @@ class CampaignService:
             "companies_covered": round_metrics.companies_covered_total,
             "companies_remaining": round_metrics.companies_with_remaining_contacts,
             "current_dispatch_channel": last_attempt.channel.value if last_attempt else campaign.channel.value,
-            "current_sender": last_attempt.sender_account_id if last_attempt else (campaign.sender_account_ids[0] if campaign.sender_account_ids else "AUTO"),
-            "template_used": last_attempt.template_id if last_attempt else (campaign.template_ids[0] if campaign.template_ids else "AUTO"),
+            "current_sender": last_attempt.sender_account_id
+            if last_attempt
+            else (campaign.sender_account_ids[0] if campaign.sender_account_ids else "AUTO"),
+            "template_used": last_attempt.template_id
+            if last_attempt
+            else (campaign.template_ids[0] if campaign.template_ids else "AUTO"),
             "started_at": campaign.started_at.isoformat() if campaign.started_at else None,
             "ended_at": campaign.ended_at.isoformat() if campaign.ended_at else None,
             "created_at": campaign.created_at.isoformat(),
@@ -183,7 +192,6 @@ class CampaignService:
             }
 
         # 4. Check active sender sessions
-        from app.domain.enums import SenderStatus
         if channel == Channel.WHATSAPP:
             active_wa = [s for s in self.sender_repo.list_active(Channel.WHATSAPP) if s.status == SenderStatus.ACTIVE]
             if not active_wa:
@@ -207,10 +215,7 @@ class CampaignService:
         for a in attempts:
             attempts_by_contact.setdefault(a.contact_id, []).append(a)
 
-        from app.domain.policies.endpoint_coverage_policy import is_contact_fully_covered
-        from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
-        supp_repo = SqliteSuppressionRepository(self.session)
-        suppressed_set = {s.identifier for s in supp_repo.list_all()}
+        suppressed_set = {s.identifier for s in self.suppression_repo.list_all()}
 
         has_uncovered = False
         for c in contacts:
@@ -272,7 +277,6 @@ class CampaignService:
 
         self.scheduler.resume_campaign(campaign_id)
         return self.get_campaign_progress(campaign_id)
-
 
     def stop_campaign(self, campaign_id: str) -> Dict[str, Any]:
         """Stop/cancel a campaign permanently via canonical PersistentCampaignScheduler."""

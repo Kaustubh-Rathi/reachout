@@ -12,7 +12,7 @@ from app.infrastructure.models import CompanyModel
 from app.ports.repositories import CompanyRepository
 
 
-class SqliteCompanyRepository:
+class SqliteCompanyRepository(CompanyRepository):
     """Repository handling persistence and queries for Company entities."""
 
     def __init__(self, session: Session) -> None:

@@ -13,21 +13,19 @@ from app.domain.company import Company, calculate_company_status
 from app.domain.enums import CompanyStatus
 from app.domain.policies.endpoint_coverage_policy import get_contact_endpoint_metrics
 from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, check_contact_follow_up_eligibility
-from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_reminder_repository import SqliteReminderRepository
+from app.services.context import ServiceContext, build_service_context
 
 
 class CompanyService:
     """Application service for Company entities, hierarchy inspection, and status management."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, context: Optional[ServiceContext] = None) -> None:
         self.session = session
-        self.company_repo = SqliteCompanyRepository(session)
-        self.contact_repo = SqliteContactRepository(session)
-        self.outreach_repo = SqliteOutreachRepository(session)
-        self.reminder_repo = SqliteReminderRepository(session)
+        ctx = context or build_service_context(session)
+        self.company_repo = ctx.company_repo
+        self.contact_repo = ctx.contact_repo
+        self.outreach_repo = ctx.outreach_repo
+        self.reminder_repo = ctx.reminder_repo
 
     def list_companies(self) -> List[Dict[str, Any]]:
         companies = self.company_repo.list_all()
@@ -40,21 +38,22 @@ class CompanyService:
 
             total_endpoints = sum(len(c.endpoints) for c in contacts)
             covered_endpoints = sum(
-                get_contact_endpoint_metrics(c, comp_attempts)["covered_endpoints"]
-                for c in contacts
+                get_contact_endpoint_metrics(c, comp_attempts)["covered_endpoints"] for c in contacts
             )
 
-            results.append({
-                "id": comp.id,
-                "name": comp.name,
-                "domain": comp.domain,
-                "contact_count": len(contacts),
-                "total_endpoints": total_endpoints,
-                "covered_endpoints": covered_endpoints,
-                "status": status.value,
-                "is_fully_covered": total_endpoints > 0 and covered_endpoints >= total_endpoints,
-                "created_at": comp.created_at.isoformat(),
-            })
+            results.append(
+                {
+                    "id": comp.id,
+                    "name": comp.name,
+                    "domain": comp.domain,
+                    "contact_count": len(contacts),
+                    "total_endpoints": total_endpoints,
+                    "covered_endpoints": covered_endpoints,
+                    "status": status.value,
+                    "is_fully_covered": total_endpoints > 0 and covered_endpoints >= total_endpoints,
+                    "created_at": comp.created_at.isoformat(),
+                }
+            )
         return results
 
     def get_company(self, company_id: str) -> Optional[Dict[str, Any]]:
@@ -149,60 +148,66 @@ class CompanyService:
             endpoints_list = []
             # WhatsApp endpoints
             for ep in coverage["whatsapp_endpoints"]:
-                endpoints_list.append({
-                    "channel": "WHATSAPP",
-                    "address": ep["address"],
-                    "normalized_address": ep["normalized_address"],
-                    "ordinal": ep["ordinal"],
-                    "label": f"Phone {ep['ordinal'] + 1}",
-                    "status": ep["status"],
-                    "is_covered": ep["is_covered"],
-                    "sender_account_id": ep["sender_account_id"],
-                    "template_id": ep["template_id"],
-                    "attempt_id": ep["attempt_id"],
-                    "sent_at": ep["sent_at"],
-                })
+                endpoints_list.append(
+                    {
+                        "channel": "WHATSAPP",
+                        "address": ep["address"],
+                        "normalized_address": ep["normalized_address"],
+                        "ordinal": ep["ordinal"],
+                        "label": f"Phone {ep['ordinal'] + 1}",
+                        "status": ep["status"],
+                        "is_covered": ep["is_covered"],
+                        "sender_account_id": ep["sender_account_id"],
+                        "template_id": ep["template_id"],
+                        "attempt_id": ep["attempt_id"],
+                        "sent_at": ep["sent_at"],
+                    }
+                )
 
             # Email endpoints
             for ep in coverage["email_endpoints"]:
-                endpoints_list.append({
-                    "channel": "EMAIL",
-                    "address": ep["address"],
-                    "normalized_address": ep["normalized_address"],
-                    "ordinal": ep["ordinal"],
-                    "label": f"Email {ep['ordinal'] + 1}",
-                    "status": ep["status"],
-                    "is_covered": ep["is_covered"],
-                    "sender_account_id": ep["sender_account_id"],
-                    "template_id": ep["template_id"],
-                    "attempt_id": ep["attempt_id"],
-                    "sent_at": ep["sent_at"],
-                })
+                endpoints_list.append(
+                    {
+                        "channel": "EMAIL",
+                        "address": ep["address"],
+                        "normalized_address": ep["normalized_address"],
+                        "ordinal": ep["ordinal"],
+                        "label": f"Email {ep['ordinal'] + 1}",
+                        "status": ep["status"],
+                        "is_covered": ep["is_covered"],
+                        "sender_account_id": ep["sender_account_id"],
+                        "template_id": ep["template_id"],
+                        "attempt_id": ep["attempt_id"],
+                        "sent_at": ep["sent_at"],
+                    }
+                )
 
-            contacts_hierarchy.append({
-                "contact_id": c.contact_id,
-                "name": c.name,
-                "first_name": c.first_name,
-                "designation": c.designation or "",
-                "phone": c.phone or "",
-                "email": c.email or "",
-                "crm_outcome": c.crm_outcome.value,
-                "interview_status": c.interview_status.value,
-                "notes": c.notes or "",
-                "tags": c.tags or [],
-                "last_whatsapp_at": c.last_whatsapp_at.isoformat() if c.last_whatsapp_at else None,
-                "last_email_at": c.last_email_at.isoformat() if c.last_email_at else None,
-                "last_activity_at": c.last_activity_at.isoformat() if c.last_activity_at else None,
-                "interested_at": c.interested_at.isoformat() if c.interested_at else None,
-                "follow_up_due": follow_up.is_due,
-                "follow_up_due_at": follow_up.due_at.isoformat() if follow_up.due_at else None,
-                "follow_up_reason": follow_up.reason,
-                "coverage": coverage,
-                "is_fully_covered": coverage["is_fully_covered"],
-                "endpoints": endpoints_list,
-                "history": history,
-                "reminders": reminders_list,
-            })
+            contacts_hierarchy.append(
+                {
+                    "contact_id": c.contact_id,
+                    "name": c.name,
+                    "first_name": c.first_name,
+                    "designation": c.designation or "",
+                    "phone": c.phone or "",
+                    "email": c.email or "",
+                    "crm_outcome": c.crm_outcome.value,
+                    "interview_status": c.interview_status.value,
+                    "notes": c.notes or "",
+                    "tags": c.tags or [],
+                    "last_whatsapp_at": c.last_whatsapp_at.isoformat() if c.last_whatsapp_at else None,
+                    "last_email_at": c.last_email_at.isoformat() if c.last_email_at else None,
+                    "last_activity_at": c.last_activity_at.isoformat() if c.last_activity_at else None,
+                    "interested_at": c.interested_at.isoformat() if c.interested_at else None,
+                    "follow_up_due": follow_up.is_due,
+                    "follow_up_due_at": follow_up.due_at.isoformat() if follow_up.due_at else None,
+                    "follow_up_reason": follow_up.reason,
+                    "coverage": coverage,
+                    "is_fully_covered": coverage["is_fully_covered"],
+                    "endpoints": endpoints_list,
+                    "history": history,
+                    "reminders": reminders_list,
+                }
+            )
 
         return {
             "id": comp.id,
@@ -245,8 +250,7 @@ class CompanyService:
                 s = search.lower().strip()
                 matches_comp = s in h["name"].lower() or (h["domain"] and s in h["domain"].lower())
                 matches_contacts = any(
-                    s in c["name"].lower() or s in c["phone"].lower() or s in c["email"].lower()
-                    for c in h["contacts"]
+                    s in c["name"].lower() or s in c["phone"].lower() or s in c["email"].lower() for c in h["contacts"]
                 )
                 if not matches_comp and not matches_contacts:
                     continue

@@ -7,7 +7,7 @@ WhatsApp Web, SMTP, SES, Twilio, SendGrid).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Protocol, runtime_checkable
+from typing import Dict, Optional, Protocol, Tuple, runtime_checkable
 
 from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
@@ -16,6 +16,7 @@ from app.domain.outreach_attempt import OutreachAttempt
 @dataclass(frozen=True)
 class ProviderSendResult:
     """Standardized response from an external messaging provider."""
+
     success: bool
     status: OutreachStatus
     provider_reference: Optional[str] = None
@@ -61,6 +62,7 @@ class ProviderSendResult:
 @dataclass(frozen=True)
 class ProviderStatusResult:
     """Response when polling or auditing provider status for an existing message."""
+
     status: OutreachStatus
     detail: Optional[str] = None
 
@@ -97,4 +99,23 @@ class EmailProvider(Protocol):
         attachment_path: Optional[str] = None,
     ) -> ProviderSendResult:
         """Dispatch a single Email."""
+        ...
+
+    def get_sender_credentials(self, sender_account_id: str) -> Dict[str, str]:
+        """Return stored SMTP credentials for a sender (never persisted in plaintext)."""
+        ...
+
+    def set_sender_credentials(
+        self,
+        sender_account_id: str,
+        user: str,
+        password: str,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+    ) -> None:
+        """Store encrypted SMTP credentials for a sender."""
+        ...
+
+    def verify_credentials(self, sender_account_id: str) -> Tuple[bool, Optional[str]]:
+        """Verify stored SMTP credentials, returning (ok, error_detail)."""
         ...

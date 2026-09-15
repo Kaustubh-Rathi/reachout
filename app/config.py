@@ -6,10 +6,13 @@ hardcoded in multiple places across the backend and frontend.
 Personal identity (name, phone, links, etc.) is loaded from a git-ignored
 `.env` file so no personal data is ever committed to the repository.
 """
+
 from __future__ import annotations
 
 import os
 from pathlib import Path
+
+from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS
 
 # ---------------------------------------------------------------------------
 # .env loader (dependency-free). Loads ROOT/.env if present; existing env vars
@@ -45,8 +48,8 @@ DEFAULT_OUTREACH_LIMIT = 100
 # Absolute ceiling enforced by the UI limit input.
 MAX_OUTREACH_LIMIT = 1000
 
-# Default follow-up reminder threshold (days) for interested contacts.
-DEFAULT_FOLLOW_UP_THRESHOLD_DAYS = 7
+# Default follow-up reminder threshold (days) for interested contacts is defined in
+# app.domain.policies.reminder_policy (single source of truth) and imported above.
 
 # Default country code applied to bare phone numbers during Excel import.
 DEFAULT_COUNTRY_CODE = _env("DEFAULT_COUNTRY_CODE", "91")

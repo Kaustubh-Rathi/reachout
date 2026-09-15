@@ -13,7 +13,7 @@ from app.infrastructure.models import SenderAccountModel
 from app.ports.repositories import SenderRepository
 
 
-class SqliteSenderRepository:
+class SqliteSenderRepository(SenderRepository):
     """Repository handling persistence and queries for SenderAccount entities."""
 
     def __init__(self, session: Session) -> None:
@@ -26,9 +26,7 @@ class SqliteSenderRepository:
     def list_by_channel(self, channel: Channel) -> List[SenderAccount]:
         channel_val = channel.value if hasattr(channel, "value") else str(channel)
         stmt = (
-            select(SenderAccountModel)
-            .where(SenderAccountModel.channel == channel_val)
-            .order_by(SenderAccountModel.id)
+            select(SenderAccountModel).where(SenderAccountModel.channel == channel_val).order_by(SenderAccountModel.id)
         )
         models = self.session.scalars(stmt).all()
         return [m.to_domain() for m in models]

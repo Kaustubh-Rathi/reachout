@@ -14,7 +14,7 @@ from app.infrastructure.models import FollowUpReminderModel
 from app.ports.repositories import ReminderRepository
 
 
-class SqliteReminderRepository:
+class SqliteReminderRepository(ReminderRepository):
     """Repository handling persistence and queries for FollowUpReminder entities."""
 
     def __init__(self, session: Session) -> None:
