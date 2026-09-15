@@ -1,7 +1,5 @@
 """Unit tests for Domain State Transitions and Enum Properties."""
 
-import pytest
-
 from app.domain.enums import (
     AttemptType,
     CampaignStatus,

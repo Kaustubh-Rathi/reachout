@@ -14,10 +14,9 @@ Verifies all six Phase 6 policy dimensions:
 from __future__ import annotations
 
 import hashlib
-import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -25,49 +24,31 @@ from sqlalchemy.orm import sessionmaker
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus, SenderStatus
+from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
 from app.domain.message_template import (
-    ALL_OFFICIAL_TEMPLATES,
     OFFICIAL_EMAIL_TEMPLATES,
     OFFICIAL_WHATSAPP_TEMPLATES,
-    MessageTemplate,
 )
 from app.domain.outreach_attempt import OutreachAttempt
-from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility, is_valid_email, is_valid_phone
+from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
 from app.domain.policies.fallback_policy import ChannelFallbackPolicy
 from app.domain.policies.prioritization import (
-    CompanyRoundMetrics,
-    ContactPrioritizer,
     calculate_company_round_state,
     prioritize_company_first,
 )
-from app.domain.policies.resend_policy import prepare_manual_resend
 from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.policies.template_rotation import select_template_round_robin
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
-from app.infrastructure.models import (
-    CampaignModel,
-    CompanyModel,
-    ContactModel,
-    MessageTemplateModel,
-    OutreachAttemptModel,
-    SenderAccountModel,
-)
-from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
-from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
-from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
-from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.services.campaign_service import CampaignService
 from app.services.outreach_service import OutreachService
 from app.services.template_service import TemplateService
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
 
 @pytest.fixture

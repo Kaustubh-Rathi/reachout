@@ -12,8 +12,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS
-
 # ---------------------------------------------------------------------------
 # .env loader (dependency-free). Loads ROOT/.env if present; existing env vars
 # take precedence so real secrets are never overwritten.

@@ -6,17 +6,11 @@ validation, provider dispatch, error classification, quota accounting, and event
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, Optional, Union
-
-from sqlalchemy.orm import Session
+from typing import Any, Dict, Optional
 
 from app.config import DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
 from app.domain.campaign import Campaign
-from app.domain.company import Company
-from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key

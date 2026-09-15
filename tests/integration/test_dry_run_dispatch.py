@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import CampaignStatus, Channel, OutreachStatus
+from app.domain.enums import CampaignStatus, Channel
 from app.domain.message_template import MessageTemplate
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
@@ -111,7 +111,7 @@ def phase8_isolated_session_factory(tmp_path):
 
 def test_phase8_deterministic_dry_run_dispatch(phase8_isolated_session_factory, capsys):
     """Execute Requirement 25 deterministic integration test with 5 companies:
-    
+
     C1:
       HR1: Phone1, Phone2, Email1, Email2
       HR2: Phone1, Email1
@@ -148,85 +148,103 @@ def test_phase8_deterministic_dry_run_dispatch(phase8_isolated_session_factory, 
         # C1
         c1 = Company.create(name="Company 1", company_id="C1")
         comp_repo.save(c1)
-        cnt_repo.save(Contact(
-            contact_id="C1_HR1",
-            company_id="C1",
-            name="Rahul Sharma",
-            phone="+919811111101, +919811111102",
-            email="rahul.c1@company1.com, rahul.alt@company1.com",
-        ))
-        cnt_repo.save(Contact(
-            contact_id="C1_HR2",
-            company_id="C1",
-            name="Amit Verma",
-            phone="+919811111201",
-            email="amit.c1@company1.com",
-        ))
+        cnt_repo.save(
+            Contact(
+                contact_id="C1_HR1",
+                company_id="C1",
+                name="Rahul Sharma",
+                phone="+919811111101, +919811111102",
+                email="rahul.c1@company1.com, rahul.alt@company1.com",
+            )
+        )
+        cnt_repo.save(
+            Contact(
+                contact_id="C1_HR2",
+                company_id="C1",
+                name="Amit Verma",
+                phone="+919811111201",
+                email="amit.c1@company1.com",
+            )
+        )
 
         # C2
         c2 = Company.create(name="Company 2", company_id="C2")
         comp_repo.save(c2)
-        cnt_repo.save(Contact(
-            contact_id="C2_HR1",
-            company_id="C2",
-            name="Priya Patel",
-            phone="+919822222101",
-            email="priya.c2@company2.com",
-        ))
+        cnt_repo.save(
+            Contact(
+                contact_id="C2_HR1",
+                company_id="C2",
+                name="Priya Patel",
+                phone="+919822222101",
+                email="priya.c2@company2.com",
+            )
+        )
 
         # C3
         c3 = Company.create(name="Company 3", company_id="C3")
         comp_repo.save(c3)
-        cnt_repo.save(Contact(
-            contact_id="C3_HR1",
-            company_id="C3",
-            name="Sneha Rao",
-            phone="+919833333101, +919833333102",
-            email="sneha.c3@company3.com",
-        ))
-        cnt_repo.save(Contact(
-            contact_id="C3_HR2",
-            company_id="C3",
-            name="Vikram Singh",
-            phone="+919833333201",
-            email="vikram.c3@company3.com",
-        ))
-        cnt_repo.save(Contact(
-            contact_id="C3_HR3",
-            company_id="C3",
-            name="Ananya Iyer",
-            phone="",
-            email="ananya.c3@company3.com",
-        ))
+        cnt_repo.save(
+            Contact(
+                contact_id="C3_HR1",
+                company_id="C3",
+                name="Sneha Rao",
+                phone="+919833333101, +919833333102",
+                email="sneha.c3@company3.com",
+            )
+        )
+        cnt_repo.save(
+            Contact(
+                contact_id="C3_HR2",
+                company_id="C3",
+                name="Vikram Singh",
+                phone="+919833333201",
+                email="vikram.c3@company3.com",
+            )
+        )
+        cnt_repo.save(
+            Contact(
+                contact_id="C3_HR3",
+                company_id="C3",
+                name="Ananya Iyer",
+                phone="",
+                email="ananya.c3@company3.com",
+            )
+        )
 
         # C4
         c4 = Company.create(name="Company 4", company_id="C4")
         comp_repo.save(c4)
-        cnt_repo.save(Contact(
-            contact_id="C4_HR1",
-            company_id="C4",
-            name="Karan Johar",
-            phone="",
-            email="karan.c4@company4.com",
-        ))
-        cnt_repo.save(Contact(
-            contact_id="C4_HR2",
-            company_id="C4",
-            name="Deepak Chopra",
-            phone="+919844444201",
-            email="deepak.c4@company4.com",
-        ))
+        cnt_repo.save(
+            Contact(
+                contact_id="C4_HR1",
+                company_id="C4",
+                name="Karan Johar",
+                phone="",
+                email="karan.c4@company4.com",
+            )
+        )
+        cnt_repo.save(
+            Contact(
+                contact_id="C4_HR2",
+                company_id="C4",
+                name="Deepak Chopra",
+                phone="+919844444201",
+                email="deepak.c4@company4.com",
+            )
+        )
 
         # C5
         c5 = Company.create(name="Company 5", company_id="C5")
         comp_repo.save(c5)
-        cnt_repo.save(Contact(
-            contact_id="C5_HR1",
-            company_id="C5",
-            name="Neha Gupta",
-            phone="+919855555101",
-            email="neha.c5@company5.com",
-        ))
+        cnt_repo.save(
+            Contact(
+                contact_id="C5_HR1",
+                company_id="C5",
+                name="Neha Gupta",
+                phone="+919855555101",
+                email="neha.c5@company5.com",
+            )
+        )
 
         session.commit()
 
@@ -278,7 +296,9 @@ def test_phase8_deterministic_dry_run_dispatch(phase8_isolated_session_factory, 
             sender = att.sender_account_id or "AUTO"
             tpl = att.template_id or "AUTO"
 
-            table_lines.append(f"{idx:<2} | {comp_name:<7} | {hr_name:<14} | {ep:<22} | {ch:<7} | {sender:<6} | {tpl:<8}")
+            table_lines.append(
+                f"{idx:<2} | {comp_name:<7} | {hr_name:<14} | {ep:<22} | {ch:<7} | {sender:<6} | {tpl:<8}"
+            )
 
         output_table = "\n".join(table_lines)
         print("\n" + output_table + "\n")

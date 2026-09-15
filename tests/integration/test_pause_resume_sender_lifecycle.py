@@ -13,37 +13,27 @@ Validates:
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.endpoint import CommunicationEndpoint
 from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus, SenderStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
-from app.domain.policies.channel_rotation_policy import ChannelRotationPolicy
 from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.models import (
-    CampaignModel,
     CompanyModel,
-    ContactModel,
-    MessageTemplateModel,
-    OutreachAttemptModel,
-    SenderAccountModel,
 )
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
@@ -131,27 +121,61 @@ class TestPauseModifyResumeLifecycle:
                 session.add(CompanyModel.from_domain(comp))
 
             contacts = [
-                Contact(contact_id="cnt_c1_hr1", company_id=c1.id, name="Google HR 1", phone="+919000000001", email="hr1@google.com"),
-                Contact(contact_id="cnt_c1_hr2", company_id=c1.id, name="Google HR 2", phone="+919000000002", email="hr2@google.com"),
-                Contact(contact_id="cnt_c2_hr1", company_id=c2.id, name="MS HR 1", phone="+919000000003", email="hr1@ms.com"),
-                Contact(contact_id="cnt_c2_hr2", company_id=c2.id, name="MS HR 2", phone="+919000000004", email="hr2@ms.com"),
-                Contact(contact_id="cnt_c3_hr1", company_id=c3.id, name="AWS HR 1", phone="+919000000005", email="hr1@aws.com"),
-                Contact(contact_id="cnt_c3_hr2", company_id=c3.id, name="AWS HR 2", phone="+919000000006", email="hr2@aws.com"),
+                Contact(
+                    contact_id="cnt_c1_hr1",
+                    company_id=c1.id,
+                    name="Google HR 1",
+                    phone="+919000000001",
+                    email="hr1@google.com",
+                ),
+                Contact(
+                    contact_id="cnt_c1_hr2",
+                    company_id=c1.id,
+                    name="Google HR 2",
+                    phone="+919000000002",
+                    email="hr2@google.com",
+                ),
+                Contact(
+                    contact_id="cnt_c2_hr1", company_id=c2.id, name="MS HR 1", phone="+919000000003", email="hr1@ms.com"
+                ),
+                Contact(
+                    contact_id="cnt_c2_hr2", company_id=c2.id, name="MS HR 2", phone="+919000000004", email="hr2@ms.com"
+                ),
+                Contact(
+                    contact_id="cnt_c3_hr1",
+                    company_id=c3.id,
+                    name="AWS HR 1",
+                    phone="+919000000005",
+                    email="hr1@aws.com",
+                ),
+                Contact(
+                    contact_id="cnt_c3_hr2",
+                    company_id=c3.id,
+                    name="AWS HR 2",
+                    phone="+919000000006",
+                    email="hr2@aws.com",
+                ),
             ]
             for cnt in contacts:
                 contact_repo.save(cnt)
 
             # Templates
             tmpl_wa = MessageTemplate.create(name="WA Tmpl", channel=Channel.WHATSAPP, body="Hello {first_name}")
-            tmpl_em = MessageTemplate.create(name="EM Tmpl", channel=Channel.EMAIL, subject="Intro", body="Hi {first_name}")
+            tmpl_em = MessageTemplate.create(
+                name="EM Tmpl", channel=Channel.EMAIL, subject="Intro", body="Hi {first_name}"
+            )
             tmpl_repo.save(tmpl_wa)
             tmpl_repo.save(tmpl_em)
 
             # Initial 4 senders (2 WA, 2 Email)
             wa1 = SenderAccount.create(Channel.WHATSAPP, "fake_wa", "+911111111111", "WA 1", sender_id="WA1")
             wa2 = SenderAccount.create(Channel.WHATSAPP, "fake_wa", "+912222222222", "WA 2", sender_id="WA2")
-            em1 = SenderAccount.create(Channel.EMAIL, "fake_email", "sender1@example.com", "Email 1", sender_id="EMAIL1")
-            em2 = SenderAccount.create(Channel.EMAIL, "fake_email", "sender2@example.com", "Email 2", sender_id="EMAIL2")
+            em1 = SenderAccount.create(
+                Channel.EMAIL, "fake_email", "sender1@example.com", "Email 1", sender_id="EMAIL1"
+            )
+            em2 = SenderAccount.create(
+                Channel.EMAIL, "fake_email", "sender2@example.com", "Email 2", sender_id="EMAIL2"
+            )
             for s in [wa1, wa2, em1, em2]:
                 sender_repo.save(s)
 
@@ -263,7 +287,9 @@ class TestPauseModifyResumeLifecycle:
             assert len(all_attempts) >= 4
 
             # 1. Campaign resumed and did NOT duplicate C1-HR1's WhatsApp outreach
-            c1_hr1_wa_attempts = [a for a in all_attempts if a.contact_id == "cnt_c1_hr1" and a.channel == Channel.WHATSAPP]
+            c1_hr1_wa_attempts = [
+                a for a in all_attempts if a.contact_id == "cnt_c1_hr1" and a.channel == Channel.WHATSAPP
+            ]
             assert len(c1_hr1_wa_attempts) == 1, "Duplicate WhatsApp attempt created for cnt_c1_hr1!"
 
             # 2. Previously covered endpoints remain covered without duplicate dispatches
@@ -273,7 +299,6 @@ class TestPauseModifyResumeLifecycle:
             # 3. New senders (WA3, EMAIL3) became eligible and participated in rotation
             post_resume_senders = {a.sender_account_id for a in all_attempts}
             assert "WA3" in post_resume_senders or "EMAIL3" in post_resume_senders or len(all_attempts) >= 6
-
 
             # 4. Quota reflects actual dispatches
             camp = camp_repo.get_by_id(campaign_id)
@@ -405,7 +430,9 @@ class TestPauseResumeMatrixAndRestart:
             session.add(CompanyModel.from_domain(c1))
 
             for i in range(1, 5):
-                cnt = Contact(contact_id=f"cnt_rst_{i}", company_id=c1.id, name=f"Contact {i}", phone=f"+91800000000{i}")
+                cnt = Contact(
+                    contact_id=f"cnt_rst_{i}", company_id=c1.id, name=f"Contact {i}", phone=f"+91800000000{i}"
+                )
                 contact_repo.save(cnt)
 
             wa1 = SenderAccount.create(Channel.WHATSAPP, "fake_wa", "+919999999999", "WA 1", sender_id="WA_RST_1")
@@ -582,5 +609,3 @@ class TestPauseResumeMatrixAndRestart:
 
             assert "OUTREACH_NOT_READY" in str(exc_info.value)
             assert "NO_ACTIVE_WHATSAPP_SESSION" in str(exc_info.value)
-
-

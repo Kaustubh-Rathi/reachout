@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Callable, Container, Dict, Iterable, List, Optional, Sequence, Set
+from typing import Any, Callable, Container, Dict, List, Optional, Sequence, Set
 
 from app.domain.contact import Contact
 

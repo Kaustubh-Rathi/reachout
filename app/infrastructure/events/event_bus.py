@@ -13,7 +13,7 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Callable, Deque, Dict, List, Optional, Sequence, Set
 
-from app.ports.infrastructure import DomainEvent, EventPublisher
+from app.ports.infrastructure import DomainEvent
 
 EventListener = Callable[[DomainEvent], None]
 
@@ -45,9 +45,9 @@ class EventBus:
         """Remove a previously registered synchronous listener."""
         with self._lock:
             if event_type and event_type in self._typed_listeners:
-                self._typed_listeners[event_type] = [l for l in self._typed_listeners[event_type] if l != listener]
+                self._typed_listeners[event_type] = [x for x in self._typed_listeners[event_type] if x != listener]
             else:
-                self._listeners = [l for l in self._listeners if l != listener]
+                self._listeners = [x for x in self._listeners if x != listener]
 
     async def subscribe_async(self) -> AsyncGenerator[DomainEvent, None]:
         """Subscribe to real-time events as an async generator for WebSocket/SSE."""
@@ -135,4 +135,3 @@ class EventBus:
 # Canonical singleton event bus instance
 default_event_bus = EventBus()
 event_bus = default_event_bus
-InMemoryEventBus = EventBus

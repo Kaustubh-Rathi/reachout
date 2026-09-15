@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.domain.enums import CRMOutcome, InterviewState, OutreachStatus, ReminderStatus

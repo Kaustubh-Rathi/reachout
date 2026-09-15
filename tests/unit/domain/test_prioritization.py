@@ -1,7 +1,5 @@
 """Unit tests for Company-First Prioritization Policy."""
 
-import pytest
-
 from app.domain.contact import Contact
 from app.domain.policies.prioritization import prioritize_company_first
 

@@ -12,6 +12,7 @@ from enum import Enum, unique
 @unique
 class Channel(str, Enum):
     """Supported outreach communication channels."""
+
     WHATSAPP = "WHATSAPP"
     EMAIL = "EMAIL"
 
@@ -22,6 +23,7 @@ class Channel(str, Enum):
 @unique
 class CampaignStatus(str, Enum):
     """Lifecycle states of an outreach campaign."""
+
     IDLE = "IDLE"
     STARTING = "STARTING"
     RUNNING = "RUNNING"
@@ -52,6 +54,7 @@ class OutreachStatus(str, Enum):
     interruption, or provider timeout, state transitions to UNKNOWN or
     RECOVERY_REQUIRED instead of assuming failure or success.
     """
+
     PREPARED = "PREPARED"
     QUEUED = "QUEUED"
     SENDING = "SENDING"
@@ -83,6 +86,7 @@ class OutreachStatus(str, Enum):
 @unique
 class AttemptType(str, Enum):
     """Classification of how an outreach attempt was initiated."""
+
     AUTOMATIC = "AUTOMATIC"
     MANUAL = "MANUAL"
     RESEND = "RESEND"
@@ -94,6 +98,7 @@ class AttemptType(str, Enum):
 @unique
 class CRMOutcome(str, Enum):
     """High-level CRM response classification."""
+
     NONE = "NONE"
     NOT_CONTACTED = "NOT_CONTACTED"
     CONTACTED = "CONTACTED"
@@ -137,6 +142,7 @@ class CRMOutcome(str, Enum):
 @unique
 class InterviewState(str, Enum):
     """Granular interview tracking states for interested candidates."""
+
     NOT_APPLICABLE = "NOT_APPLICABLE"
     PENDING = "PENDING"
     INTERVIEW = "INTERVIEW"
@@ -149,6 +155,7 @@ class InterviewState(str, Enum):
 @unique
 class CompanyStatus(str, Enum):
     """Company-level aggregate outreach and engagement lifecycle status."""
+
     NOT_CONTACTED = "NOT_CONTACTED"
     IN_PROGRESS = "IN_PROGRESS"
     CONTACTED = "CONTACTED"
@@ -161,6 +168,7 @@ class CompanyStatus(str, Enum):
 @unique
 class SenderStatus(str, Enum):
     """Operational status of a sender account."""
+
     NOT_CONFIGURED = "NOT_CONFIGURED"
     QR_REQUIRED = "QR_REQUIRED"
     AUTHENTICATING = "AUTHENTICATING"
@@ -183,6 +191,7 @@ class SenderStatus(str, Enum):
 @unique
 class ReminderStatus(str, Enum):
     """Status of a follow-up reminder."""
+
     PENDING = "PENDING"
     DISMISSED = "DISMISSED"
     COMPLETED = "COMPLETED"

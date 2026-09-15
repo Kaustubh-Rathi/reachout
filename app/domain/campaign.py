@@ -13,7 +13,7 @@ from app.domain.enums import CampaignStatus, Channel
 @dataclass
 class Campaign:
     """Represents a scheduled or executing batch outreach initiative.
-    
+
     Attributes:
         id: Stable unique campaign identifier.
         name: Human-friendly campaign name.
@@ -26,6 +26,7 @@ class Campaign:
         ended_at: Timestamp when campaign reached terminal state.
         metadata: Extensible configuration settings (quotas, delays, batch sizes, tags).
     """
+
     id: str
     name: str
     channel: Channel

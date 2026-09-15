@@ -1,6 +1,5 @@
 """E2E Playwright tests for Phase 8 Control Plane, Sender Management, QR Authentication & Readiness."""
 
-import pytest
 from playwright.sync_api import Page
 
 from app.domain.enums import Channel, SenderStatus
@@ -54,6 +53,7 @@ def test_phase8_readiness_modal_on_blocked_start(browser_page: Page):
     with SessionFactory() as session:
         from app.domain.enums import CampaignStatus
         from app.services.campaign_service import CampaignService
+
         camp_svc = CampaignService(session)
         for c in camp_svc.campaign_repo.list_all():
             c.status = CampaignStatus.IDLE
@@ -89,4 +89,3 @@ def test_phase8_readiness_modal_on_blocked_start(browser_page: Page):
         page.wait_for_selector(".toast", timeout=5000)
 
     page.click("#senders-modal .modal-close-btn")
-

@@ -1,18 +1,13 @@
 """Unit tests for Phase 8 Company-level status calculation and CRM status management."""
 
-import pytest
-from datetime import datetime, timezone
-
-from app.domain.company import Company, calculate_company_status
+from app.domain.company import calculate_company_status
 from app.domain.contact import Contact
-from app.domain.endpoint import CommunicationEndpoint
-from app.domain.enums import AttemptType, Channel, CompanyStatus, CRMOutcome, OutreachStatus
+from app.domain.enums import AttemptType, Channel, CompanyStatus, CRMOutcome
 from app.domain.outreach_attempt import OutreachAttempt
 
 
 def test_company_status_not_contacted():
     """Verify company status is NOT_CONTACTED when 0 endpoints are contacted."""
-    c = Company.create(name="Acme Corp", company_id="acme")
     hr1 = Contact(
         contact_id="acme_hr1",
         company_id="acme",
@@ -34,7 +29,6 @@ def test_company_status_not_contacted():
 
 def test_company_status_in_progress():
     """Verify company status is IN_PROGRESS when at least 1 endpoint is contacted but coverage incomplete."""
-    c = Company.create(name="Beta Inc", company_id="beta")
     hr1 = Contact(
         contact_id="beta_hr1",
         company_id="beta",

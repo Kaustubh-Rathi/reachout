@@ -14,7 +14,6 @@ import random
 import threading
 import time
 from collections import defaultdict, deque
-from datetime import datetime, timezone
 from typing import Deque, Dict, Optional, Tuple
 
 
@@ -172,16 +171,6 @@ class RateLimiter:
             time.sleep(sleep_step)
         return False
 
-    def reset_sender(self, sender_id: str) -> None:
-        """Reset internal rate limiter state for a sender."""
-        with self._lock:
-            self._last_send_time.pop(sender_id, None)
-            self._sender_busy.pop(sender_id, None)
-            self._consecutive_failures.pop(sender_id, None)
-            self._backoff_until.pop(sender_id, None)
-            self._target_delay.pop(sender_id, None)
-            self._dispatch_history.pop(sender_id, None)
-
     def reset(self) -> None:
         """Clear all pacing, backoff, and concurrency state for every sender."""
         with self._lock:
@@ -191,10 +180,6 @@ class RateLimiter:
             self._backoff_until.clear()
             self._dispatch_history.clear()
             self._target_delay.clear()
-
-    def is_sender_busy(self, sender_id: str) -> bool:
-        with self._lock:
-            return self._sender_busy[sender_id]
 
 
 # Canonical app-wide rate limiter shared between campaign scheduler and manual sends.

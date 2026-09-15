@@ -8,8 +8,6 @@ duplicate records, new companies, and respects deletion tombstones.
 from __future__ import annotations
 
 import re
-from collections import defaultdict
-from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -24,7 +22,7 @@ from app.infrastructure.repositories.sqlite_company_repository import SqliteComp
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
 from app.infrastructure.source.excel_reader import TabularSourceReader, clean_text
-from app.ports.source import SourceReader, SourceRow, SourceSynchronizer, SyncSummary
+from app.ports.source import SourceReader, SourceRow, SyncSummary
 
 CONTACT_SLOTS: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
     ("B", ("C", "D"), "contact_1"),
@@ -99,9 +97,7 @@ class DatabaseSourceSynchronizer:
         self.suppression_repo = SqliteSuppressionRepository(session)
         self.default_country_code = default_country_code
 
-    def sync_source(
-        self, source_path: str, sheet_name: Optional[str] = None
-    ) -> SyncSummary:
+    def sync_source(self, source_path: str, sheet_name: Optional[str] = None) -> SyncSummary:
         path = Path(source_path).resolve()
         raw_rows = self.reader.read_source(str(path), sheet_name)
 

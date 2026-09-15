@@ -17,7 +17,7 @@ from app.domain.enums import Channel, SenderStatus
 @dataclass
 class SenderAccount:
     """Represents an independent sender identity and its credentials/session context.
-    
+
     Attributes:
         id: Stable unique identifier for this sender account.
         channel: Communication channel (WHATSAPP, EMAIL).
@@ -32,6 +32,7 @@ class SenderAccount:
         daily_limit: Optional maximum number of messages per rolling 24h.
         hourly_limit: Optional maximum number of messages per rolling hour.
     """
+
     id: str
     channel: Channel
     provider: str

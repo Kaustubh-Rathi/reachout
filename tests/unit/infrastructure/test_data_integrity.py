@@ -14,19 +14,17 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Any
-import pytest
-from sqlalchemy import select, func
+
+from sqlalchemy import func, select
 
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import CRMOutcome, InterviewState, Channel, OutreachStatus
+from app.domain.enums import CRMOutcome, InterviewState
 from app.domain.source_record import SourceRecord
 from app.infrastructure.models import (
     CompanyModel,
     ContactModel,
     SourceRecordModel,
-    OutreachAttemptModel,
 )
 from app.infrastructure.source.excel_reader import TabularSourceReader
 
@@ -179,12 +177,20 @@ class TestDataIntegrityAndMigration:
         """Adding a new synthetic source row reconciles cleanly into the database."""
         comp = Company.create("Google")
         db_session.add(CompanyModel.from_domain(comp))
-        cnt1 = Contact(contact_id="cnt_g1", company_id=comp.id, name="Recruiter 1", phone="919000000001", email="recruiter1@google.com")
+        cnt1 = Contact(
+            contact_id="cnt_g1",
+            company_id=comp.id,
+            name="Recruiter 1",
+            phone="919000000001",
+            email="recruiter1@google.com",
+        )
         db_session.add(ContactModel.from_domain(cnt1))
         db_session.commit()
 
         new_phone = "919000000002"
-        cnt2 = Contact(contact_id="cnt_g2", company_id=comp.id, name="Recruiter 2", phone=new_phone, email="recruiter2@google.com")
+        cnt2 = Contact(
+            contact_id="cnt_g2", company_id=comp.id, name="Recruiter 2", phone=new_phone, email="recruiter2@google.com"
+        )
         src2 = SourceRecord.create(source_file="MNC_Final.xlsx", source_sheet="Sheet1", source_row=99)
         db_session.add(ContactModel.from_domain(cnt2))
         db_session.add(SourceRecordModel.from_domain(src2, contact_id=cnt2.contact_id))

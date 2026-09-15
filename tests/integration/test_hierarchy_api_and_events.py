@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, Channel, CRMOutcome, OutreachStatus
+from app.domain.enums import AttemptType, Channel
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
@@ -18,7 +17,6 @@ from app.infrastructure.repositories.sqlite_company_repository import SqliteComp
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.main import app
 from app.services.company_service import CompanyService
 from app.services.event_bus import event_bus
 
@@ -32,10 +30,20 @@ def hierarchy_session_factory(tmp_path):
     # Seed the senders referenced by the attempts' sender_account_id FK.
     with sf() as session:
         srepo = SqliteSenderRepository(session)
-        srepo.save(SenderAccount.create(sender_id="WA1", channel=Channel.WHATSAPP, provider="mock",
-                                        identity="+919899000000", display_name="WA1"))
-        srepo.save(SenderAccount.create(sender_id="EMAIL1", channel=Channel.EMAIL, provider="mock",
-                                        identity="email1@example.com", display_name="EMAIL1"))
+        srepo.save(
+            SenderAccount.create(
+                sender_id="WA1", channel=Channel.WHATSAPP, provider="mock", identity="+919899000000", display_name="WA1"
+            )
+        )
+        srepo.save(
+            SenderAccount.create(
+                sender_id="EMAIL1",
+                channel=Channel.EMAIL,
+                provider="mock",
+                identity="email1@example.com",
+                display_name="EMAIL1",
+            )
+        )
         session.commit()
     return sf
 
@@ -52,13 +60,15 @@ def test_company_hierarchy_endpoint(hierarchy_session_factory):
         # Company 1: IN_PROGRESS (1 out of 2 endpoints contacted)
         c1 = Company.create(name="Netflix", company_id="netflix")
         comp_repo.save(c1)
-        cnt_repo.save(Contact(
-            contact_id="cnt_netflix_hr1",
-            company_id="netflix",
-            name="Reed Hastings",
-            phone="+919899000001",
-            email="reed@netflix.com",
-        ))
+        cnt_repo.save(
+            Contact(
+                contact_id="cnt_netflix_hr1",
+                company_id="netflix",
+                name="Reed Hastings",
+                phone="+919899000001",
+                email="reed@netflix.com",
+            )
+        )
 
         # Attempt to phone only
         att1 = OutreachAttempt.prepare(
@@ -75,13 +85,15 @@ def test_company_hierarchy_endpoint(hierarchy_session_factory):
         # Company 2: CONTACTED (1 out of 1 endpoint contacted)
         c2 = Company.create(name="Spotify", company_id="spotify")
         comp_repo.save(c2)
-        cnt_repo.save(Contact(
-            contact_id="cnt_spotify_hr1",
-            company_id="spotify",
-            name="Daniel Ek",
-            phone="",
-            email="daniel@spotify.com",
-        ))
+        cnt_repo.save(
+            Contact(
+                contact_id="cnt_spotify_hr1",
+                company_id="spotify",
+                name="Daniel Ek",
+                phone="",
+                email="daniel@spotify.com",
+            )
+        )
         att2 = OutreachAttempt.prepare(
             contact_id="cnt_spotify_hr1",
             sender_account_id="EMAIL1",
@@ -130,11 +142,14 @@ def test_event_bus_bridge_and_event_publishing():
 
     try:
         # Publish event on domain bus
-        event = event_bus.publish_event("OUTREACH_SENT", {
-            "contact_id": "cnt_101",
-            "destination": "919876543210",
-            "channel": "WHATSAPP",
-        })
+        event = event_bus.publish_event(
+            "OUTREACH_SENT",
+            {
+                "contact_id": "cnt_101",
+                "destination": "919876543210",
+                "channel": "WHATSAPP",
+            },
+        )
 
         assert event.event_type == "OUTREACH_SENT"
         assert event.payload["destination"] == "919876543210"

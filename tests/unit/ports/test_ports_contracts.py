@@ -1,27 +1,17 @@
 """Unit tests verifying Port Contracts and Protocol conformance with in-memory adapters."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Sequence
-import pytest
 
 from app.domain import (
     AttemptType,
-    Campaign,
-    CampaignStatus,
     Channel,
     Company,
     Contact,
-    CRMOutcome,
-    FollowUpReminder,
-    InterviewState,
-    MessageTemplate,
     OutreachAttempt,
     OutreachStatus,
-    SenderAccount,
-    SourceRecord,
 )
 from app.ports import (
-    CampaignRepository,
     Clock,
     CompanyRepository,
     ContactRepository,
@@ -32,18 +22,9 @@ from app.ports import (
     OutreachRepository,
     ProviderSendResult,
     ProviderStatusResult,
-    ReminderRepository,
-    Scheduler,
-    SenderRepository,
-    SourceReader,
-    SourceRow,
-    SourceSynchronizer,
-    SyncSummary,
     SystemClock,
-    TemplateRepository,
     WhatsAppProvider,
 )
-
 
 # --- In-Memory Implementations for Contract Testing ---
 

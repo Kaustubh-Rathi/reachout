@@ -6,6 +6,7 @@ Handles message templates configuration, channel filtering, and editing.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -112,7 +113,7 @@ def create_template(payload: CreateTemplateRequest, session: Session = Depends(g
             "active": t.active,
         }
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.put("/{template_id}")

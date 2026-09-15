@@ -24,6 +24,7 @@ DB_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH.as_posix()}
 
 class Base(DeclarativeBase):
     """Declarative base for all SQLAlchemy ORM models."""
+
     pass
 
 
@@ -69,4 +70,5 @@ def init_db(target_engine: Engine = engine) -> None:
     """Create all database tables if they do not exist."""
     # Import all models to ensure they are registered with Base.metadata
     import app.infrastructure.models  # noqa: F401
+
     Base.metadata.create_all(bind=target_engine)

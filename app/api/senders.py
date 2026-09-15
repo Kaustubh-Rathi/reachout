@@ -7,6 +7,7 @@ Never exposes credentials, passwords, tokens, or session secrets.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -86,7 +87,7 @@ def configure_whatsapp_sessions(
     try:
         return svc.configure_whatsapp_sessions(payload.count)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/whatsapp/{sender_id}/auth/start")
@@ -96,7 +97,7 @@ def start_whatsapp_auth(sender_id: str, session: Session = Depends(get_session))
     try:
         return svc.start_whatsapp_authentication(sender_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/whatsapp/{sender_id}/auth/status")
@@ -106,15 +107,11 @@ def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_sess
     try:
         return svc.get_whatsapp_auth_status(sender_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-
-
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/email/configure")
-def configure_email_sender(
-    payload: ConfigureEmailRequest, session: Session = Depends(get_session)
-) -> Dict[str, Any]:
+def configure_email_sender(payload: ConfigureEmailRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
     """Configure or register an Email sender identity and optionally test credentials."""
     svc = SenderService(session)
     try:
@@ -129,7 +126,7 @@ def configure_email_sender(
             verify_now=payload.verify_now if payload.verify_now is not None else True,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/email/{sender_id}/verify")
@@ -139,7 +136,7 @@ def verify_email_sender(sender_id: str, session: Session = Depends(get_session))
     try:
         return svc.verify_email_sender(sender_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("")
@@ -184,7 +181,7 @@ def update_sender_status(
             raise HTTPException(status_code=404, detail=f"Sender '{sender_id}' not found")
         return updated
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("")
@@ -205,7 +202,7 @@ def create_sender(payload: CreateSenderRequest, session: Session = Depends(get_s
             hourly_limit=payload.hourly_limit,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/{sender_id}/deactivate")
@@ -236,5 +233,3 @@ def delete_sender(sender_id: str, session: Session = Depends(get_session)) -> Di
     if not success:
         raise HTTPException(status_code=404, detail=f"Sender account '{sender_id}' not found")
     return {"message": f"Sender '{sender_id}' deactivated and removed from active rotation", "sender_id": sender_id}
-
-

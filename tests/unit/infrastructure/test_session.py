@@ -11,10 +11,6 @@ Verifies system resilience against realistic provider and session failure scenar
 
 from __future__ import annotations
 
-import datetime
-from datetime import timezone
-import pytest
-
 from app.domain.campaign import Campaign
 from app.domain.contact import Contact
 from app.domain.enums import (
@@ -26,13 +22,15 @@ from app.domain.enums import (
 )
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
-from app.ports.providers import ProviderSendResult, ProviderStatusResult
+from app.ports.providers import ProviderSendResult
 
 
 class TestSessionAndFailureHandling:
     """Suite testing provider session lifecycles, error handling, and recovery."""
 
-    def test_authenticated_session_succeeds(self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider):
+    def test_authenticated_session_succeeds(
+        self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider
+    ):
         """Authenticated WhatsApp session successfully dispatches and records sent state."""
         assert sample_sender.status == SenderStatus.ACTIVE
 
@@ -63,12 +61,6 @@ class TestSessionAndFailureHandling:
         campaign = Campaign.create(name="August Sprint", channel=Channel.WHATSAPP)
         campaign.start()
         assert campaign.status == CampaignStatus.RUNNING
-
-        # Provider result
-        provider_result = ProviderSendResult.failed(
-            failure_code="ERR_AUTH_REQUIRED",
-            failure_detail="WhatsApp Web requires QR code scan.",
-        )
 
         # Transition sender to DISCONNECTED
         sender.mark_status(SenderStatus.DISCONNECTED)
@@ -116,18 +108,17 @@ class TestSessionAndFailureHandling:
 
     def test_rate_limited_provider_triggers_sender_cooldown(self, sample_contact: Contact):
         """Provider returning 429 / rate limit transitions sender to RATE_LIMITED."""
-        sender = SenderAccount.create(channel=Channel.EMAIL, provider="SMTP_GMAIL", identity="user@gmail.com", display_name="EM")
-
-        rate_limit_result = ProviderSendResult.failed(
-            failure_code="ERR_RATE_LIMITED",
-            failure_detail="450 4.2.1 The user you are trying to contact is receiving mail at a rate that prevents additional messages.",
+        sender = SenderAccount.create(
+            channel=Channel.EMAIL, provider="SMTP_GMAIL", identity="user@gmail.com", display_name="EM"
         )
 
         sender.mark_status(SenderStatus.RATE_LIMITED)
         assert sender.status == SenderStatus.RATE_LIMITED
         assert sender.status.is_usable is False
 
-    def test_crash_recovery_of_interrupted_sending_attempts(self, sample_contact: Contact, sample_sender: SenderAccount):
+    def test_crash_recovery_of_interrupted_sending_attempts(
+        self, sample_contact: Contact, sample_sender: SenderAccount
+    ):
         """Attempts left in SENDING or PREPARED after process crash are flagged for recovery."""
         # Simulated orphaned attempt left in DB during sudden crash
         orphaned_attempt = OutreachAttempt.prepare(
@@ -144,9 +135,7 @@ class TestSessionAndFailureHandling:
         # Crash recovery scanner runs on process startup
         def recover_orphaned_attempt(att: OutreachAttempt) -> None:
             if att.status in (OutreachStatus.SENDING, OutreachStatus.PREPARED):
-                att.mark_recovery_required(
-                    reason="Process restart detected attempt left in unconfirmed SENDING state."
-                )
+                att.mark_recovery_required(reason="Process restart detected attempt left in unconfirmed SENDING state.")
 
         recover_orphaned_attempt(orphaned_attempt)
         assert orphaned_attempt.status == OutreachStatus.RECOVERY_REQUIRED

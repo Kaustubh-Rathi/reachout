@@ -1,6 +1,5 @@
 """Integration tests for domain events publishing, filtering, and subscription bus."""
 
-import pytest
 from app.infrastructure.events.event_bus import EventBus
 from app.ports.infrastructure import DomainEvent, EventPublisher
 

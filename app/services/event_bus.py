@@ -7,9 +7,8 @@ from __future__ import annotations
 
 from app.infrastructure.events.event_bus import (
     EventBus,
-    InMemoryEventBus,
     default_event_bus,
     event_bus,
 )
 
-__all__ = ["EventBus", "InMemoryEventBus", "default_event_bus", "event_bus"]
+__all__ = ["EventBus", "default_event_bus", "event_bus"]

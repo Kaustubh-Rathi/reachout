@@ -11,40 +11,27 @@ from __future__ import annotations
 
 import os
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.domain.campaign import Campaign
-from app.domain.contact import Contact
 from app.domain.company import Company
-from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus, SenderStatus
+from app.domain.contact import Contact
+from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.events.event_bus import EventBus
-from app.infrastructure.models import (
-    CampaignModel,
-    CompanyModel,
-    ContactModel,
-    MessageTemplateModel,
-    OutreachAttemptModel,
-    SenderAccountModel,
-)
 from app.infrastructure.providers.factory import (
     create_email_provider,
     create_whatsapp_provider,
-    get_email_provider,
     get_whatsapp_provider,
     reset_provider_overrides,
-    set_email_provider,
     set_whatsapp_provider,
 )
-from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
-from app.ports.providers import ProviderSendResult, ProviderStatusResult
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
@@ -55,14 +42,14 @@ from app.infrastructure.repositories.sqlite_sender_repository import SqliteSende
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import (
     PersistentCampaignScheduler,
-    get_campaign_scheduler,
     reset_campaign_scheduler,
-    set_campaign_scheduler,
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.providers import ProviderSendResult, ProviderStatusResult
 from app.services.campaign_service import CampaignService
 from app.services.outreach_service import OutreachService
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
 
 @pytest.fixture
@@ -250,13 +237,17 @@ class TestP0OutreachServiceSendAndResend:
         # 1. First send
         with SessionFactory() as session:
             outreach_svc = OutreachService(session, whatsapp_provider=mock_wa)
-            res1 = outreach_svc.send_whatsapp(contact_id="cnt_wa_resend", sender_id="WA-001", custom_body="First message")
+            res1 = outreach_svc.send_whatsapp(
+                contact_id="cnt_wa_resend", sender_id="WA-001", custom_body="First message"
+            )
             assert res1["success"] is True
 
         # 2. Resend
         with SessionFactory() as session:
             outreach_svc = OutreachService(session, whatsapp_provider=mock_wa)
-            res2 = outreach_svc.resend_whatsapp(contact_id="cnt_wa_resend", sender_id="WA-001", custom_body="Follow-up note")
+            res2 = outreach_svc.resend_whatsapp(
+                contact_id="cnt_wa_resend", sender_id="WA-001", custom_body="Follow-up note"
+            )
             assert res2["success"] is True
             assert res2["attempt_type"] == "RESEND"
             assert res2["attempt_id"] != res1["attempt_id"]
@@ -365,10 +356,22 @@ class TestSchedulerUnificationAndDelegation:
             for slug in ["apple", "amazon"]:
                 comp_repo.save(Company.create(name=slug.title(), company_id=slug))
                 for i in [1, 2]:
-                    contact_repo.save(Contact(contact_id=f"cnt_{slug}_{i}", company_id=slug, name=f"{slug}_{i}", phone=f"+1000000{i}"))
+                    contact_repo.save(
+                        Contact(contact_id=f"cnt_{slug}_{i}", company_id=slug, name=f"{slug}_{i}", phone=f"+1000000{i}")
+                    )
 
-            tmpl_repo.save(MessageTemplate.create(template_id="t1", name="T1", channel=Channel.WHATSAPP, body="Hello {name}"))
-            sender_repo.save(SenderAccount.create(sender_id="WA-001", channel=Channel.WHATSAPP, provider="mock", identity="+91001", display_name="Line 1"))
+            tmpl_repo.save(
+                MessageTemplate.create(template_id="t1", name="T1", channel=Channel.WHATSAPP, body="Hello {name}")
+            )
+            sender_repo.save(
+                SenderAccount.create(
+                    sender_id="WA-001",
+                    channel=Channel.WHATSAPP,
+                    provider="mock",
+                    identity="+91001",
+                    display_name="Line 1",
+                )
+            )
             session.commit()
 
         # Create and start campaign via CampaignService
@@ -412,8 +415,12 @@ class TestStartupCrashRecovery:
                     display_name="WA Primary Line",
                 )
             )
-            contact_repo.save(Contact(contact_id="cnt_01", company_id="stripe", name="Patrick Collison", phone="+14150000001"))
-            contact_repo.save(Contact(contact_id="cnt_02", company_id="stripe", name="John Collison", phone="+14150000002"))
+            contact_repo.save(
+                Contact(contact_id="cnt_01", company_id="stripe", name="Patrick Collison", phone="+14150000001")
+            )
+            contact_repo.save(
+                Contact(contact_id="cnt_02", company_id="stripe", name="John Collison", phone="+14150000002")
+            )
 
             # Create an in-flight campaign
             camp = Campaign.create(name="Crashed Campaign", channel=Channel.WHATSAPP, campaign_id="cmp_crash_01")
@@ -470,6 +477,7 @@ class TestStartupCrashRecovery:
 
 class MockFastWhatsAppProvider:
     """Mock provider with call tracking."""
+
     def __init__(self):
         self.dispatched = []
 

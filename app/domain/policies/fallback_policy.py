@@ -10,32 +10,12 @@ Coordinates multi-channel fallback decisions when a primary channel is unavailab
 
 from __future__ import annotations
 
-from typing import Container, List, Optional, Sequence
+from typing import Container, Optional, Sequence
 
 from app.domain.contact import Contact
 from app.domain.enums import Channel, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
-
-
-# Failure codes where fallback to an alternative channel is safe and allowed (definitive recipient/destination failures)
-DEFINITIVE_FALLBACK_REASONS = {
-    "MISSING_PHONE_NUMBER",
-    "INVALID_PHONE_NUMBER",
-    "ERR_PHONE_NOT_ON_WHATSAPP",
-    "ERR_NOT_ON_WHATSAPP",
-    "ERR_INVALID_RECIPIENT",
-    "ERR_PHONE_UNAVAILABLE",
-    "ERR_PERMANENT_REJECTION",
-    "ERR_RECIPIENT_INVALID",
-    "ERR_USER_NOT_FOUND",
-    "ERR_NUMBER_NOT_REGISTERED",
-    "MISSING_EMAIL_ADDRESS",
-    "INVALID_EMAIL_ADDRESS",
-    "ERR_EMAIL_UNAVAILABLE",
-    "ERR_INVALID_EMAIL",
-    "ERR_RECIPIENT_REFUSED",
-}
 
 # Ambiguous statuses that MUST NOT trigger automatic fallback
 AMBIGUOUS_BLOCKED_STATUSES = {

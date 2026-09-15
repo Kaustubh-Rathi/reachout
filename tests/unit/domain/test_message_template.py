@@ -1,7 +1,5 @@
 """Unit tests for MessageTemplate domain entity and rendering."""
 
-import pytest
-
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import Channel

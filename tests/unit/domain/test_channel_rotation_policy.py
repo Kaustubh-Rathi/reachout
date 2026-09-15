@@ -1,8 +1,7 @@
 """Unit tests for ChannelRotationPolicy in Phase 7."""
 
-import pytest
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
+from app.domain.enums import AttemptType, Channel, SenderStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.channel_rotation_policy import ChannelRotationPolicy
 from app.domain.sender_account import SenderAccount

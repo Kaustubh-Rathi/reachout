@@ -43,7 +43,7 @@ def extract_first_name(full_name: str) -> str:
 @dataclass
 class Contact:
     """Represents an outreach prospect or lead.
-    
+
     Attributes:
         contact_id: Immutable unique identifier for the contact.
         company_id: Foreign reference to associated Company entity.
@@ -64,6 +64,7 @@ class Contact:
         notes: User/system notes regarding this contact.
         tags: List of categorization tags.
     """
+
     contact_id: str
     company_id: str
     name: str
@@ -108,13 +109,6 @@ class Contact:
         """Construct all discrete communication endpoints for this contact."""
         return extract_endpoints_from_raw(self.phone, self.email)
 
-    def get_endpoints(self, channel: Optional[Channel] = None) -> List[CommunicationEndpoint]:
-        """Retrieve communication endpoints, optionally filtered by channel."""
-        all_eps = self.endpoints
-        if channel is None:
-            return all_eps
-        return [ep for ep in all_eps if ep.channel == channel]
-
     @property
     def primary_phone(self) -> Optional[str]:
         """First normalized phone number or None."""
@@ -138,9 +132,7 @@ class Contact:
         target = self.primary_phone or self.primary_email or self.contact_id
         return f"{self.company_id.strip().lower()}|{target}"
 
-    def update_crm_outcome(
-        self, outcome: CRMOutcome, timestamp: Optional[datetime] = None
-    ) -> None:
+    def update_crm_outcome(self, outcome: CRMOutcome, timestamp: Optional[datetime] = None) -> None:
         """Transition CRM outcome with automatic interested_at milestone management."""
         now = timestamp or datetime.now(timezone.utc)
         prev = self.crm_outcome
@@ -157,9 +149,7 @@ class Contact:
         elif outcome != CRMOutcome.INTERESTED and prev == CRMOutcome.INTERESTED:
             pass
 
-    def update_interview_status(
-        self, status: InterviewState, timestamp: Optional[datetime] = None
-    ) -> None:
+    def update_interview_status(self, status: InterviewState, timestamp: Optional[datetime] = None) -> None:
         """Transition interview workflow state."""
         now = timestamp or datetime.now(timezone.utc)
         self.interview_status = status
@@ -167,9 +157,7 @@ class Contact:
         self.updated_at = now
         self.last_activity_at = now
 
-    def record_outreach_success(
-        self, channel: Channel, timestamp: Optional[datetime] = None
-    ) -> None:
+    def record_outreach_success(self, channel: Channel, timestamp: Optional[datetime] = None) -> None:
         """Record successful message delivery across a specific channel."""
         now = timestamp or datetime.now(timezone.utc)
         if channel == Channel.WHATSAPP:
@@ -188,4 +176,3 @@ class Contact:
         if channel == Channel.EMAIL:
             return self.last_email_at is not None
         return False
-

@@ -1,7 +1,6 @@
 """Unit tests for SourceRecord domain model and source lineage."""
 
-from datetime import datetime, timezone, timedelta
-import pytest
+from datetime import datetime, timedelta, timezone
 
 from app.domain.source_record import SourceRecord, compute_source_fingerprint
 

@@ -8,22 +8,20 @@ Never uses FakeWhatsAppProvider or simulated references.
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
+from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.models import (
     MessageTemplateModel,
-    OutreachAttemptModel,
-    SenderAccountModel,
 )
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager

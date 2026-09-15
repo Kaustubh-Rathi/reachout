@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from datetime import datetime, timezone
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -18,7 +19,6 @@ from app.infrastructure.repositories.sqlite_company_repository import SqliteComp
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.services.sync_service import SyncService
 from app.services.template_service import TemplateService
 
@@ -176,8 +176,16 @@ def test_excel_sync_preserves_history_timestamps_and_crm_status(sync_test_sessio
         assert "rohit.alt@oracle.com" in rohit.email
 
         # Critical: Timestamps and CRM states MUST be strictly preserved!
-        assert (rohit.last_whatsapp_at.replace(tzinfo=timezone.utc) if rohit.last_whatsapp_at.tzinfo is None else rohit.last_whatsapp_at) == ts_wa
-        assert (rohit.last_email_at.replace(tzinfo=timezone.utc) if rohit.last_email_at.tzinfo is None else rohit.last_email_at) == ts_em
+        assert (
+            rohit.last_whatsapp_at.replace(tzinfo=timezone.utc)
+            if rohit.last_whatsapp_at.tzinfo is None
+            else rohit.last_whatsapp_at
+        ) == ts_wa
+        assert (
+            rohit.last_email_at.replace(tzinfo=timezone.utc)
+            if rohit.last_email_at.tzinfo is None
+            else rohit.last_email_at
+        ) == ts_em
         assert rohit.crm_outcome == CRMOutcome.INTERESTED
         assert rohit.interview_status == InterviewState.INTERVIEW
         assert rohit.designation == "Director - Talent Acquisition"

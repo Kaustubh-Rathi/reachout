@@ -1,7 +1,7 @@
 from app.domain.policies.channel_rotation_policy import (
+    DEFAULT_ROTATION_SEQUENCE,
     ChannelDispatchDecision,
     ChannelRotationPolicy,
-    DEFAULT_ROTATION_SEQUENCE,
 )
 from app.domain.policies.duplicate_policy import (
     EligibilityResult,
@@ -16,10 +16,7 @@ from app.domain.policies.endpoint_coverage_policy import (
     is_contact_fully_covered,
     is_endpoint_covered,
 )
-from app.domain.policies.fallback_policy import (
-    ChannelFallbackPolicy,
-    DEFINITIVE_FALLBACK_REASONS,
-)
+from app.domain.policies.fallback_policy import ChannelFallbackPolicy
 from app.domain.policies.prioritization import (
     CompanyRoundMetrics,
     ContactPrioritizer,
@@ -57,7 +54,6 @@ __all__ = [
     "select_template_deterministic",
     "SenderRotationPolicy",
     "ChannelFallbackPolicy",
-    "DEFINITIVE_FALLBACK_REASONS",
     "ChannelRotationPolicy",
     "ChannelDispatchDecision",
     "DEFAULT_ROTATION_SEQUENCE",

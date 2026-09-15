@@ -16,9 +16,8 @@ from __future__ import annotations
 
 import datetime
 from datetime import timedelta, timezone
-from typing import List
-import pytest
-from sqlalchemy import create_engine, select, func
+
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -31,16 +30,13 @@ from app.domain.enums import (
     Channel,
     CRMOutcome,
     InterviewState,
-    OutreachStatus,
     ReminderStatus,
-    SenderStatus,
 )
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.prioritization import prioritize_company_first
 from app.domain.policies.reminder_policy import check_contact_follow_up_eligibility, generate_due_reminders
 from app.domain.policies.resend_policy import prepare_manual_resend
-from app.domain.reminder import FollowUpReminder
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.models import (
@@ -52,7 +48,6 @@ from app.infrastructure.models import (
     OutreachAttemptModel,
     SenderAccountModel,
 )
-from app.ports.providers import ProviderSendResult, WhatsAppProvider
 
 
 class TestOperationalLifecycleWorkflow:
@@ -79,11 +74,33 @@ class TestOperationalLifecycleWorkflow:
         session.flush()
 
         contacts = [
-            Contact(contact_id="cnt_e2e_1", company_id=comp_a.id, name="Alice (Google)", phone="919001", email="alice@google.com"),
-            Contact(contact_id="cnt_e2e_2", company_id=comp_a.id, name="Bob (Google)", phone="919002", email="bob@google.com"),
-            Contact(contact_id="cnt_e2e_3", company_id=comp_b.id, name="Charlie (MS)", phone="919003", email="charlie@ms.com"),
-            Contact(contact_id="cnt_e2e_4", company_id=comp_c.id, name="Diana (AWS)", phone="919004", email="diana@aws.com"),
-            Contact(contact_id="cnt_e2e_5", company_id=comp_c.id, name="Evan (AWS)", phone="919005", email="evan@aws.com"),
+            Contact(
+                contact_id="cnt_e2e_1",
+                company_id=comp_a.id,
+                name="Alice (Google)",
+                phone="919001",
+                email="alice@google.com",
+            ),
+            Contact(
+                contact_id="cnt_e2e_2",
+                company_id=comp_a.id,
+                name="Bob (Google)",
+                phone="919002",
+                email="bob@google.com",
+            ),
+            Contact(
+                contact_id="cnt_e2e_3",
+                company_id=comp_b.id,
+                name="Charlie (MS)",
+                phone="919003",
+                email="charlie@ms.com",
+            ),
+            Contact(
+                contact_id="cnt_e2e_4", company_id=comp_c.id, name="Diana (AWS)", phone="919004", email="diana@aws.com"
+            ),
+            Contact(
+                contact_id="cnt_e2e_5", company_id=comp_c.id, name="Evan (AWS)", phone="919005", email="evan@aws.com"
+            ),
         ]
         session.add_all([ContactModel.from_domain(c) for c in contacts])
 
@@ -168,7 +185,8 @@ class TestOperationalLifecycleWorkflow:
         alice_m = session.scalar(select(ContactModel).where(ContactModel.name == "Alice (Google)"))
         alice_domain = alice_m.to_domain()
         alice_attempts = [
-            m.to_domain() for m in session.scalars(
+            m.to_domain()
+            for m in session.scalars(
                 select(OutreachAttemptModel).where(OutreachAttemptModel.contact_id == alice_domain.contact_id)
             ).all()
         ]
@@ -182,14 +200,18 @@ class TestOperationalLifecycleWorkflow:
         )
         manual_resend.mark_sending()
 
-        resend_result = mock_wa_provider.send_message(manual_resend, alice_domain.phone, manual_resend.message_body_snapshot)
+        resend_result = mock_wa_provider.send_message(
+            manual_resend, alice_domain.phone, manual_resend.message_body_snapshot
+        )
         manual_resend.mark_sent(resend_result.provider_reference)
         session.add(OutreachAttemptModel.from_domain(manual_resend))
         session.commit()
 
         # Alice now has 2 historical attempts (attempt 1 and attempt 2)
         alice_total_attempts = session.scalar(
-            select(func.count(OutreachAttemptModel.id)).where(OutreachAttemptModel.contact_id == alice_domain.contact_id)
+            select(func.count(OutreachAttemptModel.id)).where(
+                OutreachAttemptModel.contact_id == alice_domain.contact_id
+            )
         )
         assert alice_total_attempts == 2
 

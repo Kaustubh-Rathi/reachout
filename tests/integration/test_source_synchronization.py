@@ -3,21 +3,17 @@
 import csv
 import hashlib
 from datetime import datetime, timezone
-from pathlib import Path
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.domain.company import Company
-from app.domain.contact import Contact
 from app.domain.enums import Channel, CRMOutcome
 from app.infrastructure.database import Base
 from app.infrastructure.repositories import (
     SqliteCompanyRepository,
     SqliteContactRepository,
-    SqliteSuppressionRepository,
 )
-from app.infrastructure.source.excel_reader import TabularSourceReader
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 
 
@@ -104,7 +100,9 @@ class TestSourceSynchronization:
         with source_csv.open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["company", "name", "phone", "email"])
             writer.writeheader()
-            writer.writerow({"company": "Uber", "name": "Dara Khosrowshahi", "phone": "919999999999", "email": "dara@uber.com"})
+            writer.writerow(
+                {"company": "Uber", "name": "Dara Khosrowshahi", "phone": "919999999999", "email": "dara@uber.com"}
+            )
 
         summary2 = synchronizer.sync_source(str(source_csv))
         assert summary2.updated_contacts == 1

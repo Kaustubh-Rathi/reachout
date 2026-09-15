@@ -1,6 +1,7 @@
 """Unit tests for Campaign domain entity and lifecycle state machine."""
 
 from datetime import datetime, timezone
+
 import pytest
 
 from app.domain.campaign import Campaign
@@ -65,7 +66,7 @@ class TestCampaignModel:
 
     def test_invalid_transitions_raise_error(self):
         camp = Campaign.create(name="Batch D", channel=Channel.WHATSAPP)
-        
+
         # Cannot pause while IDLE
         with pytest.raises(ValueError, match="Cannot pause"):
             camp.pause()

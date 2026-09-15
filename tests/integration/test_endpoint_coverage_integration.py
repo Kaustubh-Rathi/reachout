@@ -15,7 +15,6 @@ from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOut
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.services.contact_service import ContactService
-from app.services.sender_service import SenderService
 from app.services.template_service import TemplateService
 
 
@@ -31,14 +30,24 @@ def isolated_session_factory(tmp_path):
         # active placeholder senders explicitly for the campaign scheduler.
         srepo = SqliteSenderRepository(session)
         for i in (1, 2):
-            wa = SenderAccount.create(channel=Channel.WHATSAPP, provider="playwright_whatsapp",
-                                      identity=f"+91900000000{i}", display_name=f"WA{i}",
-                                      sender_id=f"WA{i}", daily_limit=100)
+            wa = SenderAccount.create(
+                channel=Channel.WHATSAPP,
+                provider="playwright_whatsapp",
+                identity=f"+91900000000{i}",
+                display_name=f"WA{i}",
+                sender_id=f"WA{i}",
+                daily_limit=100,
+            )
             wa.status = SenderStatus.ACTIVE
             srepo.save(wa)
-            em = SenderAccount.create(channel=Channel.EMAIL, provider="smtp",
-                                      identity=f"sender{i}@example.com", display_name=f"EM{i}",
-                                      sender_id=f"EMAIL{i}", daily_limit=100)
+            em = SenderAccount.create(
+                channel=Channel.EMAIL,
+                provider="smtp",
+                identity=f"sender{i}@example.com",
+                display_name=f"EM{i}",
+                sender_id=f"EMAIL{i}",
+                daily_limit=100,
+            )
             em.status = SenderStatus.ACTIVE
             srepo.save(em)
         session.commit()
@@ -47,7 +56,7 @@ def isolated_session_factory(tmp_path):
 
 def test_phase7_multi_endpoint_dry_run_round_robin(isolated_session_factory):
     """Deterministic Dry Run: 5 companies, multi-endpoint HR contacts.
-    
+
     Verifies:
     1. Company-first round-robin ordering across C1..C5.
     2. Dynamic Channel Rotation (WA, WA, EMAIL, EMAIL...).
@@ -159,8 +168,5 @@ def test_phase7_multi_endpoint_dry_run_round_robin(isolated_session_factory):
         # Verify company-first round robin ordering across initial attempts:
         # First 5 attempts should touch C1, C2, C3, C4, C5 before repeating companies
         first_5_attempts = all_attempts[:5]
-        first_5_companies = [
-            contact_repo.get_by_id(att.contact_id).company_id
-            for att in first_5_attempts
-        ]
+        first_5_companies = [contact_repo.get_by_id(att.contact_id).company_id for att in first_5_attempts]
         assert len(set(first_5_companies)) == 5

@@ -20,7 +20,6 @@ Lifecycle (matching the no-fake-row refactor):
 from __future__ import annotations
 
 import base64
-import os
 import shutil
 import threading
 import time
@@ -214,7 +213,9 @@ class WhatsAppSessionManager:
                 page.goto("https://web.whatsapp.com", wait_until="domcontentloaded", timeout=timeout_seconds * 1000)
 
                 main_ui = page.locator('#side, [data-testid="chat-list"], [aria-label="Search input textbox"]')
-                qr_canvas = page.locator('canvas[aria-label="Scan this QR code to link a device"], div[data-ref], canvas')
+                qr_canvas = page.locator(
+                    'canvas[aria-label="Scan this QR code to link a device"], div[data-ref], canvas'
+                )
 
                 try:
                     main_ui.first.wait_for(state="visible", timeout=timeout_seconds * 1000)
@@ -266,7 +267,12 @@ class WhatsAppSessionManager:
             if on_event_callback:
                 on_event_callback(
                     "sender.auth_progress",
-                    {"sender_id": sender_id, "channel": "WHATSAPP", "status": "AUTHENTICATING", "message": "Launching authentication browser..."},
+                    {
+                        "sender_id": sender_id,
+                        "channel": "WHATSAPP",
+                        "status": "AUTHENTICATING",
+                        "message": "Launching authentication browser...",
+                    },
                 )
 
             t = threading.Thread(
@@ -320,7 +326,9 @@ class WhatsAppSessionManager:
                 page.goto("https://web.whatsapp.com", wait_until="domcontentloaded", timeout=45000)
 
                 main_ui = page.locator('#side, [data-testid="chat-list"], [aria-label="Search input textbox"]')
-                qr_canvas = page.locator('canvas[aria-label="Scan this QR code to link a device"], div[data-ref], canvas')
+                qr_canvas = page.locator(
+                    'canvas[aria-label="Scan this QR code to link a device"], div[data-ref], canvas'
+                )
 
                 deadline = time.monotonic() + timeout_seconds
                 qr_emitted = False
@@ -362,7 +370,12 @@ class WhatsAppSessionManager:
                                 if callback:
                                     callback(
                                         "sender.status_changed",
-                                        {"sender_id": sender_id, "channel": "WHATSAPP", "status": "ACTIVE", "phone": phone},
+                                        {
+                                            "sender_id": sender_id,
+                                            "channel": "WHATSAPP",
+                                            "status": "ACTIVE",
+                                            "phone": phone,
+                                        },
                                     )
                                 return
 
@@ -392,7 +405,12 @@ class WhatsAppSessionManager:
                             if callback:
                                 callback(
                                     "sender.qr_received",
-                                    {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED", "qr_code": qr_data_url},
+                                    {
+                                        "sender_id": sender_id,
+                                        "channel": "WHATSAPP",
+                                        "status": "QR_REQUIRED",
+                                        "qr_code": qr_data_url,
+                                    },
                                 )
                                 callback(
                                     "sender.status_changed",
@@ -411,7 +429,12 @@ class WhatsAppSessionManager:
                     if callback:
                         callback(
                             "sender.status_changed",
-                            {"sender_id": sender_id, "channel": "WHATSAPP", "status": "AUTH_REQUIRED", "error": "Timeout"},
+                            {
+                                "sender_id": sender_id,
+                                "channel": "WHATSAPP",
+                                "status": "AUTH_REQUIRED",
+                                "error": "Timeout",
+                            },
                         )
                     # Abandoned temporary sessions leave no trace.
                     if is_temp:
@@ -433,7 +456,13 @@ class WhatsAppSessionManager:
             if callback:
                 callback(
                     "sender.status_changed",
-                    {"sender_id": final_id, "channel": "WHATSAPP", "status": "ACTIVE", "phone": phone, "temp_id": sender_id},
+                    {
+                        "sender_id": final_id,
+                        "channel": "WHATSAPP",
+                        "status": "ACTIVE",
+                        "phone": phone,
+                        "temp_id": sender_id,
+                    },
                 )
 
     # --------------------------------------------------------------- helpers

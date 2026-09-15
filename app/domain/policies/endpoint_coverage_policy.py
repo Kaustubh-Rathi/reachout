@@ -9,8 +9,6 @@ Answers domain questions regarding:
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass
 from typing import Any, Container, Dict, List, Optional, Sequence, Set
 
 from app.domain.contact import Contact

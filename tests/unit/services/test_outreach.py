@@ -12,30 +12,25 @@ from __future__ import annotations
 
 import datetime
 from datetime import timezone
-import pytest
 
-from app.domain.campaign import Campaign
-from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import (
     AttemptType,
-    CampaignStatus,
     Channel,
-    CRMOutcome,
     OutreachStatus,
 )
-from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
 from app.domain.policies.resend_policy import prepare_manual_resend
 from app.domain.sender_account import SenderAccount
-from app.ports.providers import ProviderSendResult, WhatsAppProvider, EmailProvider
 
 
 class TestOutreachLifecycleAndPolicies:
     """Suite verifying end-to-end outreach state machines, policies, and audit retention."""
 
-    def test_automatic_first_send_lifecycle(self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider):
+    def test_automatic_first_send_lifecycle(
+        self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider
+    ):
         """Standard automatic outreach follows PREPARED -> QUEUED -> SENDING -> SENT."""
         # 1. Evaluate eligibility
         eligibility = evaluate_automatic_eligibility(sample_contact, Channel.WHATSAPP)
@@ -151,7 +146,9 @@ class TestOutreachLifecycleAndPolicies:
         assert resend_attempt.id != attempt_1.id
         assert attempt_1.status == OutreachStatus.SENT  # Past attempt is unaltered
 
-    def test_failed_send_handling_permanent_vs_retryable(self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider):
+    def test_failed_send_handling_permanent_vs_retryable(
+        self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider
+    ):
         """Failed send transitions attempt to FAILED with failure codes and preserves contact state."""
         mock_wa_provider.fail_next_with = ("ERR_INVALID_NUMBER", "Phone number not registered on WhatsApp")
 
@@ -179,7 +176,9 @@ class TestOutreachLifecycleAndPolicies:
         assert attempt.failure_code == "ERR_INVALID_NUMBER"
         assert "Phone number not registered" in (attempt.failure_detail or "")
 
-    def test_unknown_external_result_blocks_automatic_resend(self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider):
+    def test_unknown_external_result_blocks_automatic_resend(
+        self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider
+    ):
         """If network crashes before ACK, attempt transitions to UNKNOWN and blocks blind resend."""
         mock_wa_provider.unknown_next = True
 
@@ -201,13 +200,13 @@ class TestOutreachLifecycleAndPolicies:
         assert attempt.status == OutreachStatus.UNKNOWN
 
         # Evaluator must block automatic queueing to prevent duplicate sending
-        eligibility = evaluate_automatic_eligibility(
-            sample_contact, Channel.WHATSAPP, historical_attempts=[attempt]
-        )
+        eligibility = evaluate_automatic_eligibility(sample_contact, Channel.WHATSAPP, historical_attempts=[attempt])
         assert eligibility.is_eligible is False
         assert "ATTEMPT_IN_FLIGHT_OR_RECOVERY" in eligibility.reason
 
-    def test_recovery_required_state_and_resolution(self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider):
+    def test_recovery_required_state_and_resolution(
+        self, sample_contact: Contact, sample_sender: SenderAccount, mock_wa_provider
+    ):
         """Partial side effect (e.g. text sent, PDF crashed) transitions to RECOVERY_REQUIRED and requires audit."""
         mock_wa_provider.recovery_required_next = True
 

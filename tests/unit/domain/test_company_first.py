@@ -9,9 +9,6 @@ Verifies the canonical round-robin company interleaving algorithm:
 
 from __future__ import annotations
 
-from typing import List
-import pytest
-
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.policies.prioritization import prioritize_company_first

@@ -6,7 +6,8 @@ conversation notes, and follow-up reminder evaluation.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -44,7 +45,7 @@ def update_status(payload: UpdateStatusRequest, session: Session = Depends(get_s
     try:
         return svc.update_status(payload.contact_id, payload.status)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/interested")
@@ -54,7 +55,7 @@ def mark_interested(payload: ContactActionRequest, session: Session = Depends(ge
     try:
         return svc.mark_interested(payload.contact_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/not-interested")
@@ -64,7 +65,7 @@ def mark_not_interested(payload: ContactActionRequest, session: Session = Depend
     try:
         return svc.mark_not_interested(payload.contact_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/interview")
@@ -74,7 +75,7 @@ def mark_interview(payload: ContactActionRequest, session: Session = Depends(get
     try:
         return svc.mark_interview(payload.contact_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/not-interview")
@@ -84,7 +85,7 @@ def mark_not_interview(payload: ContactActionRequest, session: Session = Depends
     try:
         return svc.mark_not_interview(payload.contact_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/notes")
@@ -94,7 +95,7 @@ def update_notes(payload: UpdateNotesRequest, session: Session = Depends(get_ses
     try:
         return svc.update_notes(payload.contact_id, payload.notes)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/reminders")

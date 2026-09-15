@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.config import DEFAULT_MESSAGE_BODY, DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE

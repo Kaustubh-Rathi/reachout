@@ -30,7 +30,7 @@ def compute_source_fingerprint(
 @dataclass(frozen=True)
 class SourceRecord:
     """Immutable provenance record linking domain entities to raw data sheets.
-    
+
     Attributes:
         source_file: Relative or base name of source file (e.g. 'MNC_Final.xlsx').
         source_sheet: Sheet or tab name if workbook (e.g. 'MNC_Cleaned').
@@ -39,6 +39,7 @@ class SourceRecord:
         first_seen_at: Timestamp when record was initially ingested.
         last_seen_at: Timestamp when record was most recently verified in source.
     """
+
     source_file: str
     source_sheet: Optional[str]
     source_row: int

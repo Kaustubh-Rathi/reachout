@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime
 from datetime import timedelta, timezone
+
 import pytest
 
 from app.domain.company import Company

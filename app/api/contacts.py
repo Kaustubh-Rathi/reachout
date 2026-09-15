@@ -7,58 +7,16 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Any, Dict, Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database import get_session
 from app.services.contact_service import ContactService
-from app.services.crm_service import CrmService
 
 router = APIRouter(prefix="/api/contacts", tags=["Contacts"])
-
-
-class ContactCreateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    company_id: str = Field(..., min_length=1, max_length=128)
-    name: str = Field(..., min_length=1, max_length=255)
-    designation: Optional[str] = Field("", max_length=255)
-    phone: Optional[str] = Field(None, max_length=32)
-    email: Optional[str] = Field(None, max_length=255)
-    notes: Optional[str] = Field("", max_length=5000)
-    tags: Optional[List[str]] = Field(default_factory=list)
-
-
-class ContactUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: Optional[str] = Field(None, max_length=255)
-    designation: Optional[str] = Field(None, max_length=255)
-    phone: Optional[str] = Field(None, max_length=32)
-    email: Optional[str] = Field(None, max_length=255)
-    notes: Optional[str] = Field(None, max_length=5000)
-    tags: Optional[List[str]] = None
-
-
-class LegacyContactUpdate(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    key: str
-    crm_status: Optional[str] = None
-    notes: Optional[str] = None
-    follow_up_date: Optional[str] = None
-    tags: Optional[List[str]] = None
-
-
-class LegacyBulkUpdate(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    keys: List[str]
-    crm_status: Optional[str] = None
-    tags: Optional[List[str]] = None
 
 
 @router.get("")
@@ -133,26 +91,39 @@ def export_contacts_csv(
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow([
-        "Company", "Name", "Designation", "Phone", "Email", "CRM Status",
-        "Interview Status", "Last Contacted", "Follow-up Due", "Interested At",
-        "Notes", "Source Row",
-    ])
+    writer.writerow(
+        [
+            "Company",
+            "Name",
+            "Designation",
+            "Phone",
+            "Email",
+            "CRM Status",
+            "Interview Status",
+            "Last Contacted",
+            "Follow-up Due",
+            "Interested At",
+            "Notes",
+            "Source Row",
+        ]
+    )
     for c in contacts:
-        writer.writerow([
-            c.get("company", ""),
-            c.get("name", ""),
-            c.get("designation", ""),
-            c.get("phone", ""),
-            c.get("email", ""),
-            c.get("crm_outcome", ""),
-            c.get("interview_status", ""),
-            c.get("last_contacted") or "",
-            c.get("follow_up_due_at") or "",
-            c.get("interested_at") or "",
-            c.get("notes", ""),
-            c.get("source_row", ""),
-        ])
+        writer.writerow(
+            [
+                c.get("company", ""),
+                c.get("name", ""),
+                c.get("designation", ""),
+                c.get("phone", ""),
+                c.get("email", ""),
+                c.get("crm_outcome", ""),
+                c.get("interview_status", ""),
+                c.get("last_contacted") or "",
+                c.get("follow_up_due_at") or "",
+                c.get("interested_at") or "",
+                c.get("notes", ""),
+                c.get("source_row", ""),
+            ]
+        )
 
     buffer.seek(0)
     return StreamingResponse(
@@ -160,6 +131,3 @@ def export_contacts_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=reachout_contacts.csv"},
     )
-
-
-

@@ -14,35 +14,24 @@ Covers all 8 critical and high audit findings:
 
 from __future__ import annotations
 
-import os
-import threading
-import time
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-import pytest
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.endpoint import CommunicationEndpoint
-from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus, SenderStatus
+from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.channel_rotation_policy import ChannelRotationPolicy
 from app.domain.policies.endpoint_coverage_policy import (
-    get_contact_endpoint_metrics,
-    get_next_uncovered_endpoint,
     get_uncovered_endpoints,
     has_ambiguous_or_inflight_blocker,
     is_contact_fully_covered,
-    is_endpoint_covered,
     is_endpoint_permanently_failed,
 )
-from app.domain.policies.fallback_policy import ChannelFallbackPolicy
 from app.domain.policies.prioritization import (
     calculate_company_round_state,
     prioritize_company_first,
@@ -50,28 +39,22 @@ from app.domain.policies.prioritization import (
 from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base, SessionFactory
-from app.infrastructure.events.event_bus import EventBus
-from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager
-from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories import (
-    SqliteCampaignRepository,
     SqliteCompanyRepository,
     SqliteContactRepository,
     SqliteOutreachRepository,
     SqliteSenderRepository,
     SqliteTemplateRepository,
 )
-from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.infrastructure.security.credential_vault import CredentialVault, default_credential_vault
-from app.infrastructure.source.excel_reader import TabularSourceReader
+from app.infrastructure.security.credential_vault import CredentialVault
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
-from app.ports.providers import ProviderSendResult
 from app.ports.source import SourceRow
 from app.services.crm_service import CrmService
 from app.services.sender_service import SenderService
+from tests.doubles.fake_providers import MockWhatsAppProvider
 
 
 # ==============================================================================
@@ -165,8 +148,9 @@ class TestFinding1InflightBlocker:
 
     def test_sent_and_failed_attempts_do_not_block_unrelated_endpoints(self):
         """Completed SENT and normal FAILED attempts on other contacts do not block."""
-        c1 = Contact(contact_id="cnt_01", company_id="comp_1", name="Person 1", phone="+919999999991", email="p1@test.com")
-        c2 = Contact(contact_id="cnt_02", company_id="comp_1", name="Person 2", phone="+919999999992", email="p2@test.com")
+        c2 = Contact(
+            contact_id="cnt_02", company_id="comp_1", name="Person 2", phone="+919999999992", email="p2@test.com"
+        )
         now = datetime.now(timezone.utc)
 
         att_c1_sent = OutreachAttempt.prepare(
@@ -241,7 +225,9 @@ class TestFinding2PacingAndSenderRotation:
 
             co = Company.create("Test Corp", "co_01")
             co_repo.save(co)
-            cnt = Contact(contact_id="cnt_timeout_01", company_id="co_01", name="Timeout Recipient", phone="+919999900001")
+            cnt = Contact(
+                contact_id="cnt_timeout_01", company_id="co_01", name="Timeout Recipient", phone="+919999900001"
+            )
             c_repo.save(cnt)
             tmpl = MessageTemplate.create(
                 name="Tmpl",
@@ -651,9 +637,15 @@ class TestFinding12ExcelSyncHistoryPreservation:
             contact_repo.save(cnt)
 
             # Persist the referenced sender so the attempt FK resolves.
-            SqliteSenderRepository(session).save(SenderAccount.create(
-                sender_id="snd_01", channel=Channel.WHATSAPP, provider="mock",
-                identity="+919000000000", display_name="Snd"))
+            SqliteSenderRepository(session).save(
+                SenderAccount.create(
+                    sender_id="snd_01",
+                    channel=Channel.WHATSAPP,
+                    provider="mock",
+                    identity="+919000000000",
+                    display_name="Snd",
+                )
+            )
 
             # Historical SENT attempt
             att_sent = OutreachAttempt.prepare(
@@ -685,8 +677,26 @@ class TestFinding12ExcelSyncHistoryPreservation:
         class MockReader:
             def read_source(self, path, sheet_name=None):
                 return [
-                    SourceRow(source_row=1, source_file="dummy.xlsx", raw_values={"company": "Acme Corp", "name": "Alice", "phone": "919000000001", "email": "alice.new@acme.com"}),
-                    SourceRow(source_row=2, source_file="dummy.xlsx", raw_values={"company": "Acme Corp", "name": "Bob", "phone": "919000000002", "email": "bob@acme.com"}),
+                    SourceRow(
+                        source_row=1,
+                        source_file="dummy.xlsx",
+                        raw_values={
+                            "company": "Acme Corp",
+                            "name": "Alice",
+                            "phone": "919000000001",
+                            "email": "alice.new@acme.com",
+                        },
+                    ),
+                    SourceRow(
+                        source_row=2,
+                        source_file="dummy.xlsx",
+                        raw_values={
+                            "company": "Acme Corp",
+                            "name": "Bob",
+                            "phone": "919000000002",
+                            "email": "bob@acme.com",
+                        },
+                    ),
                 ]
 
         with SessionFactory() as session:

@@ -1,7 +1,6 @@
 """Integration tests for Provider Adapters (WhatsApp & Email) with mocks and failure taxonomy."""
 
 from unittest.mock import MagicMock, patch
-import pytest
 
 from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt

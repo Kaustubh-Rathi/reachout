@@ -6,6 +6,7 @@ Handles non-destructive ingestion and reconciliation from external workbooks.
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
@@ -30,7 +31,7 @@ def sync_contacts(payload: SyncRequest = SyncRequest(), session: Session = Depen
     try:
         return svc.sync_source(source_path=payload.source_path, sheet_name=payload.sheet_name)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
 
 
 @router.get("/summary")
