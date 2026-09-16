@@ -344,6 +344,7 @@
     .kpi-card.kpi-wa .kpi-value { color: var(--accent-emerald); }
     .kpi-card.kpi-email .kpi-value { color: #38bdf8; }
     .kpi-card.kpi-interested .kpi-value { color: #34d399; }
+    .kpi-card.kpi-not-interested .kpi-value { color: var(--accent-rose); }
     .kpi-card.kpi-interview .kpi-value { color: #a78bfa; }
     .kpi-card.kpi-followup {
       border-color: var(--accent-amber-border);
@@ -591,6 +592,30 @@
       background: var(--accent-blue-bg);
       color: var(--accent-blue);
       border: 1px solid var(--accent-blue-border);
+    }
+
+    .badge-emerald {
+      background: var(--accent-emerald-bg);
+      color: var(--accent-emerald);
+      border: 1px solid var(--accent-emerald-border);
+    }
+
+    .badge-blue {
+      background: var(--accent-blue-bg);
+      color: var(--accent-blue);
+      border: 1px solid var(--accent-blue-border);
+    }
+
+    .badge-partial {
+      background: var(--accent-amber-bg);
+      color: var(--accent-amber);
+      border: 1px solid var(--accent-amber-border);
+    }
+
+    .badge-uncovered {
+      background: var(--bg-surface-raised);
+      color: var(--text-muted);
+      border: 1px solid var(--border-medium);
     }
 
     .badge-interview-scheduled {
@@ -1663,10 +1688,8 @@
   <script>
     // Global State Management
     let state = {
-      user: null,
       companies: [],
       hierarchies: [],
-      kpis: {},
       senders: [],
       templates: [],
       activeCampaign: null,
@@ -1702,6 +1725,18 @@
       }
     }
 
+    // Extract a human-readable message from a failed API response.
+    async function apiErrorText(res) {
+      try {
+        const body = await res.json();
+        if (body && body.detail) {
+          if (typeof body.detail === 'string') return body.detail;
+          return body.detail.message || body.detail.reason || JSON.stringify(body.detail);
+        }
+      } catch (e) { /* non-JSON body */ }
+      return res.statusText || `HTTP ${res.status}`;
+    }
+
     // App Initialization
     window.addEventListener('DOMContentLoaded', async () => {
       await loadInitialData();
@@ -1725,7 +1760,6 @@
         const res = await apiFetch('/api/crm/kpis');
         if (res.ok) {
           const data = await res.json();
-          state.kpis = data;
           renderKpis(data);
         }
       } catch (err) {
@@ -1858,8 +1892,8 @@
             }
 
             const sendBtn = ep.channel === 'WHATSAPP'
-              ? `<button class="btn btn-emerald btn-xs" onclick="openSendModal('${hr.contact_id}', 'WHATSAPP', ${isSent}, '${ep.address}')">${isSent ? 'Resend WA' : 'Send WA'}</button>`
-              : `<button class="btn btn-primary btn-xs" onclick="openSendModal('${hr.contact_id}', 'EMAIL', ${isSent}, '${ep.address}')">${isSent ? 'Resend Email' : 'Send Email'}</button>`;
+              ? `<button class="btn btn-emerald btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'WHATSAPP', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend WA' : 'Send WA'}</button>`
+              : `<button class="btn btn-primary btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'EMAIL', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend Email' : 'Send Email'}</button>`;
 
             endpointsHtml += `
               <div class="endpoint-box ${epClass}">
@@ -1932,9 +1966,9 @@
         });
 
         card.innerHTML = `
-          <div class="company-card-header" onclick="toggleCompany('${comp.id}')" title="Click to expand / collapse HR contacts">
+          <div class="company-card-header" onclick="toggleCompany('${jsAttr(comp.id)}')" title="Click to expand / collapse HR contacts">
             <div class="company-title-area">
-              <span class="company-expand-caret" id="caret-${comp.id}">▸</span>
+              <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
               <span class="company-name-lg">${escapeHtml(comp.name)}</span>
               <span class="company-status-badge ${statusClass}">${statusIcon} ${statusText}</span>
             </div>
@@ -1943,7 +1977,7 @@
               <span>Endpoints: <strong>${comp.covered_endpoints || 0} / ${comp.total_endpoints || 0} covered</strong></span>
             </div>
           </div>
-          <div class="hr-contacts-list" id="hrlist-${comp.id}" style="display: none;">
+          <div class="hr-contacts-list" id="hrlist-${escapeHtml(comp.id)}" style="display: none;">
             ${hrsHtml || '<div style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem;">No HR contacts registered.</div>'}
           </div>
         `;
@@ -1990,6 +2024,9 @@
           showToast('Contact archived and suppressed.', 'info');
           await fetchHierarchies();
           await fetchKpis();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showToast('Failed to archive contact: ' + (err.detail || res.statusText), 'error');
         }
       } catch (err) {
         showToast('Error archiving contact: ' + err.message, 'error');
@@ -2066,7 +2103,14 @@
 
     async function startCampaign() {
       const limitInput = document.getElementById('campaign-limit-input');
-      const maxCount = limitInput ? (parseInt(limitInput.value, 10) || __DEFAULT_OUTREACH_LIMIT__) : __DEFAULT_OUTREACH_LIMIT__;
+      const parsedLimit = limitInput ? parseInt(limitInput.value, 10) : NaN;
+      // Clamp to the configured ceiling (the HTML max attribute is advisory only).
+      let maxCount = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : __DEFAULT_OUTREACH_LIMIT__;
+      if (maxCount > __MAX_OUTREACH_LIMIT__) {
+        maxCount = __MAX_OUTREACH_LIMIT__;
+        if (limitInput) limitInput.value = maxCount;
+        showToast(`Limit capped at the maximum of ${__MAX_OUTREACH_LIMIT__}.`, 'info');
+      }
       const startBtn = document.getElementById('start-campaign-btn');
       const originalText = startBtn.innerHTML;
       startBtn.disabled = true;
@@ -2103,6 +2147,8 @@
           const camp = await res.json();
           showToast('Campaign paused.', 'info');
           updateCampaignControls(camp);
+        } else {
+          showToast('Failed to pause campaign: ' + await apiErrorText(res), 'error');
         }
       } catch (err) {
         showToast('Error pausing campaign: ' + err.message, 'error');
@@ -2117,6 +2163,8 @@
           const camp = await res.json();
           showToast('Campaign resumed.', 'success');
           updateCampaignControls(camp);
+        } else {
+          showToast('Failed to resume campaign: ' + await apiErrorText(res), 'error');
         }
       } catch (err) {
         showToast('Error resuming campaign: ' + err.message, 'error');
@@ -2132,6 +2180,8 @@
           const camp = await res.json();
           showToast('Campaign stopped.', 'info');
           updateCampaignControls(camp);
+        } else {
+          showToast('Failed to stop campaign: ' + await apiErrorText(res), 'error');
         }
       } catch (err) {
         showToast('Error stopping campaign: ' + err.message, 'error');
@@ -2162,39 +2212,34 @@
         previewElem.innerText = `${contact.name} (${contact.company || contact.company_id || ''})`;
       }
 
-      // Populate Endpoints / Destination dropdown
+      // Populate Endpoints / Destination dropdown from the hierarchy's per-contact
+      // endpoints array (falling back to the raw phone/email string). Preselect the
+      // endpoint the operator actually clicked, so per-endpoint sends work.
       const destSelect = document.getElementById('modal-destination-select');
       destSelect.innerHTML = '';
 
-      if (channel === 'WHATSAPP') {
-        const phones = contact.phones && contact.phones.length > 0 ? contact.phones : (contact.phone ? [contact.phone] : []);
-        if (phones.length === 0) {
-          const opt = document.createElement('option');
-          opt.value = '';
-          opt.textContent = 'No phone number available';
-          destSelect.appendChild(opt);
-        } else {
-          phones.forEach((p, idx) => {
-            const opt = document.createElement('option');
-            opt.value = p;
-            opt.textContent = `Phone ${idx + 1}: ${p}`;
-            destSelect.appendChild(opt);
-          });
-        }
+      const channelEndpoints = (contact.endpoints || []).filter(ep => ep.channel === channel);
+      const addresses = channelEndpoints.length > 0
+        ? channelEndpoints.map(ep => ep.address)
+        : String((channel === 'WHATSAPP' ? contact.phone : contact.email) || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+
+      if (addresses.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = channel === 'WHATSAPP' ? 'No phone number available' : 'No email address available';
+        destSelect.appendChild(opt);
       } else {
-        const emails = contact.emails && contact.emails.length > 0 ? contact.emails : (contact.email ? [contact.email] : []);
-        if (emails.length === 0) {
+        addresses.forEach((addr, idx) => {
           const opt = document.createElement('option');
-          opt.value = '';
-          opt.textContent = 'No email address available';
+          opt.value = addr;
+          opt.textContent = `${channel === 'WHATSAPP' ? 'Phone' : 'Email'} ${idx + 1}: ${addr}`;
           destSelect.appendChild(opt);
-        } else {
-          emails.forEach((e, idx) => {
-            const opt = document.createElement('option');
-            opt.value = e;
-            opt.textContent = `Email ${idx + 1}: ${e}`;
-            destSelect.appendChild(opt);
-          });
+        });
+        if (targetEndpoint && addresses.includes(targetEndpoint)) {
+          destSelect.value = targetEndpoint;
         }
       }
 
@@ -2364,14 +2409,16 @@
           const events = [];
 
           history.forEach(h => {
-            const destStr = h.destination ? ` &rarr; ${h.destination}` : '';
-            const tplStr = h.template_id ? ` &bull; Template: ${h.template_id}` : '';
-            const refStr = h.provider_reference ? ` &bull; Ref: ${h.provider_reference}` : '';
-            const failStr = h.failure_detail ? `<div style="color: var(--accent-rose); font-size: 0.725rem; margin-top: 0.25rem;">Failure: ${escapeHtml(h.failure_detail)} (${escapeHtml(h.failure_code || '')})</div>` : '';
+            // Build titles/bodies as plain text; escaping happens once at render time
+            // (previously HTML entities/divs were escaped again and shown literally).
+            const destStr = h.destination ? ` → ${h.destination}` : '';
+            const tplStr = h.template_id ? ` • Template: ${h.template_id}` : '';
+            const refStr = h.provider_reference ? ` • Ref: ${h.provider_reference}` : '';
+            const failStr = h.failure_detail ? `Failure: ${h.failure_detail} (${h.failure_code || ''})` : '';
 
             events.push({
               type: h.channel,
-              title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr} &bull; Sender: ${h.sender_account_id || 'AUTO'}${tplStr}${refStr}`,
+              title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr} • Sender: ${h.sender_account_id || 'AUTO'}${tplStr}${refStr}`,
               status: h.status,
               body: (h.message_body || '') + (failStr ? '\n' + failStr : ''),
               date: h.completed_at || h.prepared_at,
@@ -2515,25 +2562,25 @@
           let actionButtons = '';
           if (s.status === 'INACTIVE') {
             actionButtons = `
-              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${s.id}')" title="Reactivate sender into rotation">
+              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${jsAttr(s.id)}')" title="Reactivate sender into rotation">
                 <span>⚡ Reactivate</span>
               </button>
-              <button class="btn btn-rose btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+              <button class="btn btn-rose btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
                 <span>🗑️ Remove</span>
               </button>
             `;
           } else {
             actionButtons = `
-              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${s.id}')" title="Re-authenticate this WhatsApp sender (re-scan QR)">
+              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${jsAttr(s.id)}')" title="Re-authenticate this WhatsApp sender (re-scan QR)">
                 <span>📱 Re-Authenticate</span>
               </button>
-              <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${s.id}')" title="Check connection health">
+              <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${jsAttr(s.id)}')" title="Check connection health">
                 <span>🔍 Status</span>
               </button>
-              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${s.id}')" title="Deactivate and pause from rotation">
+              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation">
                 <span>⏸️ Deactivate</span>
               </button>
-              <button class="btn btn-outline btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+              <button class="btn btn-outline btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
                 <span>🗑️</span>
               </button>
             `;
@@ -2546,10 +2593,10 @@
                 <div style="font-size: 0.725rem; font-family: monospace; color: var(--text-secondary);">${escapeHtml(s.id)}</div>
                 <div style="font-size: 0.75rem; color: var(--accent-blue);">${escapeHtml(s.identity)}</div>
               </div>
-              <span class="badge ${statusBadgeClass}">${s.status}</span>
+              <span class="badge ${statusBadgeClass}">${escapeHtml(s.status)}</span>
             </div>
             <div style="font-size: 0.7rem; color: var(--text-muted);">
-              Limit: ${s.daily_limit || 50}/day &bull; Rate: ${s.hourly_limit || 10}/hr
+              Limit: ${s.daily_limit == null ? 'Unlimited' : s.daily_limit}/day &bull; Rate: ${s.hourly_limit == null ? 'Unlimited' : s.hourly_limit}/hr
             </div>
             ${errorHtml}
             ${lastCheckedHtml}
@@ -2586,25 +2633,25 @@
           let actionButtons = '';
           if (s.status === 'INACTIVE') {
             actionButtons = `
-              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${s.id}')" title="Reactivate sender">
+              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${jsAttr(s.id)}')" title="Reactivate sender">
                 <span>⚡ Reactivate</span>
               </button>
-              <button class="btn btn-rose btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+              <button class="btn btn-rose btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
                 <span>🗑️ Remove</span>
               </button>
             `;
           } else {
             actionButtons = `
-              <button class="btn btn-primary btn-xs" onclick="openEmailConfigModal('${s.id}')">
+              <button class="btn btn-primary btn-xs" onclick="openEmailConfigModal('${jsAttr(s.id)}')">
                 <span>⚙️ Re-configure</span>
               </button>
-              <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${s.id}')">
+              <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${jsAttr(s.id)}')">
                 <span>🔌 Test &amp; Verify</span>
               </button>
-              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${s.id}')" title="Deactivate and pause from rotation">
+              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation">
                 <span>⏸️ Deactivate</span>
               </button>
-              <button class="btn btn-outline btn-xs" onclick="removeSender('${s.id}')" title="Remove sender">
+              <button class="btn btn-outline btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
                 <span>🗑️</span>
               </button>
             `;
@@ -2617,12 +2664,12 @@
                 <div style="font-size: 0.725rem; font-family: monospace; color: var(--text-secondary);">${escapeHtml(s.id)}</div>
                 <div style="font-size: 0.75rem; color: var(--accent-blue);">${escapeHtml(s.identity)}</div>
               </div>
-              <span class="badge ${statusBadgeClass}">${s.status}</span>
+              <span class="badge ${statusBadgeClass}">${escapeHtml(s.status)}</span>
             </div>
             ${errorHtml}
             ${lastUsedHtml}
             <div style="font-size: 0.7rem; color: var(--text-muted);">
-              Limit: ${s.daily_limit || 100}/day &bull; Rate: ${s.hourly_limit || 20}/hr
+              Limit: ${s.daily_limit == null ? 'Unlimited' : s.daily_limit}/day &bull; Rate: ${s.hourly_limit == null ? 'Unlimited' : s.hourly_limit}/hr
             </div>
             <div style="display: flex; gap: 0.35rem; margin-top: auto; padding-top: 0.35rem; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
               ${actionButtons}
@@ -2961,10 +3008,10 @@
         card.className = 'kpi-card';
         card.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-            <strong>${t.id} - ${escapeHtml(t.name)}</strong>
+            <strong>${escapeHtml(t.id)} - ${escapeHtml(t.name)}</strong>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span class="badge badge-sent">${t.channel}</span>
-              <button class="btn btn-outline btn-xs" onclick="openTemplateFormById('${t.id}')">Edit</button>
+              <span class="badge badge-sent">${escapeHtml(t.channel)}</span>
+              <button class="btn btn-outline btn-xs" onclick="openTemplateFormById('${jsAttr(t.id)}')">Edit</button>
             </div>
           </div>
           ${t.subject ? `<div style="font-size: 0.75rem; color: var(--accent-blue); font-weight: 600;">Subject: ${escapeHtml(t.subject)}</div>` : ''}
@@ -3171,42 +3218,46 @@
 
     async function handleLiveEvent(ev) {
       if (!ev) return;
-      const type = (ev.type || ev.event_type || '').toUpperCase();
-      const dotType = (ev.type || '').toLowerCase();
+      // The WebSocket transport sets `type` to the dot-notation name
+      // (e.g. "sender.status.changed") while SSE sets `event_type` to the
+      // canonical snake_case name (e.g. "SENDER_STATUS_CHANGED"). Normalize both
+      // to the same uppercase snake_case key before dispatching.
+      const rawType = ev.event_type || ev.type || '';
+      const type = String(rawType).toUpperCase().replace(/\./g, '_');
       const p = ev.payload || {};
 
-      if (dotType === 'sender.status_changed' || type === 'SENDER_STATUS_CHANGED') {
+      if (type === 'SENDER_STATUS_CHANGED') {
         await fetchSenders();
         if (p.sender_id && p.status) {
           showToast(`Sender ${p.sender_id} is now ${p.status}`, p.status === 'ACTIVE' ? 'success' : 'info');
         }
-      } else if (dotType === 'sender.qr_received' || type === 'SENDER_QR_RECEIVED') {
+      } else if (type === 'SENDER_QR_RECEIVED') {
         await fetchSenders();
         showToast(`QR Code received for ${p.sender_id}. Ready to scan!`, 'info');
-      } else if (dotType === 'sender.auth_progress' || type === 'SENDER_AUTH_PROGRESS') {
+      } else if (type === 'SENDER_AUTH_PROGRESS') {
         if (p.message) showToast(`[Auth] ${p.message}`, 'info');
-      } else if (dotType === 'outreach.sent' || type === 'OUTREACH_SENT' || type === 'MESSAGE_SENT') {
+      } else if (type === 'OUTREACH_SENT' || type === 'MESSAGE_SENT') {
         const dest = p.destination || p.recipient || 'recipient';
         const ch = p.channel || 'Outreach';
         showToast(`Sent ${ch} to ${dest}`, 'success');
         await fetchKpis();
         await fetchHierarchies();
         if (state.activeCampaign) await fetchCampaigns();
-      } else if (dotType === 'outreach.failed' || type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') {
+      } else if (type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') {
         showToast(`Message failed: ${p.failure_detail || p.failure_code || 'Error'}`, 'error');
         await fetchKpis();
         await fetchHierarchies();
-      } else if (dotType === 'outreach.recovery_required' || type === 'OUTREACH_RECOVERY_REQUIRED') {
+      } else if (type === 'OUTREACH_RECOVERY_REQUIRED') {
         showToast(`⚠️ Outreach recovery required for ${p.destination || 'contact'}`, 'error');
         await fetchKpis();
         await fetchHierarchies();
-      } else if (dotType === 'campaign.status_changed' || type.startsWith('CAMPAIGN_')) {
+      } else if (type.startsWith('CAMPAIGN_')) {
         await fetchCampaigns();
         await fetchKpis();
-      } else if (dotType === 'contact.status_changed' || type === 'CRM_STATUS_CHANGED' || type === 'CONTACT_UPDATED' || type === 'CRM_OUTCOME_UPDATED') {
+      } else if (type === 'CRM_STATUS_CHANGED' || type === 'CRM_OUTCOME_UPDATED' || type === 'CONTACT_UPDATED') {
         await fetchKpis();
         await fetchHierarchies();
-      } else if (dotType === 'sync.completed' || type === 'EXCEL_SYNC_COMPLETED' || type === 'SYNC_COMPLETED') {
+      } else if (type === 'EXCEL_SYNC_COMPLETED' || type === 'SYNC_COMPLETED') {
         showToast('Source synchronization completed!', 'success');
         await fetchKpis();
         await fetchCompanies();
@@ -3264,6 +3315,13 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    // Escape a value that is interpolated inside a single-quoted JS string that
+    // itself lives in a double-quoted HTML attribute (e.g. onclick="f('...')").
+    // Escapes HTML first, then JS, so neither context can be broken out of.
+    function jsAttr(str) {
+      return escapeHtml(String(str == null ? '' : str).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
     }
 
     function showToast(message, type = 'info') {

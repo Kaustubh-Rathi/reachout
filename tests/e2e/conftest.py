@@ -69,7 +69,30 @@ def browser_page():
     requiring a separately installed Playwright Chromium.
     """
     with Camoufox(headless=True, window=(1440, 900)) as browser:
-        context = browser.new_context(viewport={"width": 1440, "height": 900})
+        context = browser.new_context(
+            viewport={"width": 1440, "height": 900},
+            reduced_motion="reduce",
+        )
+        # Camoufox (Firefox) is slower to first paint than Chromium; give UI
+        # selectors a generous default so tests are not timing-flaky.
+        context.set_default_timeout(20000)
+        context.set_default_navigation_timeout(45000)
+        # Disable CSS animations/transitions so Playwright's actionability
+        # "stable" check does not time out on pulsing/transitioning elements.
+        context.add_init_script(
+            """
+            const __noAnim = () => {
+              const style = document.createElement('style');
+              style.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }';
+              (document.head || document.documentElement).appendChild(style);
+            };
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', __noAnim);
+            } else {
+              __noAnim();
+            }
+            """
+        )
         page = context.new_page()
         yield page
         browser.close()
