@@ -21,17 +21,20 @@ D:\Reachout\
 │   │   ├── sender_account.py # Sender identity & usage limits
 │   │   ├── source_record.py  # Excel source row tracking & SHA-256 fingerprinting
 │   │   └── policies/         # Pure domain rules (prioritization, rotation, dedup)
-│   ├── ports/                # Abstract protocol interfaces (Hexagonal Ports)
+│   ├── ports/                # Abstract protocol interfaces (Hexagonal Ports):
+│   │                         # repositories, CampaignScheduler, SourceReader,
+│   │                         # SourceSynchronizer, Clock, EventPublisher
 │   ├── infrastructure/       # Concrete adapters & external integrations
 │   │   ├── database.py       # SQLAlchemy engine & SQLite WAL configuration
 │   │   ├── models.py         # Relational database schema models
 │   │   ├── events/           # Canonical EventBus & event broadcasting
-│   │   ├── providers/        # Playwright WhatsApp & SMTP Email adapters
+│   │   ├── providers/        # Camoufox (Firefox) WhatsApp & SMTP Email adapters
 │   │   ├── repositories/     # SQLite repository implementations
 │   │   ├── scheduler/        # Persistent scheduler & RateLimiter
 │   │   ├── security/         # Encrypted credential vault (Fernet AES-128-CBC)
 │   │   └── source/           # Non-destructive Excel/CSV source reader
-│   ├── services/             # Application use case orchestrators
+│   ├── services/             # Application use case orchestrators (wired via ServiceContext DI:
+│   │                         # repositories + Clock + EventPublisher, no concrete imports)
 │   ├── api/                  # FastAPI REST and WebSocket routers
 │   └── main.py               # Canonical FastAPI application entry point
 ├── data/                     # Operational databases & source Excel workbooks
@@ -70,7 +73,7 @@ Open your browser at **[http://localhost:8000](http://localhost:8000)** to acces
 
 ## 🔐 Sender Authentication & Configuration
 
-### WhatsApp Authentication (Playwright Chromium)
+### WhatsApp Authentication (Camoufox / Firefox)
 
 1. Open the Dashboard at `http://localhost:8000` and navigate to the **Senders** tab.
 2. Under WhatsApp Senders, click **Start Authentication** on the target sender account.
@@ -116,9 +119,16 @@ uv run pytest tests/unit/
 # Integration tests
 uv run pytest tests/integration/
 
-# End-to-End browser tests (requires Playwright Chromium)
+# End-to-End browser tests (Camoufox / Firefox, ~2-3 min; tagged `e2e`)
 uv run pytest tests/e2e/
+
+# Everything except the browser suite
+uv run pytest -m "not e2e"
 ```
+
+The two `tests/e2e/live/` tests dispatch real messages and skip automatically
+unless live SMTP / WhatsApp credentials are configured. Lint with
+`uv run ruff check app tests` and format with `uv run ruff format`.
 
 ---
 
@@ -129,3 +139,4 @@ uv run pytest tests/e2e/
 3. **Pacing Compliance:** Authoritative 120s WhatsApp and 60s Email delays enforced by `RateLimiter`.
 4. **Crash Recovery:** Atomic `PREPARED -> SENDING -> SENT / FAILED` transitions guarantee orphaned in-flight dispatches are marked `RECOVERY_REQUIRED` following unexpected process termination.
 5. **Lossless Source Sync:** Syncing Excel source files never mutates existing database records or historical audit logs.
+6. **Operator Recovery:** Stuck attempts are listed via `GET /api/outreach/recovery` and resolved (`mark_sent` / `retry` / `cancel`) from the dashboard Recovery Queue drawer; attachments must resolve via `resolve_attachment_path()` or the send fails loudly instead of degrading to text-only.
