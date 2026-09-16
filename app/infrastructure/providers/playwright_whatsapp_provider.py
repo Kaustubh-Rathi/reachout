@@ -112,17 +112,42 @@ class PlaywrightWhatsAppProvider:
                 # and sync before we try to use the /send?phone deep link.
                 page.goto("https://web.whatsapp.com", wait_until="domcontentloaded", timeout=timeout_ms)
 
+                # The QR canvas renders several seconds after page load, so an
+                # instant check races it: a logged-out session would slip past
+                # and later misreport ERR_SYNC_TIMEOUT instead of
+                # ERR_AUTH_REQUIRED (which the sender downgrade logic keys off).
+                # Settle first: either #side (synced) or a canvas (logged out).
+                qr_locator = page.locator('canvas[aria-label="Scan this QR code to link a device"], canvas')
+                settle_deadline = time.monotonic() + min(20.0, self.timeout_seconds / 3)
+                saw_qr = False
+                while time.monotonic() < settle_deadline:
+                    if page.locator("#side").count() > 0:
+                        break
+                    if qr_locator.count() > 0:
+                        saw_qr = True
+                        break
+                    time.sleep(1.0)
+
                 # Check for QR code (auth required)
-                if page.locator('canvas[aria-label="Scan this QR code to link a device"], canvas').count() > 0:
+                if saw_qr or qr_locator.count() > 0:
                     return ProviderSendResult.failed(
                         failure_code="ERR_AUTH_REQUIRED",
                         failure_detail="WhatsApp session requires QR code scan authentication",
                     )
 
-                # Wait for the chat list (#side) to prove the app is fully synced and ready
+                # Wait for the chat list (#side) to prove the app is fully synced and ready.
+                # Large histories can take over a minute to download ("Loading your
+                # chats"), so honor the configured timeout instead of a fixed 30s.
                 try:
-                    page.wait_for_selector("#side", timeout=30000)
+                    page.wait_for_selector("#side", timeout=timeout_ms)
                 except Exception:
+                    # Re-check QR last: a session that expired mid-sync shows the
+                    # login screen instead of the chat list.
+                    if qr_locator.count() > 0:
+                        return ProviderSendResult.failed(
+                            failure_code="ERR_AUTH_REQUIRED",
+                            failure_detail="WhatsApp session requires QR code scan authentication",
+                        )
                     return ProviderSendResult.failed(
                         failure_code="ERR_SYNC_TIMEOUT",
                         failure_detail="WhatsApp Web failed to sync chats within timeout",

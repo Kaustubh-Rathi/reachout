@@ -21,6 +21,8 @@ from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.models import (
+    CompanyModel,
+    ContactModel,
     MessageTemplateModel,
 )
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
@@ -76,6 +78,16 @@ class TestWhatsAppLiveProviderE2E:
             body="Reachout CRM Automated Live Delivery Verification at {timestamp}",
         )
         session.add(MessageTemplateModel.from_domain(template))
+        # The attempt row has FKs to companies/contacts: seed the recipient rows.
+        session.add(CompanyModel(id="comp_live_test", name="Live Test Company", normalized_name="live test company"))
+        session.add(
+            ContactModel(
+                contact_id="cnt_live_test_recip",
+                company_id="comp_live_test",
+                name="Live Test Recipient",
+                phone=recipient_phone,
+            )
+        )
         session.commit()
 
         # 4. Instantiate REAL Playwright Provider
