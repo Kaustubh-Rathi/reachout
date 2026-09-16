@@ -1,4 +1,4 @@
-"""Unit tests for Phase 8 Sender Authentication state machine and multi-session management."""
+"""Unit tests for the sender authentication state machine and multi-session management."""
 
 from app.domain.enums import SenderStatus
 from app.infrastructure.database import SessionFactory
@@ -7,7 +7,7 @@ from app.services.sender_service import SenderService
 
 
 def test_sender_status_enum_values():
-    """Verify all Phase 8 sender statuses exist and have correct usability flags."""
+    """Verify all sender statuses exist and have correct usability flags."""
     assert SenderStatus.ACTIVE.is_usable is True
     assert SenderStatus.NOT_CONFIGURED.is_usable is False
     assert SenderStatus.QR_REQUIRED.is_usable is False

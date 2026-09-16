@@ -61,7 +61,7 @@ class TestDataIntegrityAndMigration:
 
         # 2. Perform intensive read and extraction operations
         if (DATA_DIR / "MNC_Final.xlsx").exists():
-            rows = TabularSourceReader().read_rows(DATA_DIR / "MNC_Final.xlsx")
+            rows = TabularSourceReader().read_source(str(DATA_DIR / "MNC_Final.xlsx"))
             assert len(rows) > 0
 
         if (DATA_DIR / "crm_data.json").exists():

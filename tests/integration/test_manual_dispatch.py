@@ -1,4 +1,4 @@
-"""Integration tests for Phase 8 Manual Dispatch, Endpoint Selection, and Safety."""
+"""Integration tests for manual dispatch, endpoint selection, and safety."""
 
 from __future__ import annotations
 

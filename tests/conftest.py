@@ -93,8 +93,9 @@ def pytest_sessionstart(session):
 
 @pytest.fixture(autouse=True)
 def reset_test_provider_overrides():
-    """Ensure test doubles and the global rate limiter are reset around each test."""
+    """Reset provider doubles, rate limiter, scheduler, and env overrides per test."""
     from app.infrastructure.providers.factory import set_email_provider, set_whatsapp_provider
+    from app.infrastructure.scheduler.campaign_scheduler import reset_campaign_scheduler
     from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
     from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
 
@@ -107,6 +108,8 @@ def reset_test_provider_overrides():
     set_whatsapp_provider(fake_wa)
     set_email_provider(fake_em)
     default_rate_limiter.reset()
+    reset_campaign_scheduler()
+    os.environ.pop("OUTREACH_MODE", None)
 
 
 def pytest_sessionfinish(session, exitstatus):

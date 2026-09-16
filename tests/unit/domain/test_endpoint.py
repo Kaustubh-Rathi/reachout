@@ -1,4 +1,4 @@
-"""Unit tests for CommunicationEndpoint and endpoint normalization in Phase 7."""
+"""Unit tests for CommunicationEndpoint and endpoint normalization."""
 
 from app.domain.endpoint import (
     CommunicationEndpoint,

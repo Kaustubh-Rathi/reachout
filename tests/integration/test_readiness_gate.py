@@ -1,4 +1,4 @@
-"""Integration tests for Phase 8 Outreach Readiness Gate and Session Authentication APIs."""
+"""Integration tests for the outreach readiness gate and session authentication APIs."""
 
 import pytest
 from fastapi.testclient import TestClient

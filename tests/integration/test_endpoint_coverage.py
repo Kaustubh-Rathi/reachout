@@ -21,7 +21,7 @@ from app.services.template_service import TemplateService
 @pytest.fixture
 def isolated_session_factory(tmp_path):
     """Setup isolated clean database before test."""
-    engine = create_engine(f"sqlite:///{tmp_path / 'phase7_test.db'}")
+    engine = create_engine(f"sqlite:///{tmp_path / 'endpoint_coverage_test.db'}")
     Base.metadata.create_all(engine)
     SessionFactory = sessionmaker(bind=engine)
     with SessionFactory() as session:
@@ -54,7 +54,7 @@ def isolated_session_factory(tmp_path):
     return SessionFactory
 
 
-def test_phase7_multi_endpoint_dry_run_round_robin(isolated_session_factory):
+def test_multi_endpoint_round_robin_dispatch(isolated_session_factory):
     """Deterministic Dry Run: 5 companies, multi-endpoint HR contacts.
 
     Verifies:
@@ -109,7 +109,7 @@ def test_phase7_multi_endpoint_dry_run_round_robin(isolated_session_factory):
     with SessionFactory() as session:
         camp_repo = SqliteCampaignRepository(session)
         campaign = Campaign.create(
-            name="Phase 7 Multi-Endpoint Validation Run",
+            name="Multi-Endpoint Validation Run",
             channel=Channel.WHATSAPP,
             automatic_quota=100,
         )

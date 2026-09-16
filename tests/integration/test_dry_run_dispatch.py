@@ -1,4 +1,4 @@
-"""Phase 8 Mandatory Deterministic Integration Dry-Run Test (Requirement 25).
+"""Deterministic integration dry-run dispatch test.
 
 Executes a deterministic multi-company, multi-HR, multi-endpoint dry run across
 5 companies (C1..C5) with multiple phones and emails, 2 WhatsApp senders, 2 Email senders,
@@ -33,9 +33,9 @@ from app.services.company_service import CompanyService
 
 
 @pytest.fixture
-def phase8_isolated_session_factory(tmp_path):
-    """Setup clean isolated database with exact Requirement 25 senders and templates."""
-    engine = create_engine(f"sqlite:///{tmp_path / 'phase8_dryrun.db'}")
+def dry_run_session_factory(tmp_path):
+    """Set up an isolated database with the senders and templates for the dry run."""
+    engine = create_engine(f"sqlite:///{tmp_path / 'dry_run.db'}")
     Base.metadata.create_all(engine)
     SessionFactory = sessionmaker(bind=engine)
 
@@ -109,8 +109,8 @@ def phase8_isolated_session_factory(tmp_path):
     return SessionFactory
 
 
-def test_phase8_deterministic_dry_run_dispatch(phase8_isolated_session_factory, capsys):
-    """Execute Requirement 25 deterministic integration test with 5 companies:
+def test_deterministic_dry_run_dispatch(dry_run_session_factory, capsys):
+    """Execute the deterministic dry-run with 5 companies:
 
     C1:
       HR1: Phone1, Phone2, Email1, Email2
@@ -138,7 +138,7 @@ def test_phase8_deterministic_dry_run_dispatch(phase8_isolated_session_factory, 
     Verifies exact ordering and outputs table:
     # | Company | HR | Endpoint | Channel | Sender | Template
     """
-    SessionFactory = phase8_isolated_session_factory
+    SessionFactory = dry_run_session_factory
 
     # 1. Setup exact test dataset
     with SessionFactory() as session:
@@ -252,7 +252,7 @@ def test_phase8_deterministic_dry_run_dispatch(phase8_isolated_session_factory, 
     with SessionFactory() as session:
         camp_repo = SqliteCampaignRepository(session)
         campaign = Campaign.create(
-            name="Phase 8 Mandatory Dry-Run Verification",
+            name="Deterministic Dry-Run Verification",
             channel=Channel.WHATSAPP,
             automatic_quota=100,
         )

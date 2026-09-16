@@ -1,4 +1,4 @@
-"""Unit tests for Phase 8 Company-level status calculation and CRM status management."""
+"""Unit tests for company-level status calculation and CRM status management."""
 
 from app.domain.company import calculate_company_status
 from app.domain.contact import Contact

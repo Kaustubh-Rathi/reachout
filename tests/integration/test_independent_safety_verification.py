@@ -1,4 +1,4 @@
-"""Phase 5 Independent Verification Test Suite.
+"""Independent safety verification tests.
 
 Author: Independent Verification Engineer
 Role: Production-Safety / Test Agent
@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import os
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -68,7 +67,6 @@ from app.infrastructure.repositories.sqlite_suppression_repository import Sqlite
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import (
     PersistentCampaignScheduler,
-    reset_campaign_scheduler,
     set_campaign_scheduler,
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
@@ -89,16 +87,6 @@ def isolated_db(tmp_path):
     Base.metadata.create_all(bind=engine)
     SessionFactory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return engine, SessionFactory
-
-
-@pytest.fixture(autouse=True)
-def reset_globals():
-    """Reset singletons and overrides after every test."""
-    yield
-    reset_provider_overrides()
-    reset_campaign_scheduler()
-    if "OUTREACH_MODE" in os.environ:
-        del os.environ["OUTREACH_MODE"]
 
 
 # ==============================================================================
@@ -416,7 +404,7 @@ class TestSchedulerAndRateLimiterIntegration:
         while time.monotonic() < deadline:
             with SessionFactory() as session:
                 attempts = SqliteOutreachRepository(session).list_by_campaign(camp_id)
-            if attempts:
+            if attempts and attempts[0].status == OutreachStatus.SENT:
                 break
             time.sleep(0.05)
 

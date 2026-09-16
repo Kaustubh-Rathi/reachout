@@ -1,4 +1,4 @@
-"""Unit tests for ChannelRotationPolicy in Phase 7."""
+"""Unit tests for ChannelRotationPolicy."""
 
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, SenderStatus

@@ -27,6 +27,7 @@ package = false
 pythonpath = ["."]
 testpaths = ["tests"]
 markers = [
+    "e2e: marks browser end-to-end tests (run in the default suite)",
     "live_e2e: marks tests as live provider E2E tests (run with LIVE_E2E=1)",
 ]
 
