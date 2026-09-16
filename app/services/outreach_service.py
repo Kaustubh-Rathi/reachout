@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import DEFAULT_MESSAGE_BODY, DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
 from app.domain.contact import Contact
-from app.domain.enums import AttemptType, Channel, OutreachStatus
+from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachStatus, SenderStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.policies.resend_policy import prepare_manual_resend
@@ -333,6 +333,21 @@ class OutreachService:
         else:
             attempt.mark_failed(res.failure_code or "ERR_SEND_FAILED", res.failure_detail or "Dispatch error", now)
             self.outreach_repo.save(attempt)
+            # A provider auth failure means the session died: downgrade the sender
+            # so readiness/rotation stop selecting it.
+            if (res.failure_code or "") in AUTH_FAILURE_CODES:
+                sender.mark_status(SenderStatus.AUTH_REQUIRED)
+                self.sender_repo.save(sender)
+                self.event_publisher.publish_event(
+                    "SENDER_STATUS_CHANGED",
+                    {
+                        "sender_id": sender.id,
+                        "channel": channel.value,
+                        "status": SenderStatus.AUTH_REQUIRED.value,
+                        "reason": res.failure_code,
+                        "timestamp": now.isoformat(),
+                    },
+                )
             self.session.commit()
             failed_payload = {
                 "status": "FAILED",
@@ -554,6 +569,19 @@ class OutreachService:
         else:
             attempt.mark_failed(res.failure_code or "ERR_RESEND_FAILED", res.failure_detail or "Dispatch error", now)
             self.outreach_repo.save(attempt)
+            if (res.failure_code or "") in AUTH_FAILURE_CODES:
+                sender.mark_status(SenderStatus.AUTH_REQUIRED)
+                self.sender_repo.save(sender)
+                self.event_publisher.publish_event(
+                    "SENDER_STATUS_CHANGED",
+                    {
+                        "sender_id": sender.id,
+                        "channel": channel.value,
+                        "status": SenderStatus.AUTH_REQUIRED.value,
+                        "reason": res.failure_code,
+                        "timestamp": now.isoformat(),
+                    },
+                )
             self.session.commit()
 
         return {

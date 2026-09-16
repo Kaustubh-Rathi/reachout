@@ -65,6 +65,13 @@ class SenderService:
         # WhatsApp senders reconciliation
         wa_senders = self.repo.list_by_channel(Channel.WHATSAPP)
         for s in wa_senders:
+            # A persisted ACTIVE WhatsApp sender whose on-disk authenticated profile
+            # is missing must not keep passing the readiness gate. Downgrade it so the
+            # operator is prompted to re-authenticate (symmetric with email creds).
+            if s.status == SenderStatus.ACTIVE and not self.session_manager.has_persisted_session(s.id):
+                s.status = SenderStatus.AUTH_REQUIRED
+                self.repo.save(s)
+                continue
             # Only reconcile when we actually hold a real, non-default in-memory auth
             # state (a live temp flow or an in-progress re-auth). After a process
             # restart the in-memory auth dict is empty, and get_auth_state() returns a

@@ -188,6 +188,11 @@ class SenderStatus(str, Enum):
         return self == SenderStatus.ACTIVE
 
 
+# Provider failure codes that indicate the sender's authenticated session is gone.
+# A send failing with one of these must downgrade the sender to AUTH_REQUIRED.
+AUTH_FAILURE_CODES = frozenset({"ERR_AUTH_REQUIRED", "ERR_SESSION_EXPIRED", "ERR_DISCONNECTED"})
+
+
 @unique
 class ReminderStatus(str, Enum):
     """Status of a follow-up reminder."""

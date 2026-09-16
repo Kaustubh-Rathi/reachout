@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 from app.config import DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
 from app.domain.campaign import Campaign
-from app.domain.enums import AttemptType, Channel, OutreachStatus
+from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachStatus, SenderStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.sender_account import SenderAccount
@@ -43,6 +43,70 @@ class OutreachWorker:
         self.email_provider = email_provider if email_provider is not None else get_email_provider()
         self.rate_limiter = rate_limiter or default_rate_limiter
         self.event_publisher = event_publisher or default_event_bus
+
+    def _record_pre_send_failure(
+        self,
+        session,
+        outreach_repo,
+        *,
+        contact_id: str,
+        sender_account_id: str,
+        channel: Channel,
+        attempt_type: AttemptType,
+        campaign_id: Optional[str],
+        destination: Optional[str],
+        template: MessageTemplate,
+        failure_code: str,
+        failure_detail: str,
+        now: datetime,
+        salt_prefix: str,
+        message_body: Optional[str] = None,
+        subject: Optional[str] = None,
+        attachment_ref: Optional[str] = None,
+    ) -> OutreachAttempt:
+        """Persist and publish a FAILED attempt for a pre-dispatch validation failure."""
+        idemp_key = generate_idempotency_key(
+            contact_id=contact_id,
+            channel=channel,
+            attempt_type=attempt_type,
+            campaign_id=campaign_id,
+            destination=destination,
+            custom_salt=f"{salt_prefix}_{int(now.timestamp() * 1000)}",
+        )
+        failed_attempt = OutreachAttempt.prepare(
+            contact_id=contact_id,
+            sender_account_id=sender_account_id,
+            channel=channel,
+            attempt_type=attempt_type,
+            message_body=message_body if message_body is not None else template.body,
+            destination=destination,
+            campaign_id=campaign_id,
+            template_id=template.id,
+            subject=subject if subject is not None else template.subject,
+            attachment_ref=attachment_ref,
+            idempotency_key=idemp_key,
+            prepared_at=now,
+        )
+        failed_attempt.mark_failed(failure_code=failure_code, failure_detail=failure_detail, timestamp=now)
+        outreach_repo.save(failed_attempt)
+        session.commit()
+        self.event_publisher.publish(
+            DomainEvent(
+                event_type="AttemptFailed",
+                payload={
+                    "attempt_id": failed_attempt.id,
+                    "contact_id": contact_id,
+                    "channel": channel.value,
+                    "destination": destination,
+                    "sender_account_id": sender_account_id,
+                    "template_id": template.id,
+                    "failure_code": failure_code,
+                    "failure_detail": failure_detail,
+                    "timestamp": now.isoformat(),
+                },
+            )
+        )
+        return failed_attempt
 
     def execute_attempt(
         self,
@@ -84,118 +148,83 @@ class OutreachWorker:
                         contact.primary_email if hasattr(contact, "primary_email") else (contact.email or "")
                     )
 
+            # 0. Sender-session guard: never dispatch from a non-ACTIVE sender, even
+            # when execute_attempt is called directly (the scheduler already filters,
+            # but the worker is a public entry point and must enforce the invariant).
+            if not sender_account.is_available():
+                return self._record_pre_send_failure(
+                    session,
+                    outreach_repo,
+                    contact_id=contact.contact_id,
+                    sender_account_id=sender_account.id,
+                    channel=channel,
+                    attempt_type=attempt_type,
+                    campaign_id=campaign_id,
+                    destination=effective_destination,
+                    template=template,
+                    failure_code="ERR_SENDER_NOT_ACTIVE",
+                    failure_detail=(
+                        f"Sender '{sender_account.id}' is not ACTIVE "
+                        f"(status={sender_account.status.value}); authenticate/reactivate it before sending."
+                    ),
+                    now=now,
+                    salt_prefix="sender_inactive",
+                )
+
             # 1. Template variable validation before any dispatch
             validation_errors = template.validate(contact=contact, company=company)
             if validation_errors:
-                # Idempotency key generation for validation failure
-                idemp_key = generate_idempotency_key(
-                    contact_id=contact.contact_id,
-                    channel=channel,
-                    attempt_type=attempt_type,
-                    campaign_id=campaign_id,
-                    destination=effective_destination,
-                    custom_salt=f"val_err_{int(now.timestamp() * 1000)}",
-                )
-                failed_attempt = OutreachAttempt.prepare(
+                return self._record_pre_send_failure(
+                    session,
+                    outreach_repo,
                     contact_id=contact.contact_id,
                     sender_account_id=sender_account.id,
                     channel=channel,
                     attempt_type=attempt_type,
-                    message_body=template.body,
-                    destination=effective_destination,
                     campaign_id=campaign_id,
-                    template_id=template.id,
-                    subject=template.subject,
-                    attachment_ref=custom_attachment_path or template.attachment_ref,
-                    idempotency_key=idemp_key,
-                    prepared_at=now,
-                )
-                failed_attempt.mark_failed(
+                    destination=effective_destination,
+                    template=template,
                     failure_code="ERR_TEMPLATE_VARIABLE_UNRESOLVED",
                     failure_detail="; ".join(validation_errors),
-                    timestamp=now,
+                    now=now,
+                    salt_prefix="val_err",
+                    attachment_ref=custom_attachment_path or template.attachment_ref,
                 )
-                outreach_repo.save(failed_attempt)
-                session.commit()
-
-                self.event_publisher.publish(
-                    DomainEvent(
-                        event_type="AttemptFailed",
-                        payload={
-                            "attempt_id": failed_attempt.id,
-                            "contact_id": contact.contact_id,
-                            "channel": channel.value,
-                            "destination": effective_destination,
-                            "sender_account_id": sender_account.id,
-                            "template_id": template.id,
-                            "failure_code": failed_attempt.failure_code,
-                            "failure_detail": failed_attempt.failure_detail,
-                            "timestamp": now.isoformat(),
-                        },
-                    )
-                )
-                return failed_attempt
 
             # 2. Recipient handle validation
             if channel == Channel.WHATSAPP and (not effective_destination or not effective_destination.strip()):
-                idemp_key = generate_idempotency_key(
-                    contact_id=contact.contact_id,
-                    channel=channel,
-                    attempt_type=attempt_type,
-                    campaign_id=campaign_id,
-                    destination=effective_destination,
-                    custom_salt=f"no_phone_{int(now.timestamp() * 1000)}",
-                )
-                failed_attempt = OutreachAttempt.prepare(
+                return self._record_pre_send_failure(
+                    session,
+                    outreach_repo,
                     contact_id=contact.contact_id,
                     sender_account_id=sender_account.id,
                     channel=channel,
                     attempt_type=attempt_type,
-                    message_body=template.body,
-                    destination=effective_destination,
                     campaign_id=campaign_id,
-                    template_id=template.id,
-                    idempotency_key=idemp_key,
-                    prepared_at=now,
-                )
-                failed_attempt.mark_failed(
+                    destination=effective_destination,
+                    template=template,
                     failure_code="ERR_PHONE_UNAVAILABLE",
                     failure_detail="Target contact has no valid phone number for WhatsApp",
-                    timestamp=now,
+                    now=now,
+                    salt_prefix="no_phone",
                 )
-                outreach_repo.save(failed_attempt)
-                session.commit()
-                return failed_attempt
 
             if channel == Channel.EMAIL and (not effective_destination or not effective_destination.strip()):
-                idemp_key = generate_idempotency_key(
-                    contact_id=contact.contact_id,
-                    channel=channel,
-                    attempt_type=attempt_type,
-                    campaign_id=campaign_id,
-                    destination=effective_destination,
-                    custom_salt=f"no_email_{int(now.timestamp() * 1000)}",
-                )
-                failed_attempt = OutreachAttempt.prepare(
+                return self._record_pre_send_failure(
+                    session,
+                    outreach_repo,
                     contact_id=contact.contact_id,
                     sender_account_id=sender_account.id,
                     channel=channel,
                     attempt_type=attempt_type,
-                    message_body=template.body,
-                    destination=effective_destination,
                     campaign_id=campaign_id,
-                    template_id=template.id,
-                    idempotency_key=idemp_key,
-                    prepared_at=now,
-                )
-                failed_attempt.mark_failed(
+                    destination=effective_destination,
+                    template=template,
                     failure_code="ERR_EMAIL_UNAVAILABLE",
                     failure_detail="Target contact has no valid email address",
-                    timestamp=now,
+                    now=now,
+                    salt_prefix="no_email",
                 )
-                outreach_repo.save(failed_attempt)
-                session.commit()
-                return failed_attempt
 
             # Render message template
             rendered = template.render(
@@ -479,6 +508,25 @@ class OutreachWorker:
                     )
                     is_rate_limit = "RATE_LIMIT" in (provider_result.failure_code or "")
                     self.rate_limiter.record_dispatch_failure(sender_account.id, is_rate_limit=is_rate_limit)
+
+                    # A provider auth failure means the session died: downgrade the
+                    # sender so the readiness gate and rotation stop selecting it.
+                    if db_sender and (provider_result.failure_code or "") in AUTH_FAILURE_CODES:
+                        db_sender.mark_status(SenderStatus.AUTH_REQUIRED)
+                        sender_repo.save(db_sender)
+                        self.event_publisher.publish(
+                            DomainEvent(
+                                event_type="SENDER_STATUS_CHANGED",
+                                payload={
+                                    "sender_id": db_sender.id,
+                                    "channel": channel.value,
+                                    "status": SenderStatus.AUTH_REQUIRED.value,
+                                    "reason": provider_result.failure_code,
+                                    "timestamp": post_now.isoformat(),
+                                },
+                            )
+                        )
+
                     self.event_publisher.publish(
                         DomainEvent(
                             event_type="AttemptFailed",
