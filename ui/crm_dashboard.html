@@ -317,7 +317,7 @@
     .kpi-label {
       font-size: 0.7rem;
       font-weight: 600;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
@@ -565,7 +565,7 @@
 
     .badge-not-sent {
       background: var(--bg-surface-raised);
-      color: var(--text-muted);
+      color: var(--text-secondary);
       border: 1px solid var(--border-subtle);
     }
 
@@ -601,7 +601,7 @@
 
     .badge-uncovered {
       background: var(--bg-surface-raised);
-      color: var(--text-muted);
+      color: var(--text-secondary);
       border: 1px solid var(--border-medium);
     }
 
@@ -620,12 +620,14 @@
       justify-content: center;
       padding: 1.25rem;
       opacity: 0;
+      visibility: hidden;
       pointer-events: none;
-      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
     }
 
     .modal-overlay.open {
       opacity: 1;
+      visibility: visible;
       pointer-events: auto;
     }
 
@@ -861,6 +863,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
       border-bottom: 1px solid var(--border-subtle);
       cursor: pointer;
     }
@@ -993,7 +997,7 @@
 
     .endpoint-label {
       font-size: 0.675rem;
-      color: var(--text-muted);
+      color: var(--text-secondary);
       font-weight: 600;
       text-transform: uppercase;
     }
@@ -1002,6 +1006,70 @@
       font-family: 'JetBrains Mono', monospace;
       color: var(--text-primary);
       font-size: 0.8rem;
+    }
+
+    /* Skeleton shimmer for hierarchy loading state */
+    .skeleton-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .skeleton-line {
+      height: 0.8rem;
+      border-radius: var(--radius-xs);
+      background: linear-gradient(90deg, var(--bg-surface-raised) 25%, var(--bg-surface-hover) 50%, var(--bg-surface-raised) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.2s ease-in-out infinite;
+    }
+    @keyframes skeleton-shimmer {
+      from { background-position: 200% 0; }
+      to { background-position: -200% 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton-line { animation: none; }
+    }
+
+    /* WebSocket reconnect banner */
+    #ws-banner {
+      display: none;
+      width: 100%;
+      padding: 0.45rem 1rem;
+      background: var(--accent-amber-bg);
+      border-bottom: 1px solid var(--accent-amber-border);
+      color: var(--accent-amber);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    #ws-banner.visible { display: block; }
+
+    /* Clickable recovery KPI drills into the recovery queue drawer */
+    .kpi-card.kpi-recovery[role="button"] { cursor: pointer; }
+    .kpi-card.kpi-recovery[role="button"]:hover { border-color: var(--accent-rose); }
+    .kpi-card.kpi-recovery[role="button"]:focus-visible {
+      outline: 2px solid var(--accent-rose);
+      outline-offset: 2px;
+    }
+
+    .pill-btn.pill-recovery.active {
+      background: var(--accent-rose);
+      color: #fff;
+      border-color: var(--accent-rose);
+    }
+
+    .badge-recovery {
+      background: var(--accent-amber-bg);
+      color: var(--accent-amber);
+      border: 1px solid var(--accent-amber-border);
+    }
+
+    .company-card-header:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: -2px;
     }
 
     /* Responsive Breakpoints */
@@ -1061,6 +1129,34 @@
         width: 100%;
       }
     }
+
+    @media (max-width: 480px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .modal-overlay {
+        padding: 0.5rem;
+        align-items: flex-end;
+      }
+      .modal-content {
+        max-width: 100%;
+        max-height: 94vh;
+      }
+      #wa-senders-list-container,
+      #email-senders-list-container {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+      .company-meta-pills {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .sync-stats-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .endpoints-container {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
   </style>
 </head>
 <body>
@@ -1084,6 +1180,11 @@
           <span class="live-dot" style="background: var(--accent-blue);"></span>
           <span id="hdr-em-text">Email: 0 Active</span>
         </span>
+        <span style="color: var(--text-muted);">&bull;</span>
+        <span id="hdr-readiness" role="status" aria-live="polite" title="Overall sender readiness" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+          <span class="live-dot" id="hdr-readiness-dot" style="background: var(--accent-amber);"></span>
+          <span id="hdr-readiness-text">Checking…</span>
+        </span>
       </div>
       <button class="btn btn-outline btn-sm" id="senders-btn" onclick="openSendersDrawer()">
         <span>👥 Senders &amp; Auth</span>
@@ -1102,6 +1203,8 @@
       </button>
     </div>
   </header>
+
+  <div id="ws-banner" role="status" aria-live="polite">🔄 Reconnecting to the live event stream… updates will resume automatically.</div>
 
   <main>
     <!-- Section 4: Operational KPI Metrics Dashboard -->
@@ -1156,10 +1259,10 @@
         <div class="kpi-value" id="val-failed">0</div>
         <div class="kpi-sub">Failed dispatches</div>
       </div>
-      <div class="kpi-card kpi-recovery" id="kpi-recovery">
+      <div class="kpi-card kpi-recovery" id="kpi-recovery" role="button" tabindex="0" title="Open the recovery queue" aria-label="Open the recovery queue" onclick="openRecoveryDrawer()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openRecoveryDrawer(); }">
         <div class="kpi-label">Recovery Required</div>
         <div class="kpi-value" id="val-recovery">0</div>
-        <div class="kpi-sub">Blocked in recovery queue</div>
+        <div class="kpi-sub">Blocked in recovery queue &bull; click to review</div>
       </div>
     </section>
 
@@ -1246,6 +1349,7 @@
       <div class="priority-pills">
         <button class="pill-btn active" data-filter="ALL" onclick="setPriorityFilter('ALL')">All</button>
         <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" onclick="setPriorityFilter('FOLLOW_UP_DUE')">⚠️ Follow-up Due</button>
+        <button class="pill-btn pill-recovery" data-filter="RECOVERY" onclick="setPriorityFilter('RECOVERY')">⏱ Recovery Queue</button>
         <button class="pill-btn" data-filter="INTERESTED" onclick="setPriorityFilter('INTERESTED')">★ Interested</button>
         <button class="pill-btn" data-filter="RECENTLY_ACTIVE" onclick="setPriorityFilter('RECENTLY_ACTIVE')">⚡ Recently Active</button>
         <button class="pill-btn" data-filter="UNCONTACTED" onclick="setPriorityFilter('UNCONTACTED')">Uncontacted</button>
@@ -1258,9 +1362,21 @@
       Company-First progression &bull; Discrete Endpoint Tracking
     </div>
     <section class="hierarchy-container" id="hierarchy-view-section">
-      <div id="hierarchy-cards-list" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-          Loading company hierarchies...
+      <div id="hierarchy-cards-list" role="status" aria-label="Loading company hierarchies" style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="skeleton-card" aria-hidden="true">
+          <div class="skeleton-line" style="width: 38%;"></div>
+          <div class="skeleton-line" style="width: 92%;"></div>
+          <div class="skeleton-line" style="width: 71%;"></div>
+        </div>
+        <div class="skeleton-card" aria-hidden="true">
+          <div class="skeleton-line" style="width: 44%;"></div>
+          <div class="skeleton-line" style="width: 85%;"></div>
+          <div class="skeleton-line" style="width: 63%;"></div>
+        </div>
+        <div class="skeleton-card" aria-hidden="true">
+          <div class="skeleton-line" style="width: 35%;"></div>
+          <div class="skeleton-line" style="width: 90%;"></div>
+          <div class="skeleton-line" style="width: 68%;"></div>
         </div>
       </div>
     </section>
@@ -1269,11 +1385,11 @@
   <!-- Modals & Drawers -->
 
   <!-- 1. Send / Resend Custom Message Modal -->
-  <div class="modal-overlay" id="send-modal">
+  <div class="modal-overlay" id="send-modal" role="dialog" aria-modal="true" aria-labelledby="send-modal-title">
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="send-modal-title">Send Message</h3>
-        <button class="modal-close-btn" onclick="closeSendModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeSendModal()">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="modal-contact-id">
@@ -1324,11 +1440,11 @@
   </div>
 
   <!-- 2. Contact Activity Timeline / History Modal (Section 15) -->
-  <div class="modal-overlay" id="history-modal">
+  <div class="modal-overlay" id="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="history-modal-title">Activity Timeline</h3>
-        <button class="modal-close-btn" onclick="closeHistoryModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeHistoryModal()">&times;</button>
       </div>
       <div class="modal-body">
         <div id="history-contact-summary" style="margin-bottom: 0.5rem; font-size: 0.825rem; color: var(--text-secondary);"></div>
@@ -1343,16 +1459,16 @@
   </div>
 
   <!-- 3. Senders & Authentication Control Drawer (Phase 8.2 & 8.3) -->
-  <div class="modal-overlay" id="senders-modal">
+  <div class="modal-overlay" id="senders-modal" role="dialog" aria-modal="true" aria-labelledby="senders-modal-title">
     <div class="modal-content" style="max-width: 820px; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="modal-header">
         <div>
-          <h3 style="margin: 0;">Sender Accounts &amp; Authentication Control Plane</h3>
+          <h3 id="senders-modal-title" style="margin: 0;">Sender Accounts &amp; Authentication Control Plane</h3>
           <div style="font-size: 0.775rem; color: var(--text-secondary); margin-top: 0.2rem;">
             Real-time session state, WhatsApp QR linking, and SMTP connection verification.
           </div>
         </div>
-        <button class="modal-close-btn" onclick="closeSendersDrawer()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeSendersDrawer()">&times;</button>
       </div>
       <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 1.25rem;">
         <div id="senders-list-container" style="display: flex; flex-direction: column; gap: 1.25rem;">
@@ -1399,7 +1515,7 @@
         </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <div id="senders-readiness-summary" style="font-size: 0.775rem; color: var(--text-secondary);">
+        <div id="senders-readiness-summary" role="status" aria-live="polite" style="font-size: 0.775rem; color: var(--text-secondary);">
           Readiness: <strong id="overall-readiness-text" style="color: var(--accent-amber);">Checking...</strong>
         </div>
         <div style="display: flex; gap: 0.5rem;">
@@ -1411,11 +1527,11 @@
   </div>
 
   <!-- 4. Email Configuration Modal -->
-  <div class="modal-overlay" id="email-config-modal">
+  <div class="modal-overlay" id="email-config-modal" role="dialog" aria-modal="true" aria-labelledby="email-config-title">
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header">
         <h3 id="email-config-title">Configure Email Credentials</h3>
-        <button class="modal-close-btn" onclick="closeEmailConfigModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeEmailConfigModal()">&times;</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -1461,11 +1577,11 @@
   </div>
 
   <!-- 4a. WhatsApp QR Link Modal -->
-  <div class="modal-overlay" id="wa-qr-modal">
+  <div class="modal-overlay" id="wa-qr-modal" role="dialog" aria-modal="true" aria-labelledby="wa-qr-title">
     <div class="modal-content" style="max-width: 460px;">
       <div class="modal-header">
         <h3 id="wa-qr-title">Link WhatsApp Device</h3>
-        <button class="modal-close-btn" onclick="closeWhatsAppQrModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeWhatsAppQrModal()">&times;</button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 0.9rem; padding: 1.5rem 1.25rem;">
         <div id="wa-qr-subtitle" style="font-size: 0.8rem; color: var(--text-secondary); text-align: center;">Waiting for QR code...</div>
@@ -1480,13 +1596,13 @@
   </div>
 
   <!-- 4b. Data Discrepancies Drawer -->
-  <div class="modal-overlay" id="discrepancies-modal">
+  <div class="modal-overlay" id="discrepancies-modal" role="dialog" aria-modal="true" aria-labelledby="discrepancies-modal-title">
     <div class="modal-content" style="max-width: 720px; border-top: 4px solid var(--accent-amber);">
       <div class="modal-header">
-        <h3 style="color: var(--accent-amber); display: flex; align-items: center; gap: 0.4rem;">
+        <h3 id="discrepancies-modal-title" style="color: var(--accent-amber); display: flex; align-items: center; gap: 0.4rem;">
           <span>⚠️ Data Discrepancies</span>
         </h3>
-        <button class="modal-close-btn" onclick="closeDiscrepanciesDrawer()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeDiscrepanciesDrawer()">&times;</button>
       </div>
       <div class="modal-body">
         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
@@ -1504,13 +1620,13 @@
   </div>
 
   <!-- 5. Outreach Readiness Error Modal (Phase 8.4) -->
-  <div class="modal-overlay" id="readiness-modal">
+  <div class="modal-overlay" id="readiness-modal" role="dialog" aria-modal="true" aria-labelledby="readiness-modal-title">
     <div class="modal-content" style="max-width: 520px; border-top: 4px solid var(--accent-rose);">
       <div class="modal-header">
-        <h3 style="color: var(--accent-rose); display: flex; align-items: center; gap: 0.4rem;">
+        <h3 id="readiness-modal-title" style="color: var(--accent-rose); display: flex; align-items: center; gap: 0.4rem;">
           <span>⚠️ Outreach Cannot Start</span>
         </h3>
-        <button class="modal-close-btn" onclick="closeReadinessModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeReadinessModal()">&times;</button>
       </div>
       <div class="modal-body">
         <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.5rem;" id="readiness-error-reason">
@@ -1533,11 +1649,11 @@
   </div>
 
   <!-- 6. Templates Management Drawer (Section 14) -->
-  <div class="modal-overlay" id="templates-modal">
+  <div class="modal-overlay" id="templates-modal" role="dialog" aria-modal="true" aria-labelledby="templates-modal-title">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Message Templates</h3>
-        <button class="modal-close-btn" onclick="closeTemplatesDrawer()">&times;</button>
+        <h3 id="templates-modal-title">Message Templates</h3>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeTemplatesDrawer()">&times;</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; justify-content: flex-end; margin-bottom: 0.75rem;">
@@ -1592,18 +1708,18 @@
   </div>
 
   <!-- 7. Synchronization Summary Modal (Section 16 & Phase 8) -->
-  <div class="modal-overlay" id="sync-modal">
+  <div class="modal-overlay" id="sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-modal-title">
     <div class="modal-content" style="max-width: 580px;">
       <div class="modal-header">
         <h3 id="sync-modal-title">Source Synchronization Summary</h3>
-        <button class="modal-close-btn" onclick="closeSyncModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeSyncModal()">&times;</button>
       </div>
       <div class="modal-body" id="sync-modal-body">
         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
           Source: <strong id="sync-source-filename" style="color: var(--accent-blue);">MNC_Final.xlsx</strong> &bull; Operational Truth: <strong style="color: var(--accent-emerald);">SQLite Relational Store</strong>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem;">
+        <div class="sync-stats-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem;">
           <div class="kpi-card"><div class="kpi-label">Total Read</div><div class="kpi-value" id="sync-total">0</div></div>
           <div class="kpi-card kpi-wa"><div class="kpi-label">New Companies</div><div class="kpi-value" id="sync-new-comp">0</div></div>
           <div class="kpi-card kpi-eligible"><div class="kpi-label">Updated Companies</div><div class="kpi-value" id="sync-upd-comp">0</div></div>
@@ -1627,8 +1743,33 @@
     </div>
   </div>
 
+  <!-- 8. Recovery Queue Drawer -->
+  <div class="modal-overlay" id="recovery-modal" role="dialog" aria-modal="true" aria-labelledby="recovery-modal-title">
+    <div class="modal-content" style="max-width: 760px; border-top: 4px solid var(--accent-amber);">
+      <div class="modal-header">
+        <h3 id="recovery-modal-title" style="color: var(--accent-amber); display: flex; align-items: center; gap: 0.4rem;">
+          <span>⏱ Recovery Queue</span>
+        </h3>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeRecoveryDrawer()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+          Attempts stuck in <strong>RECOVERY_REQUIRED</strong> or <strong>UNKNOWN</strong> state (e.g. text delivered but the attachment failed).
+          Resolve each item: confirm it as sent, retry it, or cancel it.
+        </div>
+        <div id="recovery-list-container" role="status" aria-live="polite" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="color: var(--text-secondary); font-size: 0.85rem;">Loading recovery queue...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="fetchRecoveryQueue()">Refresh</button>
+        <button class="btn btn-primary" onclick="closeRecoveryDrawer()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
-  <div class="toast-container" id="toast-container"></div>
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- Application Logic (Vanilla JS) -->
   <script>
@@ -1747,23 +1888,49 @@
       }
     }
 
+    function renderHierarchySkeleton() {
+      const container = document.getElementById('hierarchy-cards-list');
+      container.innerHTML = [1, 2, 3].map(() => `
+        <div class="skeleton-card" aria-hidden="true">
+          <div class="skeleton-line" style="width: 38%;"></div>
+          <div class="skeleton-line" style="width: 92%;"></div>
+          <div class="skeleton-line" style="width: 71%;"></div>
+        </div>
+      `).join('');
+    }
+
+    function isRecoveryAttempt(att) {
+      return att && (att.status === 'RECOVERY_REQUIRED' || att.status === 'UNKNOWN');
+    }
+
     // 3. Fetch & Render Hierarchies (Company -> HR -> Endpoints -> History)
     async function fetchHierarchies() {
+      const summary = document.getElementById('hierarchy-summary-text');
+      const defaultSummary = 'Company-First progression &bull; Discrete Endpoint Tracking';
       try {
         const params = new URLSearchParams();
         if (state.searchQuery) params.set('search', state.searchQuery);
         if (state.selectedCompany !== 'ALL') params.set('company', state.selectedCompany);
         if (state.selectedCrmStatus !== 'ALL') params.set('crm_status', state.selectedCrmStatus);
-        if (state.selectedPriorityFilter !== 'ALL') params.set('priority_filter', state.selectedPriorityFilter);
+        // RECOVERY is a client-side bucket (the server only knows INTERESTED /
+        // NOT_INTERESTED / FOLLOW_UP_DUE / RECENTLY_ACTIVE / UNCONTACTED), so it
+        // is never sent upstream; renderHierarchyView applies it locally.
+        if (state.selectedPriorityFilter !== 'ALL' && state.selectedPriorityFilter !== 'RECOVERY') params.set('priority_filter', state.selectedPriorityFilter);
         if (state.selectedChannelStatus !== 'ALL') params.set('channel_status', state.selectedChannelStatus);
 
+        if (summary) summary.innerHTML = 'Refreshing company hierarchies&hellip;';
         const res = await apiFetch(`/api/companies/hierarchy?${params.toString()}`);
         if (res.ok) {
           state.hierarchies = await res.json();
           renderHierarchyView(state.hierarchies);
+        } else {
+          showToast('Failed to load hierarchies: ' + await apiErrorText(res), 'error');
         }
       } catch (err) {
         console.error('Error loading hierarchies:', err);
+        showToast('Failed to load hierarchies: ' + err.message, 'error');
+      } finally {
+        if (summary) summary.innerHTML = defaultSummary;
       }
     }
 
@@ -1771,10 +1938,23 @@
       const container = document.getElementById('hierarchy-cards-list');
       container.innerHTML = '';
 
+      // Client-side RECOVERY bucket: keep companies with at least one contact
+      // whose history holds a RECOVERY_REQUIRED / UNKNOWN attempt.
+      if (state.selectedPriorityFilter === 'RECOVERY') {
+        hierarchies = (hierarchies || []).filter(comp =>
+          (comp.contacts || []).some(hr =>
+            (hr.history || []).some(isRecoveryAttempt)
+          )
+        );
+      }
+
       if (!hierarchies || hierarchies.length === 0) {
+        const emptyMsg = state.selectedPriorityFilter === 'RECOVERY'
+          ? `Recovery queue is clear &mdash; no contacts need operator review.`
+          : 'No companies found matching the selected filter criteria.';
         container.innerHTML = `
-          <div style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
-            No companies found matching the selected filter criteria.
+          <div style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+            ${emptyMsg}
           </div>
         `;
         return;
@@ -1827,19 +2007,28 @@
           let endpointsHtml = '';
           (hr.endpoints || []).forEach(ep => {
             const isSent = ep.status === 'SENT';
+            const recoveryAtt = (hr.history || []).find(att =>
+              isRecoveryAttempt(att) && att.channel === ep.channel && (att.destination || '') === (ep.address || '')
+            );
             const epClass = isSent ? 'endpoint-covered' : '';
-            const statusBadge = isSent 
-              ? `<span style="color: var(--accent-emerald); font-weight: 600;">✓ ${ep.channel} SENT</span>` 
-              : `<span style="color: var(--text-muted);">○ Not contacted</span>`;
+            const statusBadge = isSent
+              ? `<span style="color: var(--accent-emerald); font-weight: 600;">✓ ${ep.channel} SENT</span>`
+              : (recoveryAtt
+                ? `<span style="color: var(--accent-amber); font-weight: 600;">⏱ ${ep.channel} IN RECOVERY QUEUE</span>`
+                : `<span style="color: var(--text-secondary);">○ Not contacted</span>`);
 
             let metaDetails = '';
             if (isSent && ep.sender_account_id) {
-              metaDetails = `<div style="font-size: 0.675rem; color: var(--text-muted);">${escapeHtml(ep.sender_account_id)} &bull; ${escapeHtml(ep.template_id || 'Direct')} &bull; ${formatDate(ep.sent_at)}</div>`;
+              metaDetails = `<div style="font-size: 0.675rem; color: var(--text-secondary);">${escapeHtml(ep.sender_account_id)} &bull; ${escapeHtml(ep.template_id || 'Direct')} &bull; ${formatDate(ep.sent_at)}</div>`;
+            } else if (recoveryAtt && recoveryAtt.failure_detail) {
+              metaDetails = `<div style="font-size: 0.675rem; color: var(--accent-amber);">${escapeHtml(recoveryAtt.failure_detail)}</div>`;
             }
 
-            const sendBtn = ep.channel === 'WHATSAPP'
-              ? `<button class="btn btn-emerald btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'WHATSAPP', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend WA' : 'Send WA'}</button>`
-              : `<button class="btn btn-primary btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'EMAIL', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend Email' : 'Send Email'}</button>`;
+            const sendBtn = recoveryAtt
+              ? `<button class="btn btn-amber btn-xs" onclick="openRecoveryDrawer()">⏱ Review queue</button>`
+              : (ep.channel === 'WHATSAPP'
+                ? `<button class="btn btn-emerald btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'WHATSAPP', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend WA' : 'Send WA'}</button>`
+                : `<button class="btn btn-primary btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'EMAIL', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend Email' : 'Send Email'}</button>`);
 
             endpointsHtml += `
               <div class="endpoint-box ${epClass}">
@@ -1861,8 +2050,9 @@
           if ((hr.history || []).length > 0) {
             historyHtml = (hr.history || []).map(att => {
               const ok = att.status === 'SENT';
-              const icon = ok ? '✓' : '✕';
-              const color = ok ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+              const inRecovery = isRecoveryAttempt(att);
+              const icon = ok ? '✓' : (inRecovery ? '⏱' : '✕');
+              const color = ok ? 'var(--accent-emerald)' : (inRecovery ? 'var(--accent-amber)' : 'var(--accent-rose)');
               const when = att.completed_at || att.prepared_at;
               return `
                 <div style="display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.72rem; padding: 0.2rem 0; border-bottom: 1px solid var(--border-subtle);">
@@ -1912,7 +2102,7 @@
         });
 
         card.innerHTML = `
-          <div class="company-card-header" onclick="toggleCompany('${jsAttr(comp.id)}')" title="Click to expand / collapse HR contacts">
+          <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" onclick="toggleCompany('${jsAttr(comp.id)}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleCompany('${jsAttr(comp.id)}'); }" title="Click to expand / collapse HR contacts">
             <div class="company-title-area">
               <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
               <span class="company-name-lg">${escapeHtml(comp.name)}</span>
@@ -1937,7 +2127,11 @@
       if (!list) return;
       const isHidden = list.style.display === 'none';
       list.style.display = isHidden ? 'block' : 'none';
-      if (caret) caret.textContent = isHidden ? '▾' : '▸';
+      if (caret) {
+        caret.textContent = isHidden ? '▾' : '▸';
+        const header = caret.closest('.company-card-header');
+        if (header) header.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+      }
     }
 
     // 5. CRM Status Update Action
@@ -2477,6 +2671,26 @@
           readinessText.innerText = 'Not Ready (No active senders)';
           readinessText.style.color = 'var(--accent-rose)';
         }
+      }
+
+      // Overall readiness pill in the header, synced with the drawer verdict above.
+      const hdrReadinessText = document.getElementById('hdr-readiness-text');
+      const hdrReadinessDot = document.getElementById('hdr-readiness-dot');
+      if (hdrReadinessText && hdrReadinessDot) {
+        let label, color;
+        if (activeWa > 0 && activeEm > 0) {
+          label = 'All ready';
+          color = 'var(--accent-emerald)';
+        } else if (activeWa > 0 || activeEm > 0) {
+          label = 'Partially ready';
+          color = 'var(--accent-amber)';
+        } else {
+          label = 'Senders needed';
+          color = 'var(--accent-rose)';
+        }
+        hdrReadinessText.innerText = label;
+        hdrReadinessText.style.color = color;
+        hdrReadinessDot.style.background = color;
       }
     }
 
@@ -3124,6 +3338,10 @@
         const wsUrl = `${proto}//${window.location.host}/api/events/ws`;
         activeWebSocket = new WebSocket(wsUrl);
 
+        activeWebSocket.onopen = () => {
+          setWsBanner(false);
+        };
+
         activeWebSocket.onmessage = (e) => {
           try {
             const eventData = JSON.parse(e.data);
@@ -3136,6 +3354,7 @@
         };
 
         activeWebSocket.onclose = () => {
+          setWsBanner(true);
           setTimeout(initEventStream, 3000);
         };
       } catch (e) {
@@ -3143,9 +3362,18 @@
       }
     }
 
+    function setWsBanner(visible) {
+      const banner = document.getElementById('ws-banner');
+      if (banner) banner.classList.toggle('visible', !!visible);
+    }
+
     function fallbackToSSE() {
       if (activeEventSource) return;
       activeEventSource = new EventSource('/api/events/stream');
+
+      activeEventSource.onopen = () => {
+        setWsBanner(false);
+      };
 
       activeEventSource.onmessage = (e) => {
         try {
@@ -3166,7 +3394,9 @@
         activeEventSource.addEventListener(evt, (e) => handleLiveEvent(JSON.parse(e.data)));
       });
 
-      activeEventSource.onerror = () => {};
+      activeEventSource.onerror = () => {
+        setWsBanner(true);
+      };
     }
 
     async function handleLiveEvent(ev) {
@@ -3296,6 +3526,70 @@
       }, 4000);
     }
   
+    // Global Escape-to-close: dismiss the topmost open dialog.
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      const openOverlays = document.querySelectorAll('.modal-overlay.open');
+      if (openOverlays.length === 0) return;
+      openOverlays[openOverlays.length - 1].classList.remove('open');
+    });
+
+    function openRecoveryDrawer() {
+      document.getElementById('recovery-modal').classList.add('open');
+      fetchRecoveryQueue();
+    }
+    function closeRecoveryDrawer() {
+      document.getElementById('recovery-modal').classList.remove('open');
+    }
+    async function fetchRecoveryQueue() {
+      const container = document.getElementById('recovery-list-container');
+      container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;">Loading recovery queue...</div>';
+      try {
+        const res = await apiFetch('/api/outreach/recovery');
+        if (!res.ok) {
+          container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading recovery queue: ' + escapeHtml(await apiErrorText(res)) + '</div>';
+          return;
+        }
+        const items = await res.json();
+        if (!items || items.length === 0) {
+          container.innerHTML = '<div style="color:var(--accent-emerald);font-size:0.85rem;">&#10003; Recovery queue is empty. Nothing needs operator review.</div>';
+          return;
+        }
+        container.innerHTML = '<div style="font-size:0.8rem;color:var(--text-secondary);">' + items.length + ' attempt(s) need operator review.</div>' + items.map(function (it) {
+          const safeId = jsAttr(it.id);
+          return '<div style="border:1px solid var(--border-medium);border-left:3px solid var(--accent-amber);border-radius:var(--radius-sm);padding:0.6rem 0.75rem;">'
+            + '<div style="font-weight:600;font-size:0.82rem;">' + escapeHtml(it.contact_name || 'Unknown contact') + ' <span style="color:var(--text-secondary);font-weight:400;">@ ' + escapeHtml(it.company || '') + '</span></div>'
+            + '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.15rem;"><strong>' + escapeHtml(it.channel || '') + '</strong> &rarr; <span style="font-family:monospace;">' + escapeHtml(it.destination || '') + '</span> &bull; <span class="badge badge-recovery">' + escapeHtml(it.status || '') + '</span>' + (it.prepared_at ? ' &bull; ' + formatDate(it.prepared_at) : '') + '</div>'
+            + (it.failure_detail ? '<div style="font-size:0.75rem;color:var(--accent-rose);margin-top:0.15rem;">' + escapeHtml(it.failure_detail) + '</div>' : '')
+            + '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
+            + '<button class="btn btn-emerald btn-xs" onclick="resolveRecoveryAttempt(\'' + safeId + '\', \'mark_sent\')">Confirm sent</button>'
+            + '<button class="btn btn-primary btn-xs" onclick="resolveRecoveryAttempt(\'' + safeId + '\', \'retry\')">Retry</button>'
+            + '<button class="btn btn-outline btn-xs" style="color:var(--accent-rose);" onclick="resolveRecoveryAttempt(\'' + safeId + '\', \'cancel\')">Cancel</button>'
+            + '</div></div>';
+        }).join('');
+      } catch (err) {
+        container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading recovery queue: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+    async function resolveRecoveryAttempt(attemptId, action) {
+      try {
+        const res = await apiFetch('/api/outreach/recovery/' + encodeURIComponent(attemptId) + '/resolve', {
+          method: 'POST',
+          body: JSON.stringify({ action: action })
+        });
+        if (res.ok) {
+          showToast('Recovery item ' + action.replace('_', ' ') + '.', 'success');
+          await fetchRecoveryQueue();
+          await fetchKpis();
+          await fetchHierarchies();
+        } else {
+          showToast('Resolve failed: ' + await apiErrorText(res), 'error');
+        }
+      } catch (err) {
+        showToast('Error resolving recovery item: ' + err.message, 'error');
+      }
+    }
+
     function openDiscrepanciesDrawer() {
       document.getElementById('discrepancies-modal').classList.add('open');
       fetchDiscrepancies();
