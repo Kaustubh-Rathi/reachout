@@ -1369,6 +1369,12 @@
           <label class="form-label">Message Body</label>
           <textarea class="form-control" id="modal-body-input" rows="5"></textarea>
         </div>
+
+        <div class="form-group">
+          <label class="form-label">Attachment (optional)</label>
+          <input type="text" class="form-control" id="modal-attachment-input" placeholder="e.g. resume.pdf (relative to project root)">
+          <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem;">Prefilled from the selected template. A missing file fails the send.</div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeSendModal()">Cancel</button>
@@ -2285,6 +2291,9 @@
       const firstName = contact.first_name || (contact.name ? contact.name.split(' ')[0] : 'there');
       document.getElementById('modal-body-input').value = `Hi ${firstName},\n\nI hope you are well. Reaching out regarding software engineering roles at ${contact.company || contact.company_id || ''}.\n\nBest regards,\nCandidate`;
 
+      // Reset attachment (prefilled when a template is selected).
+      document.getElementById('modal-attachment-input').value = '';
+
       document.getElementById('send-modal').classList.add('open');
     }
 
@@ -2310,6 +2319,7 @@
         if (tpl.subject) {
           document.getElementById('modal-subject-input').value = tpl.subject.replace(/{company}/g, contact.company || contact.company_id || '');
         }
+        document.getElementById('modal-attachment-input').value = tpl.attachment_ref || '';
       }
     }
 
@@ -2333,6 +2343,7 @@
 
       const customBody = document.getElementById('modal-body-input').value || null;
       const subject = document.getElementById('modal-subject-input').value || null;
+      const attachmentRef = document.getElementById('modal-attachment-input').value.trim() || null;
 
       if (isResend) {
         if (!confirm(`This endpoint (${destination || 'contact'}) was already contacted. Are you sure you want to proceed with a manual resend?`)) {
@@ -2354,6 +2365,7 @@
         template_id: templateId,
         custom_body: customBody,
         subject: subject,
+        attachment_ref: attachmentRef,
       };
 
       const submitBtn = document.getElementById('modal-submit-send-btn');
