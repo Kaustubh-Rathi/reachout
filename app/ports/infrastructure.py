@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, Callable, Dict, Optional, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -62,10 +62,6 @@ class EventPublisher(Protocol):
 
     def publish(self, event: DomainEvent) -> None:
         """Publish a single domain event."""
-        ...
-
-    def publish_batch(self, events: Sequence[DomainEvent]) -> None:
-        """Publish multiple domain events."""
         ...
 
     def publish_event(self, event_type: str, payload: Dict[str, Any]) -> DomainEvent:

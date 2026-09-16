@@ -11,7 +11,7 @@ import asyncio
 import threading
 from collections import deque
 from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Callable, Deque, Dict, List, Optional, Sequence, Set
+from typing import Any, AsyncGenerator, Callable, Deque, Dict, List, Optional, Set
 
 from app.ports.infrastructure import DomainEvent
 
@@ -87,11 +87,6 @@ class EventBus:
             except Exception as exc:
                 print(f"[EventBus] Error in event listener {listener}: {exc}")
 
-    def publish_batch(self, events: Sequence[DomainEvent]) -> None:
-        """Publish a sequence of events."""
-        for evt in events:
-            self.publish(evt)
-
     def publish_event(self, event_type: str, payload: Dict[str, Any]) -> DomainEvent:
         """Convenience helper to construct and broadcast a single domain event."""
         event = DomainEvent(
@@ -101,11 +96,6 @@ class EventBus:
         )
         self.publish(event)
         return event
-
-    def get_recent_events(self, limit: int = 100) -> List[DomainEvent]:
-        """Retrieve recent events from in-memory ring buffer."""
-        with self._lock:
-            return list(self._recent_events)[-limit:]
 
     def get_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Retrieve recent events in reverse chronological order as dictionaries."""
@@ -122,14 +112,6 @@ class EventBus:
             }
             for e in sliced
         ]
-
-    def clear(self) -> None:
-        """Clear all listeners, async subscribers, and event history."""
-        with self._lock:
-            self._listeners.clear()
-            self._typed_listeners.clear()
-            self._async_subscribers.clear()
-            self._recent_events.clear()
 
 
 # Canonical singleton event bus instance

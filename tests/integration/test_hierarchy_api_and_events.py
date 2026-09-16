@@ -12,13 +12,12 @@ from app.domain.enums import AttemptType, Channel
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
-from app.infrastructure.events.event_bus import default_event_bus
+from app.infrastructure.events.event_bus import default_event_bus, event_bus
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.services.company_service import CompanyService
-from app.services.event_bus import event_bus
 
 
 @pytest.fixture

@@ -49,19 +49,8 @@ class SenderService:
         # Display names for in-memory temp WhatsApp ids (never persisted to the DB).
         self._temp_display_names: Dict[str, str] = {}
 
-    def seed_defaults_if_empty(self) -> None:
-        """Seed placeholder sender accounts if repository is empty.
-
-        No accounts are pre-created: the operator adds the required number of
-        WhatsApp and Email sessions from the UI. Kept as a no-op so existing
-        callers are unaffected.
-        """
-        return
-
     def reconcile_sender_states(self) -> None:
         """Reconcile stored sender statuses against persistent auth contexts and vaults on startup."""
-        self.seed_defaults_if_empty()
-
         # WhatsApp senders reconciliation
         wa_senders = self.repo.list_by_channel(Channel.WHATSAPP)
         for s in wa_senders:
@@ -133,7 +122,6 @@ class SenderService:
 
     def list_senders(self, channel: Optional[str] = None) -> List[Dict[str, Any]]:
         """List all sender accounts in safe projection (no secrets/tokens/credentials)."""
-        self.seed_defaults_if_empty()
         ch_enum = Channel(channel.upper()) if channel else None
 
         senders = []
@@ -164,7 +152,6 @@ class SenderService:
         return results
 
     def get_sender(self, sender_id: str) -> Optional[SenderAccount]:
-        self.seed_defaults_if_empty()
         return self.repo.get_by_id(sender_id)
 
     def update_sender_status(self, sender_id: str, status_str: str) -> Optional[Dict[str, Any]]:
@@ -212,8 +199,6 @@ class SenderService:
         """Ensure exactly N WhatsApp sessions are configured in the repository."""
         if count < 1:
             raise ValueError("WhatsApp session count must be at least 1")
-
-        self.seed_defaults_if_empty()
         existing_wa = self.repo.list_by_channel(Channel.WHATSAPP)
         existing_map = {s.id: s for s in existing_wa}
 
@@ -390,7 +375,7 @@ class SenderService:
 
         This is the single entry point for Email sessions (``/api/senders/email/add`` has
         been removed). If SMTP verification fails, an exception is raised and NOTHING is
-        persisted Ã¢â‚¬â€ no dummy/placeholder row is ever created.
+        persisted ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no dummy/placeholder row is ever created.
         """
 
         clean_id = id.strip()
@@ -532,7 +517,6 @@ class SenderService:
 
     def get_senders_readiness(self) -> Dict[str, Any]:
         """Retrieve overall sender readiness metrics across channels."""
-        self.seed_defaults_if_empty()
         wa_senders = self.repo.list_by_channel(Channel.WHATSAPP)
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
 

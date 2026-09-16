@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
-from app.services.event_bus import event_bus
+from app.infrastructure.events.event_bus import event_bus
 
 router = APIRouter(prefix="/api/events", tags=["Events"])
 

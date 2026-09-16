@@ -512,7 +512,6 @@ class TestFinding6WhatsAppAuthentication:
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         with SessionLocal() as session:
             svc = SenderService(session)
-            svc.seed_defaults_if_empty()
             assert svc.list_senders() == []
 
     def test_whatsapp_auth_flow_qr_to_active(self):

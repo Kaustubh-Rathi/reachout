@@ -67,15 +67,3 @@ class SourceRecord:
             first_seen_at=now,
             last_seen_at=now,
         )
-
-    def with_updated_observation(self, observed_at: Optional[datetime] = None) -> SourceRecord:
-        """Return a new SourceRecord with updated last_seen_at timestamp."""
-        now = observed_at or datetime.now(timezone.utc)
-        return SourceRecord(
-            source_file=self.source_file,
-            source_sheet=self.source_sheet,
-            source_row=self.source_row,
-            source_fingerprint=self.source_fingerprint,
-            first_seen_at=self.first_seen_at,
-            last_seen_at=now,
-        )

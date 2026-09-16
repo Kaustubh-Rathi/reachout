@@ -85,15 +85,15 @@ class TestContactModel:
             phone="919999999999",
             crm_outcome=CRMOutcome.NONE,
         )
-        assert not contact.has_successful_outreach(Channel.WHATSAPP)
-        assert not contact.has_successful_outreach(Channel.EMAIL)
+        assert contact.last_whatsapp_at is None
+        assert contact.last_email_at is None
 
         contact.record_outreach_success(Channel.WHATSAPP, timestamp=t0)
         assert contact.last_whatsapp_at == t0
         assert contact.last_activity_at == t0
         assert contact.crm_outcome == CRMOutcome.PENDING_REPLY
-        assert contact.has_successful_outreach(Channel.WHATSAPP)
-        assert not contact.has_successful_outreach(Channel.EMAIL)
+        assert contact.last_whatsapp_at is not None
+        assert contact.last_email_at is None
 
     def test_record_outreach_success_email(self):
         t0 = datetime(2026, 1, 5, 11, 0, 0, tzinfo=timezone.utc)
@@ -108,7 +108,7 @@ class TestContactModel:
         assert contact.last_email_at == t0
         assert contact.last_activity_at == t0
         assert contact.crm_outcome == CRMOutcome.PENDING_REPLY
-        assert contact.has_successful_outreach(Channel.EMAIL)
+        assert contact.last_email_at is not None
 
     def test_contact_does_not_contain_message_history(self):
         """Verify SRP: Contact holds profile and milestones, not full attempt logs."""

@@ -575,19 +575,6 @@
       border: 1px solid var(--accent-rose-border);
     }
 
-    .badge-interested {
-      background: var(--accent-emerald-bg);
-      color: var(--accent-emerald);
-      border: 1px solid var(--accent-emerald-border);
-      font-weight: 700;
-    }
-
-    .badge-not-interested {
-      background: var(--accent-rose-bg);
-      color: var(--accent-rose);
-      border: 1px solid var(--accent-rose-border);
-    }
-
     .badge-pending-reply {
       background: var(--accent-blue-bg);
       color: var(--accent-blue);
@@ -616,48 +603,6 @@
       background: var(--bg-surface-raised);
       color: var(--text-muted);
       border: 1px solid var(--border-medium);
-    }
-
-    .badge-interview-scheduled {
-      background: var(--accent-indigo-bg);
-      color: var(--accent-indigo);
-      border: 1px solid var(--accent-indigo-border);
-      font-weight: 700;
-    }
-
-    .badge-interview-pending {
-      background: var(--bg-surface-raised);
-      color: var(--text-secondary);
-      border: 1px solid var(--border-medium);
-    }
-
-    .follow-up-due-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      background: var(--accent-amber-bg);
-      color: var(--accent-amber);
-      border: 1px solid var(--accent-amber-border);
-      padding: 0.2rem 0.5rem;
-      border-radius: var(--radius-xs);
-      font-size: 0.675rem;
-      font-weight: 800;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-top: 0.25rem;
-      animation: pulse-glow 2s infinite;
-    }
-
-    @keyframes pulse-glow {
-      0%, 100% { box-shadow: 0 0 0 rgba(245, 158, 11, 0); }
-      50% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
-    }
-
-    .interested-since-text {
-      font-size: 0.7rem;
-      color: var(--accent-emerald);
-      font-weight: 500;
-      margin-top: 0.15rem;
     }
 
     /* Modal / Drawer Overlays */
@@ -791,7 +736,6 @@
 
     .timeline-dot.dot-sent { border-color: var(--accent-emerald); background: var(--accent-emerald-bg); }
     .timeline-dot.dot-interested { border-color: #34d399; background: var(--accent-emerald); }
-    .timeline-dot.dot-interview { border-color: var(--accent-indigo); background: var(--accent-indigo); }
     .timeline-dot.dot-followup { border-color: var(--accent-amber); background: var(--accent-amber); }
     .timeline-dot.dot-failed { border-color: var(--accent-rose); background: var(--accent-rose); }
 
@@ -1058,10 +1002,6 @@
       font-family: 'JetBrains Mono', monospace;
       color: var(--text-primary);
       font-size: 0.8rem;
-    }
-
-    .endpoint-status-text {
-      font-size: 0.7rem;
     }
 
     /* Responsive Breakpoints */
@@ -3356,7 +3296,6 @@
       }, 4000);
     }
   
-    function _discEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function openDiscrepanciesDrawer() {
       document.getElementById('discrepancies-modal').classList.add('open');
       fetchDiscrepancies();
@@ -3377,15 +3316,15 @@
         let html = '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem;">Found ' + data.groups.length + ' discrepancy group(s).</div>';
         data.groups.forEach(function(g, i) {
           html += '<div style="border:1px solid var(--border-medium);border-left:3px solid var(--accent-amber);border-radius:var(--radius-sm);padding:0.6rem 0.75rem;">';
-          html += '<div style="font-weight:600;font-size:0.8rem;margin-bottom:0.35rem;">' + (i + 1) + '. ' + _discEsc(g.kind) + ': <span style="color:var(--accent-amber);">' + _discEsc(g.identifier) + '</span></div>';
+          html += '<div style="font-weight:600;font-size:0.8rem;margin-bottom:0.35rem;">' + (i + 1) + '. ' + escapeHtml(g.kind) + ': <span style="color:var(--accent-amber);">' + escapeHtml(g.identifier) + '</span></div>';
           g.contacts.forEach(function(c) {
-            html += '<div style="font-size:0.8rem;padding:0.15rem 0;">&#8226; <strong>' + _discEsc(c.name) + '</strong> @ ' + _discEsc(c.company) + ' <span style="color:var(--text-muted);">(' + _discEsc(c.phone || c.email) + ')</span>' + (c.last_whatsapp_at ? ' &mdash; last WA ' + _discEsc(String(c.last_whatsapp_at).slice(0,10)) : '') + '</div>';
+            html += '<div style="font-size:0.8rem;padding:0.15rem 0;">&#8226; <strong>' + escapeHtml(c.name) + '</strong> @ ' + escapeHtml(c.company) + ' <span style="color:var(--text-muted);">(' + escapeHtml(c.phone || c.email) + ')</span>' + (c.last_whatsapp_at ? ' &mdash; last WA ' + escapeHtml(String(c.last_whatsapp_at).slice(0,10)) : '') + '</div>';
           });
           html += '</div>';
         });
         container.innerHTML = html;
       } catch (err) {
-        container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading discrepancies: ' + _discEsc(err.message) + '</div>';
+        container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading discrepancies: ' + escapeHtml(err.message) + '</div>';
       }
     }
 </script>

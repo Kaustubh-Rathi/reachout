@@ -81,15 +81,6 @@ class Campaign:
             return True
         return self.automatic_used < self.automatic_quota
 
-    def record_automatic_dispatch(self, success: bool = True) -> None:
-        """Record an automated dispatch result."""
-        if success:
-            self.metadata["automatic_used"] = self.automatic_used + 1
-
-    def record_manual_dispatch(self) -> None:
-        """Record a manual send against the manual reserve."""
-        self.metadata["manual_used"] = self.manual_used + 1
-
     @classmethod
     def create(
         cls,

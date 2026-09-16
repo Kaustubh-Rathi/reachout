@@ -1,7 +1,7 @@
 """Unit tests verifying Port Contracts and Protocol conformance with in-memory adapters."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional
 
 from app.domain import (
     AttemptType,
@@ -51,11 +51,6 @@ class InMemoryContactRepository:
     def save(self, contact: Contact) -> Contact:
         self._store[contact.contact_id] = contact
         return contact
-
-    def save_bulk(self, contacts: Sequence[Contact]) -> List[Contact]:
-        for c in contacts:
-            self._store[c.contact_id] = c
-        return list(contacts)
 
     def delete(self, contact_id: str) -> bool:
         return self._store.pop(contact_id, None) is not None
@@ -169,9 +164,6 @@ class MockEventPublisher:
         event = DomainEvent(event_type=event_type, payload=payload)
         self.published.append(event)
         return event
-
-    def publish_batch(self, events: Sequence[DomainEvent]) -> None:
-        self.published.extend(events)
 
 
 # --- Tests ---

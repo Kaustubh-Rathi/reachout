@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import List, Optional, Sequence
+from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -112,12 +112,6 @@ class SqliteContactRepository(ContactRepository):
 
         self.session.flush()
         return contact
-
-    def save_bulk(self, contacts: Sequence[Contact]) -> List[Contact]:
-        saved: List[Contact] = []
-        for c in contacts:
-            saved.append(self.save(c))
-        return saved
 
     def delete(self, contact_id: str) -> bool:
         model = self.session.get(ContactModel, contact_id)

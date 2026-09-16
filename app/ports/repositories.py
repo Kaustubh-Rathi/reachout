@@ -7,7 +7,7 @@ Defined using typing.Protocol to decouple domain logic from persistence mechanis
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, List, Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, List, Optional, Protocol, runtime_checkable
 
 from app.domain.campaign import Campaign
 from app.domain.company import Company
@@ -41,10 +41,6 @@ class ContactRepository(Protocol):
 
     def save(self, contact: Contact) -> Contact:
         """Upsert a single contact."""
-        ...
-
-    def save_bulk(self, contacts: Sequence[Contact]) -> List[Contact]:
-        """Upsert multiple contacts atomically or in batch."""
         ...
 
     def delete(self, contact_id: str) -> bool:

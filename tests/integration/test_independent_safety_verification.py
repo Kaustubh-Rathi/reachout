@@ -305,7 +305,7 @@ class TestManualSendAndResendRegression:
 
             # 4. Verify contact is marked as having successful outreach
             contact = contact_repo.get_by_id("cnt_nflx_01")
-            assert contact.has_successful_outreach(Channel.WHATSAPP) is True
+            assert contact.last_whatsapp_at is not None
 
 
 # ==============================================================================
@@ -702,7 +702,7 @@ class TestCompanyFirstAndDuplicateSuppression:
         with SessionFactory() as session:
             contact_repo = SqliteContactRepository(session)
             cnt = contact_repo.get_by_id("cnt_sfdc_1")
-            assert cnt.has_successful_outreach(Channel.WHATSAPP) is True
+            assert cnt.last_whatsapp_at is not None
 
 
 # ==============================================================================
