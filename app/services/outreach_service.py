@@ -6,7 +6,7 @@ and recovery handling.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -77,6 +77,7 @@ class OutreachService:
         self.rate_limiter = rate_limiter if rate_limiter is not None else default_rate_limiter
         # Event publishing is injectable so the service is unit-testable with a fake bus.
         self.event_publisher = event_publisher if event_publisher is not None else ctx.event_publisher
+        self.clock = ctx.clock
 
     # ------------------------------------------------------------------
     # Resolution helpers
@@ -429,7 +430,7 @@ class OutreachService:
             contact, channel, template_id, custom_body, subject, attachment_ref, is_resend=False
         )
 
-        now = datetime.now(timezone.utc)
+        now = self.clock.now()
         attempt_type = AttemptType.AUTOMATIC if campaign_id else AttemptType.MANUAL
         # B14: deterministic idempotency key + pre-dispatch dedup guard.
         try:
@@ -529,7 +530,7 @@ class OutreachService:
         )
 
         historical = self.outreach_repo.list_by_contact(contact.contact_id)
-        now = datetime.now(timezone.utc)
+        now = self.clock.now()
         attempt = prepare_manual_resend(
             contact=contact,
             sender_account=sender,
@@ -652,7 +653,7 @@ class OutreachService:
         if not attempt:
             raise ValueError(f"Attempt not found: {attempt_id}")
 
-        now = datetime.now(timezone.utc)
+        now = self.clock.now()
         attempt.recovery_notes = recovery_notes or f"Resolved via operator action: {action}"
 
         if action == "mark_sent":

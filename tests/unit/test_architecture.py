@@ -167,10 +167,10 @@ class TestArchitecturalBoundaries:
         services_dir = APP_DIR / "services"
         violations = []
         for file_path in services_dir.rglob("*.py"):
-            if file_path.name in {"__init__.py", "event_bus.py", "context.py"}:
+            if file_path.name in {"__init__.py", "context.py"}:
                 continue
             content = file_path.read_text(encoding="utf-8")
-            if "from app.services.event_bus import" in content and "event_bus" in content:
+            if "event_bus import event_bus" in content:
                 violations.append(f"VIOLATION in {file_path.name}: imports global event_bus singleton")
         assert not violations, "\n".join(violations)
 

@@ -37,10 +37,10 @@ from app.infrastructure.repositories.sqlite_suppression_repository import Sqlite
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.ports.infrastructure import DomainEvent, EventPublisher
+from app.ports.infrastructure import CampaignScheduler, DomainEvent, EventPublisher
 
 
-class PersistentCampaignScheduler:
+class PersistentCampaignScheduler(CampaignScheduler):
     """Persistent scheduler executing campaigns against database state in the background."""
 
     def __init__(

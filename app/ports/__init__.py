@@ -5,11 +5,11 @@ messaging providers, source readers/synchronizers, and infrastructure utilities.
 """
 
 from app.ports.infrastructure import (
+    CampaignScheduler,
     Clock,
     DomainEvent,
     EventPublisher,
     FrozenClock,
-    Scheduler,
     SystemClock,
 )
 from app.ports.providers import (
@@ -57,7 +57,7 @@ __all__ = [
     "Clock",
     "SystemClock",
     "FrozenClock",
-    "Scheduler",
+    "CampaignScheduler",
     "DomainEvent",
     "EventPublisher",
 ]

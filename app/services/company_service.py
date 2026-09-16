@@ -5,7 +5,7 @@ Handles company directory listings and detail queries.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -26,6 +26,7 @@ class CompanyService:
         self.contact_repo = ctx.contact_repo
         self.outreach_repo = ctx.outreach_repo
         self.reminder_repo = ctx.reminder_repo
+        self.clock = ctx.clock
 
     def list_companies(self) -> List[Dict[str, Any]]:
         companies = self.company_repo.list_all()
@@ -105,7 +106,7 @@ class CompanyService:
         contacts_hierarchy = []
         total_endpoints = 0
         covered_endpoints = 0
-        now = datetime.now(timezone.utc)
+        now = self.clock.now()
 
         for c in contacts:
             c_attempts = attempts_by_contact.get(c.contact_id, [])

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.ports.infrastructure import EventPublisher
+from app.ports.infrastructure import Clock, EventPublisher, SystemClock
 from app.ports.repositories import (
     CampaignRepository,
     CompanyRepository,
@@ -39,6 +39,7 @@ class ServiceContext:
     reminder_repo: ReminderRepository
     suppression_repo: SuppressionRepository
     event_publisher: EventPublisher
+    clock: Clock
 
 
 def build_service_context(session: Session) -> ServiceContext:
@@ -63,4 +64,5 @@ def build_service_context(session: Session) -> ServiceContext:
         reminder_repo=SqliteReminderRepository(session),
         suppression_repo=SqliteSuppressionRepository(session),
         event_publisher=default_event_bus,
+        clock=SystemClock(),
     )

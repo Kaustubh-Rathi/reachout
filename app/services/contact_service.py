@@ -30,6 +30,7 @@ class ContactService:
         self.reminder_repo = ctx.reminder_repo
         self.suppression_repo = ctx.suppression_repo
         self.event_publisher = ctx.event_publisher
+        self.clock = ctx.clock
 
     def list_contacts(
         self,
@@ -43,7 +44,7 @@ class ContactService:
         current_time: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         """List contacts with full priority sorting, endpoint coverage metrics, and filtering."""
-        now = current_time or datetime.now(timezone.utc)
+        now = current_time or self.clock.now()
         all_contacts = self.contact_repo.list_all()
         all_attempts = self.outreach_repo.list_all()
 

@@ -251,6 +251,20 @@ class TestPortContracts:
         frozen.advance(days=3)
         assert frozen.now() == t0 + timedelta(days=3)
 
+    def test_source_reader_and_synchronizer_conformance(self):
+        from app.infrastructure.source.excel_reader import TabularSourceReader
+        from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
+        from app.ports.source import SourceReader, SourceSynchronizer
+
+        assert issubclass(TabularSourceReader, SourceReader)
+        assert issubclass(DatabaseSourceSynchronizer, SourceSynchronizer)
+
+    def test_campaign_scheduler_conformance(self):
+        from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
+        from app.ports.infrastructure import CampaignScheduler
+
+        assert issubclass(PersistentCampaignScheduler, CampaignScheduler)
+
     def test_event_publisher_conformance(self):
         pub = MockEventPublisher()
         assert isinstance(pub, EventPublisher)

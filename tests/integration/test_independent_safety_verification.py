@@ -408,22 +408,20 @@ class TestSchedulerAndRateLimiterIntegration:
             camp_dict = camp_svc.start_campaign(camp.id, max_count=1)
             camp_id = camp_dict["id"]
 
-        # The single-contact campaign may complete before we can observe the
-        # transient is_running flag, so delegation is verified via the resulting
-        # attempt below (and that the campaign left the IDLE state).
-        with SessionFactory() as session:
-            started_camp = SqliteCampaignRepository(session).get_by_id(camp_id)
-        assert started_camp is not None and started_camp.status != CampaignStatus.IDLE
+        # The single-contact campaign may complete before we can observe any
+        # transient status, so delegation is verified by polling for the
+        # resulting attempt produced by the scheduler's worker.
+        deadline = time.monotonic() + 10.0
+        attempts = []
+        while time.monotonic() < deadline:
+            with SessionFactory() as session:
+                attempts = SqliteOutreachRepository(session).list_by_campaign(camp_id)
+            if attempts:
+                break
+            time.sleep(0.05)
 
-        # Wait for worker completion
-        time.sleep(0.4)
-
-        # Verify DB attempt and contact
-        with SessionFactory() as session:
-            outreach_repo = SqliteOutreachRepository(session)
-            attempts = outreach_repo.list_by_campaign(camp_id)
-            assert len(attempts) >= 1
-            assert attempts[0].status == OutreachStatus.SENT
+        assert len(attempts) >= 1
+        assert attempts[0].status == OutreachStatus.SENT
 
     def test_rate_limiter_is_invoked_during_worker_dispatch(self, isolated_db):
         _, SessionFactory = isolated_db

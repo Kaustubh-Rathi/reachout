@@ -15,10 +15,8 @@ from app.domain.campaign import Campaign
 from app.domain.enums import CampaignStatus, Channel, OutreachStatus, SenderStatus
 from app.domain.policies.endpoint_coverage_policy import is_contact_fully_covered
 from app.domain.policies.prioritization import calculate_company_round_state
-from app.infrastructure.scheduler.campaign_scheduler import (
-    PersistentCampaignScheduler,
-    get_campaign_scheduler,
-)
+from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
+from app.ports.infrastructure import CampaignScheduler
 from app.services.context import ServiceContext, build_service_context
 
 
@@ -28,7 +26,7 @@ class CampaignService:
     def __init__(
         self,
         session: Session,
-        scheduler: Optional[PersistentCampaignScheduler] = None,
+        scheduler: Optional[CampaignScheduler] = None,
         context: Optional[ServiceContext] = None,
     ) -> None:
         self.session = session
