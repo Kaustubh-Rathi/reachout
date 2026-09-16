@@ -127,6 +127,9 @@ def test_manual_whatsapp_send_and_resend(browser_page: Page):
     # Submit
     page.click("#modal-submit-send-btn")
     page.wait_for_selector(".toast", timeout=20000)
+    # The hierarchy refreshes after the send and the endpoint reflects the
+    # persisted SENT attempt.
+    page.wait_for_selector("text=WHATSAPP SENT", timeout=20000)
 
 
 def test_manual_email_send_and_resend(browser_page: Page):
@@ -154,9 +157,11 @@ def test_manual_email_send_and_resend(browser_page: Page):
     page.wait_for_selector("#send-modal.open", timeout=20000)
     assert page.is_visible("text=Send EMAIL Message")
     assert page.is_visible("#modal-subject-group")
+    assert page.is_visible("#modal-attachment-input")
 
     page.click("#modal-submit-send-btn")
     page.wait_for_selector(".toast", timeout=20000)
+    page.wait_for_selector("text=EMAIL SENT", timeout=20000)
 
 
 def test_interested_and_interview_workflows(browser_page: Page):
