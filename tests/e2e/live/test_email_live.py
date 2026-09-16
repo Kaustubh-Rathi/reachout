@@ -21,6 +21,8 @@ from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.models import (
+    CompanyModel,
+    ContactModel,
     MessageTemplateModel,
 )
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
@@ -81,6 +83,20 @@ class TestEmailLiveProviderE2E:
             body="This is an automated live delivery verification email dispatched by Reachout CRM at {timestamp}.",
         )
         session.add(MessageTemplateModel.from_domain(template))
+        # The attempt row has FKs to companies/contacts: seed the recipient rows.
+        session.add(
+            CompanyModel(
+                id="comp_live_email_test", name="Live Email Test Company", normalized_name="live email test company"
+            )
+        )
+        session.add(
+            ContactModel(
+                contact_id="cnt_live_email_recip",
+                company_id="comp_live_email_test",
+                name="Live Email Test Recipient",
+                email=recipient_email,
+            )
+        )
         session.commit()
 
         # 4. Instantiate REAL SMTP Provider
