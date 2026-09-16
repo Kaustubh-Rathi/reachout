@@ -200,8 +200,10 @@ class MessageTemplate:
         return RenderedMessage(
             body=rendered_body,
             subject=rendered_subject,
-            attachment_ref=self.attachment_ref
-            or (profile.get("sender_resume") if self.channel == Channel.EMAIL else None),
+            # Attachments are explicit and template-driven. There is deliberately no
+            # implicit default resume here: a silently-substituted, non-existent path
+            # used to cause text-only sends that still reported success.
+            attachment_ref=self.attachment_ref,
         )
 
 
