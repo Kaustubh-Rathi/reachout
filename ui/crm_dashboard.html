@@ -2414,11 +2414,12 @@
             const destStr = h.destination ? ` → ${h.destination}` : '';
             const tplStr = h.template_id ? ` • Template: ${h.template_id}` : '';
             const refStr = h.provider_reference ? ` • Ref: ${h.provider_reference}` : '';
+            const attStr = h.attachment ? ` • Attachment: ${h.attachment}` : '';
             const failStr = h.failure_detail ? `Failure: ${h.failure_detail} (${h.failure_code || ''})` : '';
 
             events.push({
               type: h.channel,
-              title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr} • Sender: ${h.sender_account_id || 'AUTO'}${tplStr}${refStr}`,
+              title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr} • Sender: ${h.sender_account_id || 'AUTO'}${tplStr}${refStr}${attStr}`,
               status: h.status,
               body: (h.message_body || '') + (failStr ? '\n' + failStr : ''),
               date: h.completed_at || h.prepared_at,

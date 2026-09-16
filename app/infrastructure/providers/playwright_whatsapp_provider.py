@@ -15,6 +15,7 @@ from typing import Optional
 
 from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
+from app.infrastructure.providers.attachments import resolve_attachment_path
 from app.infrastructure.providers.session_manager import (
     WhatsAppSessionManager,
     default_session_manager,
@@ -65,6 +66,15 @@ class PlaywrightWhatsAppProvider:
             return ProviderSendResult.failed(
                 failure_code="ERR_INVALID_PHONE_FORMAT",
                 failure_detail=f"Phone number '{recipient_phone}' contains invalid digit count ({len(clean_phone)})",
+            )
+
+        # Validate the attachment up front so we never send text-only while
+        # reporting a full success (the resume must not be silently dropped).
+        att_file = resolve_attachment_path(attachment_path)
+        if attachment_path and (att_file is None or not att_file.exists()):
+            return ProviderSendResult.failed(
+                failure_code="ERR_ATTACHMENT_NOT_FOUND",
+                failure_detail=f"Attachment not found: {attachment_path}",
             )
 
         try:
@@ -177,9 +187,8 @@ class PlaywrightWhatsAppProvider:
                         reason="Message composer did not become ready within timeout period"
                     )
 
-                # Step 4: Attachment
-                att_file = Path(attachment_path) if attachment_path else None
-                if att_file and att_file.exists():
+                # Step 4: Attachment (validated as existing before any text was sent)
+                if att_file is not None:
                     try:
                         time.sleep(random.uniform(0.8, 1.5))
 
@@ -264,8 +273,10 @@ class PlaywrightWhatsAppProvider:
                         _dbg("[attach] upload wait done.")
 
                     except Exception as e:
+                        # The text was already sent, so this is a partial side effect:
+                        # surface it for operator recovery instead of reporting success.
                         _dbg(f"[attach] failed: {e}")
-                        time.sleep(random.uniform(2.5, 4.0))
+                        return ProviderSendResult.recovery_required(f"Text delivered but attachment upload failed: {e}")
 
                 return ProviderSendResult(
                     success=True,

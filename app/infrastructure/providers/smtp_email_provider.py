@@ -12,10 +12,10 @@ import smtplib
 import ssl
 import uuid
 from email.message import EmailMessage
-from pathlib import Path
 from typing import Dict, Optional
 
 from app.domain.outreach_attempt import OutreachAttempt
+from app.infrastructure.providers.attachments import resolve_attachment_path
 from app.infrastructure.security.credential_vault import default_credential_vault
 from app.ports.providers import ProviderSendResult
 
@@ -155,23 +155,28 @@ class SmtpEmailProvider:
 
         msg.set_content(message_body)
 
-        # Add attachment if provided
+        # Add attachment if provided. A referenced-but-missing attachment is a hard
+        # failure: never send text-only while reporting full success.
         if attachment_path:
-            att_path = Path(attachment_path)
-            if att_path.exists():
-                ctype, encoding = mimetypes.guess_type(str(att_path))
-                if ctype is None or encoding is not None:
-                    ctype = "application/octet-stream"
-                maintype, subtype = ctype.split("/", 1)
+            att_path = resolve_attachment_path(attachment_path)
+            if att_path is None or not att_path.exists():
+                return ProviderSendResult.failed(
+                    failure_code="ERR_ATTACHMENT_NOT_FOUND",
+                    failure_detail=f"Attachment not found: {attachment_path}",
+                )
+            ctype, encoding = mimetypes.guess_type(str(att_path))
+            if ctype is None or encoding is not None:
+                ctype = "application/octet-stream"
+            maintype, subtype = ctype.split("/", 1)
 
-                with att_path.open("rb") as f:
-                    file_data = f.read()
-                    msg.add_attachment(
-                        file_data,
-                        maintype=maintype,
-                        subtype=subtype,
-                        filename=att_path.name,
-                    )
+            with att_path.open("rb") as f:
+                file_data = f.read()
+                msg.add_attachment(
+                    file_data,
+                    maintype=maintype,
+                    subtype=subtype,
+                    filename=att_path.name,
+                )
 
         try:
             context = ssl.create_default_context()

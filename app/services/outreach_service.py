@@ -143,7 +143,9 @@ class OutreachService:
                 if channel == Channel.EMAIL:
                     default_subject = _default_resend_subject(contact) if is_resend else _default_subject(contact)
                     subj = rendered.subject or default_subject
-                attachment_ref = attachment_ref or template.attachment_ref
+                # Use the rendered attachment so the SENDER_RESUME default applies to
+                # manual sends exactly as it does for campaign sends.
+                attachment_ref = attachment_ref or rendered.attachment_ref
 
         if not body:
             body = _default_resend_body(contact, channel) if is_resend else _default_body(contact, channel)
@@ -607,6 +609,7 @@ class OutreachService:
                 "template_id": a.template_id,
                 "subject": a.subject_snapshot,
                 "message_body": a.message_body_snapshot,
+                "attachment": a.attachment_snapshot,
                 "prepared_at": a.prepared_at.isoformat() if a.prepared_at else None,
                 "completed_at": a.completed_at.isoformat() if a.completed_at else None,
                 "failure_code": a.failure_code,
