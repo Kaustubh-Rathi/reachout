@@ -437,7 +437,26 @@ class PersistentCampaignScheduler:
                     channel_senders = sender_repo.list_active(channel=effective_channel)
 
                 if not channel_senders:
-                    # Skip contact if no sender available for effective channel
+                    # No ACTIVE sender exists for this channel. Surface it once per
+                    # channel instead of silently skipping, so a dead session is visible.
+                    reported = set(rot_state.get("reported_unavailable_channels", []))
+                    if effective_channel.value not in reported:
+                        reported.add(effective_channel.value)
+                        rot_state["reported_unavailable_channels"] = sorted(reported)
+                        print(
+                            f"[Scheduler] No ACTIVE sender for channel {effective_channel.value} "
+                            f"in campaign {campaign_id}"
+                        )
+                        self.event_publisher.publish(
+                            DomainEvent(
+                                event_type="CAMPAIGN_SENDER_UNAVAILABLE",
+                                payload={
+                                    "campaign_id": campaign_id,
+                                    "channel": effective_channel.value,
+                                    "reason": "NO_ACTIVE_SENDER_FOR_CHANNEL",
+                                },
+                            )
+                        )
                     rot_state["channel_cursor"] = next_channel_cursor
                     campaign_repo.set_rotation_state(campaign_id, rot_state)
                     session.commit()

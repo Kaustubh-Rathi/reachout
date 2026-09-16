@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.config import DEFAULT_OUTREACH_LIMIT
+from app.config import DEFAULT_OUTREACH_LIMIT, MAX_OUTREACH_LIMIT
 from app.domain.enums import Channel
 from app.infrastructure.database import get_session
 from app.services.campaign_service import CampaignService
@@ -35,7 +35,7 @@ class QuickStartRequest(BaseModel):
 
     channel: Optional[str] = Field("WHATSAPP", description="'WHATSAPP' or 'EMAIL'")
     name: Optional[str] = Field(None)
-    max_count: Optional[int] = Field(default=DEFAULT_OUTREACH_LIMIT, ge=1)
+    max_count: Optional[int] = Field(default=DEFAULT_OUTREACH_LIMIT, ge=1, le=MAX_OUTREACH_LIMIT)
 
 
 @router.get("")

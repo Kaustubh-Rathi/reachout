@@ -125,6 +125,15 @@ class WhatsAppSessionManager:
     def is_temp_id(self, sender_id: str) -> bool:
         return sender_id.startswith("tmp_auth_")
 
+    def has_persisted_session(self, sender_id: str) -> bool:
+        """True if an on-disk browser profile with cookies exists for this sender.
+
+        Used at startup to avoid trusting a stale ACTIVE status for a WhatsApp
+        sender whose authenticated profile is gone.
+        """
+        s_dir = self.session_dir_path(sender_id)
+        return s_dir.is_dir() and (s_dir / "cookies.sqlite").exists()
+
     # ----------------------------------------------------------- auth state
 
     def get_auth_state(self, sender_id: str) -> Dict[str, Any]:
