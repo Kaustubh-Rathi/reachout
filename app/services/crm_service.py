@@ -10,7 +10,7 @@ Encapsulates state transitions for:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
@@ -34,6 +34,7 @@ class CrmService:
         self.outreach_repo = ctx.outreach_repo
         self.reminder_repo = ctx.reminder_repo
         self.event_publisher = ctx.event_publisher
+        self.clock = ctx.clock
 
     def update_status(self, contact_id: str, status: str, timestamp: Optional[datetime] = None) -> Dict[str, Any]:
         """Update contact CRM business status directly.
@@ -46,7 +47,7 @@ class CrmService:
         if not contact:
             raise ValueError(f"Contact not found: {contact_id}")
 
-        now = timestamp or datetime.now(timezone.utc)
+        now = timestamp or self.clock.now()
         status_upper = status.strip().upper()
 
         if status_upper == "INTERESTED":
@@ -111,7 +112,7 @@ class CrmService:
         if not contact:
             raise ValueError(f"Contact not found: {contact_id}")
 
-        now = timestamp or datetime.now(timezone.utc)
+        now = timestamp or self.clock.now()
         contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
         self.contact_repo.save(contact)
         self.session.commit()
@@ -141,7 +142,7 @@ class CrmService:
         if not contact:
             raise ValueError(f"Contact not found: {contact_id}")
 
-        now = timestamp or datetime.now(timezone.utc)
+        now = timestamp or self.clock.now()
         contact.update_crm_outcome(CRMOutcome.NOT_INTERESTED, now)
         self.contact_repo.save(contact)
 
@@ -172,7 +173,7 @@ class CrmService:
         if not contact:
             raise ValueError(f"Contact not found: {contact_id}")
 
-        now = timestamp or datetime.now(timezone.utc)
+        now = timestamp or self.clock.now()
         contact.update_interview_status(InterviewState.INTERVIEW, now)
         self.contact_repo.save(contact)
 
@@ -203,7 +204,7 @@ class CrmService:
         if not contact:
             raise ValueError(f"Contact not found: {contact_id}")
 
-        now = timestamp or datetime.now(timezone.utc)
+        now = timestamp or self.clock.now()
         contact.update_interview_status(InterviewState.NOT_INTERVIEW, now)
         self.contact_repo.save(contact)
 
@@ -235,7 +236,7 @@ class CrmService:
             raise ValueError(f"Contact not found: {contact_id}")
 
         contact.notes = notes
-        contact.updated_at = datetime.now(timezone.utc)
+        contact.updated_at = self.clock.now()
         self.contact_repo.save(contact)
         self.session.commit()
         return {
@@ -246,7 +247,7 @@ class CrmService:
 
     def list_reminders(self, only_due: bool = False, current_time: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """List follow-up reminders with associated contact metadata."""
-        now = current_time or datetime.now(timezone.utc)
+        now = current_time or self.clock.now()
         if only_due:
             reminders = self.reminder_repo.list_due(now)
         else:
@@ -276,7 +277,7 @@ class CrmService:
         self, threshold_days: int = DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, current_time: Optional[datetime] = None
     ) -> List[Dict[str, Any]]:
         """Scan contacts, identify pending follow-up conditions, and persist reminder entities."""
-        now = current_time or datetime.now(timezone.utc)
+        now = current_time or self.clock.now()
         contacts = self.contact_repo.list_all()
         created_reminders = []
 
@@ -311,7 +312,7 @@ class CrmService:
 
     def get_kpis(self, current_time: Optional[datetime] = None) -> Dict[str, Any]:
         """Aggregate system-wide KPI metrics."""
-        now = current_time or datetime.now(timezone.utc)
+        now = current_time or self.clock.now()
         contacts = self.contact_repo.list_all()
         total_contacts = len(contacts)
 

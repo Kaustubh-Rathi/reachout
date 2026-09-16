@@ -22,7 +22,7 @@ from app.infrastructure.repositories.sqlite_company_repository import SqliteComp
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
 from app.infrastructure.source.excel_reader import TabularSourceReader, clean_text
-from app.ports.source import SourceReader, SourceRow, SyncSummary
+from app.ports.source import SourceReader, SourceRow, SourceSynchronizer, SyncSummary
 
 CONTACT_SLOTS: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
     ("B", ("C", "D"), "contact_1"),
@@ -81,7 +81,7 @@ def extract_emails(raw: str) -> List[str]:
     return emails
 
 
-class DatabaseSourceSynchronizer:
+class DatabaseSourceSynchronizer(SourceSynchronizer):
     """Synchronizes external sheets/CSVs into the SQLite relational database."""
 
     def __init__(

@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -70,13 +70,33 @@ class EventPublisher(Protocol):
 
 
 @runtime_checkable
-class Scheduler(Protocol):
-    """Port for background job and delay scheduling."""
+class CampaignScheduler(Protocol):
+    """Port for controlling background campaign execution.
 
-    def schedule(self, task_id: str, run_at: datetime, action: Callable[[], Any]) -> None:
-        """Schedule an action for execution at a specific datetime."""
+    This is the contract the application layer depends on; the concrete
+    PersistentCampaignScheduler adapter implements it.
+    """
+
+    def is_running(self, campaign_id: str) -> bool:
+        """Return whether a campaign currently has an active execution thread."""
         ...
 
-    def cancel(self, task_id: str) -> bool:
-        """Cancel a pending scheduled task."""
+    def start_campaign(self, campaign_id: str, max_count: Optional[int] = None) -> None:
+        """Begin executing a campaign in the background."""
+        ...
+
+    def pause_campaign(self, campaign_id: str) -> None:
+        """Request a running campaign to pause."""
+        ...
+
+    def resume_campaign(self, campaign_id: str) -> None:
+        """Resume a paused campaign."""
+        ...
+
+    def stop_campaign(self, campaign_id: str) -> None:
+        """Stop a campaign permanently."""
+        ...
+
+    def run_crash_recovery_audit(self) -> int:
+        """Recover stale in-flight attempts from a previous process and return the count."""
         ...

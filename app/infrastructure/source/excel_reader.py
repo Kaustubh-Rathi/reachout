@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 from xml.etree import ElementTree as ET
 
 from app.domain.source_record import compute_source_fingerprint
-from app.ports.source import SourceRow
+from app.ports.source import SourceReader, SourceRow
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 DOC_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -36,7 +36,7 @@ def column_name(cell_reference: str) -> str:
     return match.group(0) if match else ""
 
 
-class TabularSourceReader:
+class TabularSourceReader(SourceReader):
     """Implements SourceReader port for .xlsx and .csv files."""
 
     def read_source(self, source_path: str, sheet_name: Optional[str] = None) -> List[SourceRow]:
