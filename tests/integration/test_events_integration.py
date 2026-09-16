@@ -31,11 +31,11 @@ class TestEventsIntegration:
         assert len(started_received) == 1
         assert started_received[0].payload["campaign_id"] == "cmp_1"
 
-        # Check recent events ring buffer
-        recent = bus.get_recent_events(10)
-        assert len(recent) == 2
-        assert recent[0].event_type == "CampaignStarted"
-        assert recent[1].event_type == "AttemptSent"
+        # Check event history ring buffer (most recent first)
+        history = bus.get_history(10)
+        assert len(history) == 2
+        assert history[0]["event_type"] == "AttemptSent"
+        assert history[1]["event_type"] == "CampaignStarted"
 
         # Unsubscribe
         bus.unsubscribe(general_listener)

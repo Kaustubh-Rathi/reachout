@@ -168,11 +168,3 @@ class Contact:
         self.updated_at = now
         if self.crm_outcome == CRMOutcome.NONE:
             self.crm_outcome = CRMOutcome.PENDING_REPLY
-
-    def has_successful_outreach(self, channel: Channel) -> bool:
-        """Check if contact already has a recorded successful outreach on channel."""
-        if channel == Channel.WHATSAPP:
-            return self.last_whatsapp_at is not None
-        if channel == Channel.EMAIL:
-            return self.last_email_at is not None
-        return False

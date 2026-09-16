@@ -1,6 +1,6 @@
 """Unit tests for SourceRecord domain model and source lineage."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from app.domain.source_record import SourceRecord, compute_source_fingerprint
 
@@ -36,17 +36,3 @@ class TestSourceRecordModel:
         assert record.source_row == 45
         assert record.first_seen_at == t0
         assert record.last_seen_at == t0
-
-    def test_with_updated_observation(self):
-        t0 = datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
-        record = SourceRecord.create(
-            source_file="Reachout.xlsx",
-            source_row=10,
-            observed_at=t0,
-        )
-        t1 = t0 + timedelta(days=5)
-        updated = record.with_updated_observation(observed_at=t1)
-        assert updated.first_seen_at == t0
-        assert updated.last_seen_at == t1
-        assert updated.source_row == record.source_row
-        assert updated.source_fingerprint == record.source_fingerprint

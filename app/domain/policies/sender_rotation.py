@@ -9,41 +9,13 @@ Selects HOW / THROUGH WHICH SENDER:
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable, Optional, Sequence, Tuple
 
-from app.domain.enums import Channel
 from app.domain.sender_account import SenderAccount
 
 
 class SenderRotationPolicy:
     """Policy responsible for dynamic sender and channel rotation."""
-
-    @staticmethod
-    def build_dynamic_sequence(
-        active_senders: Sequence[SenderAccount],
-        channels: Optional[Sequence[Channel]] = None,
-    ) -> List[SenderAccount]:
-        """Build a deterministic rotation sequence from active sender accounts.
-
-        If channels are specified (e.g. [WHATSAPP, EMAIL]), groups senders by channel
-        in deterministic order (sorted by sender ID).
-        """
-        if not active_senders:
-            return []
-
-        if not channels:
-            # Sort all available senders deterministically by ID
-            return sorted(list(active_senders), key=lambda s: (s.channel.value, s.id))
-
-        sequence: List[SenderAccount] = []
-        for ch in channels:
-            channel_senders = sorted(
-                [s for s in active_senders if s.channel == ch and s.is_available()],
-                key=lambda s: s.id,
-            )
-            sequence.extend(channel_senders)
-
-        return sequence if sequence else sorted(list(active_senders), key=lambda s: (s.channel.value, s.id))
 
     @staticmethod
     def select_next_sender(

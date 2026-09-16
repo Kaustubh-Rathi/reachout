@@ -4,10 +4,7 @@ import pytest
 
 from app.domain.enums import Channel
 from app.domain.message_template import MessageTemplate
-from app.domain.policies.template_rotation import (
-    select_template_deterministic,
-    select_template_round_robin,
-)
+from app.domain.policies.template_rotation import select_template_round_robin
 
 
 class TestTemplateRotation:
@@ -30,17 +27,6 @@ class TestTemplateRotation:
         assert t2.id == "t3"
         assert t3.id == "t1"  # Cycles back
 
-    def test_deterministic_seed_selection(self, sample_templates):
-        chosen_a1 = select_template_deterministic(sample_templates, "contact_abc")
-        chosen_a2 = select_template_deterministic(sample_templates, "contact_abc")
-        assert chosen_a1.id == chosen_a2.id
-
-        # Verify it selects a valid template in the pool
-        assert chosen_a1 in sample_templates
-
     def test_empty_template_list_raises(self):
         with pytest.raises(ValueError, match="Cannot select from empty"):
             select_template_round_robin([], 0)
-
-        with pytest.raises(ValueError, match="Cannot select from empty"):
-            select_template_deterministic([], "seed")

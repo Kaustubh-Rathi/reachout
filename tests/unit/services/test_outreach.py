@@ -74,7 +74,7 @@ class TestOutreachLifecycleAndPolicies:
         # 6. Update Contact domain entity
         sample_contact.record_outreach_success(Channel.WHATSAPP, attempt.completed_at)
         assert sample_contact.last_whatsapp_at == attempt.completed_at
-        assert sample_contact.has_successful_outreach(Channel.WHATSAPP) is True
+        assert sample_contact.last_whatsapp_at is not None
 
     def test_automatic_duplicate_suppression(self, sample_contact: Contact, sample_sender: SenderAccount):
         """Attempting to automatically send to an already-contacted person is rejected."""

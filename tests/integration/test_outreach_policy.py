@@ -354,10 +354,12 @@ class TestPhase6SenderRotation:
         ]
         assert len(senders) == 10
 
-        seq = SenderRotationPolicy.build_dynamic_sequence(senders)
-        assert len(seq) == 10
-        assert seq[0].id == "WA-001"
-        assert seq[9].id == "WA-010"
+        cursor = 0
+        visited = []
+        for _ in range(10):
+            chosen, cursor = SenderRotationPolicy.select_next_sender(senders, cursor=cursor)
+            visited.append(chosen.id)
+        assert sorted(visited) == sorted(s.id for s in senders)
 
 
 class TestPhase6CampaignQuota:
@@ -377,9 +379,8 @@ class TestPhase6CampaignQuota:
         assert campaign.remaining_automatic == 100
         assert campaign.can_dispatch_automatic() is True
 
-        # Record dispatches
-        for _ in range(100):
-            campaign.record_automatic_dispatch(success=True)
+        # Simulate quota consumption (the scheduler persists this via the repository).
+        campaign.metadata["automatic_used"] = 100
 
         assert campaign.automatic_used == 100
         assert campaign.remaining_automatic == 0

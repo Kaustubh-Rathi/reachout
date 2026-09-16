@@ -40,7 +40,6 @@ async def lifespan(app: FastAPI):
     with SessionFactory() as session:
         TemplateService(session).seed_defaults_if_empty()
         sender_svc = SenderService(session)
-        sender_svc.seed_defaults_if_empty()
         sender_svc.reconcile_sender_states()
 
         # If contacts table is empty, auto-sync initial workbook if present

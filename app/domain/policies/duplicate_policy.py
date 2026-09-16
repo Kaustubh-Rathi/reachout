@@ -35,22 +35,6 @@ class EligibilityResult:
     target_endpoint: Optional[CommunicationEndpoint] = None
 
 
-def is_valid_phone(phone: Optional[str]) -> bool:
-    """Validate phone number presence and basic format (single or multi-handle)."""
-    if not phone or not phone.strip():
-        return False
-    normalized = normalize_phone_numbers(phone)
-    return len(normalized) > 0
-
-
-def is_valid_email(email: Optional[str]) -> bool:
-    """Validate email address presence and basic structure (single or multi-handle)."""
-    if not email or not email.strip():
-        return False
-    normalized = normalize_email_addresses(email)
-    return len(normalized) > 0
-
-
 def evaluate_automatic_eligibility(
     contact: Contact,
     channel: Channel,
