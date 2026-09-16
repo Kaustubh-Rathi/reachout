@@ -1,4 +1,4 @@
-"""Phase 5 Production Integration Test Suite.
+"""Production integration tests for send/resend, providers, and scheduler.
 
 Verifies:
 1. P0 Bug Fix: `provider_reference` parameter passing and database persistence in manual send & resend.
@@ -9,7 +9,6 @@ Verifies:
 
 from __future__ import annotations
 
-import os
 import time
 
 import pytest
@@ -42,7 +41,6 @@ from app.infrastructure.repositories.sqlite_sender_repository import SqliteSende
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import (
     PersistentCampaignScheduler,
-    reset_campaign_scheduler,
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
@@ -62,17 +60,7 @@ def clean_db(tmp_path):
     return engine, SessionFactory
 
 
-@pytest.fixture(autouse=True)
-def cleanup_provider_registry():
-    """Ensure provider overrides and scheduler singletons are cleaned up after each test."""
-    yield
-    reset_provider_overrides()
-    reset_campaign_scheduler()
-    if "OUTREACH_MODE" in os.environ:
-        del os.environ["OUTREACH_MODE"]
-
-
-class TestP0OutreachServiceSendAndResend:
+class TestOutreachSendAndResend:
     """Regression test suite for single send, resend, and provider_reference persistence."""
 
     def test_manual_whatsapp_send_success_and_provider_ref_persistence(self, clean_db):

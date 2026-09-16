@@ -1,4 +1,4 @@
-"""Phase 9 Comprehensive Production Hardening & Regression Test Suite.
+"""Production hardening and regression tests.
 
 Covers all 8 critical and high audit findings:
 1. In-flight / Ambiguous blocker argument wiring & safety.
@@ -58,10 +58,10 @@ from tests.doubles.fake_providers import MockWhatsAppProvider
 
 
 # ==============================================================================
-# FINDING 1: IN-FLIGHT / AMBIGUOUS BLOCKER CHECK
+# IN-FLIGHT / AMBIGUOUS BLOCKER CHECK
 # ==============================================================================
-class TestFinding1InflightBlocker:
-    """Audit Finding 1: Inverted arguments in the in-flight blocker check."""
+class TestInflightBlocker:
+    """Inverted arguments in the in-flight blocker check."""
 
     def test_has_ambiguous_or_inflight_blocker_types_and_wiring(self):
         """Verify has_ambiguous_or_inflight_blocker works with both Contact and string ID."""
@@ -177,10 +177,10 @@ class TestFinding1InflightBlocker:
 
 
 # ==============================================================================
-# FINDING 2 & 5: PACING, TIMEOUT, AND SENDER ROTATION
+# PACING, TIMEOUT, AND SENDER ROTATION
 # ==============================================================================
-class TestFinding2PacingAndSenderRotation:
-    """Audit Finding 2 & 5: Pacing delays, timeout handling, and rate-limiter aware rotation."""
+class TestPacingAndSenderRotation:
+    """Pacing delays, timeout handling, and rate-limiter aware rotation."""
 
     def test_pacing_delay_defaults(self):
         """Verify WhatsApp delay is 120s and Email is 60s in live mode or explicit config."""
@@ -297,10 +297,10 @@ class TestFinding2PacingAndSenderRotation:
 
 
 # ==============================================================================
-# FINDING 3: COMPANY-FIRST ROUND-ROBIN
+# COMPANY-FIRST ROUND-ROBIN
 # ==============================================================================
-class TestFinding3CompanyFirstRoundRobin:
-    """Audit Finding 3: Strict Company-First round-robin algorithm."""
+class TestCompanyFirstRoundRobin:
+    """Strict Company-First round-robin algorithm."""
 
     def test_strict_interleaving_a1_b1_c1_a2_b2_a3(self):
         """Canonical test: Company A(3), Company B(2), Company C(1) produces A1, B1, C1, A2, B2, A3."""
@@ -373,10 +373,10 @@ class TestFinding3CompanyFirstRoundRobin:
 
 
 # ==============================================================================
-# FINDING 4: DEFINITIVE FAILURE AND CHANNEL FALLBACK
+# DEFINITIVE FAILURE AND CHANNEL FALLBACK
 # ==============================================================================
-class TestFinding4DefinitiveFailureAndFallback:
-    """Audit Finding 4: Permanent failure exclusion and Email fallback."""
+class TestDefinitiveFailureAndFallback:
+    """Permanent failure exclusion and Email fallback."""
 
     def test_definitive_whatsapp_failure_excludes_endpoint_and_falls_back(self):
         """When WhatsApp fails with ERR_NOT_ON_WHATSAPP, endpoint is excluded and Email is chosen."""
@@ -492,10 +492,10 @@ class TestFinding4DefinitiveFailureAndFallback:
 
 
 # ==============================================================================
-# FINDING 6: WHATSAPP AUTHENTICATION STATE MACHINE
+# WHATSAPP AUTHENTICATION STATE MACHINE
 # ==============================================================================
-class TestFinding6WhatsAppAuthentication:
-    """Audit Finding 6: WhatsApp live vs mock authentication state machine."""
+class TestWhatsAppAuthentication:
+    """WhatsApp live vs mock authentication state machine."""
 
     def test_fresh_baseline_starts_with_zero_senders(self):
         """Baseline: a fresh repository seeds no senders (operator adds sessions).
@@ -533,10 +533,10 @@ class TestFinding6WhatsAppAuthentication:
 
 
 # ==============================================================================
-# FINDING 7: SMTP CREDENTIAL ENCRYPTED VAULT PERSISTENCE
+# SMTP CREDENTIAL ENCRYPTED VAULT PERSISTENCE
 # ==============================================================================
-class TestFinding7SmtpCredentialPersistence:
-    """Audit Finding 7: Encrypted persistence of SMTP credentials surviving restart."""
+class TestSmtpCredentialPersistence:
+    """Encrypted persistence of SMTP credentials surviving restart."""
 
     def test_credentials_stored_and_retrieved_encrypted(self, tmp_path):
         """CredentialVault persists encrypted secrets to disk and decrypts with integrity check."""
@@ -593,10 +593,10 @@ class TestFinding7SmtpCredentialPersistence:
 
 
 # ==============================================================================
-# FINDING 8: CANONICAL CRM KPIS SERVICE
+# CANONICAL CRM KPIS SERVICE
 # ==============================================================================
-class TestFinding8CanonicalCrmKpis:
-    """Audit Finding 8: Canonical CRM KPI service aggregation."""
+class TestCanonicalCrmKpis:
+    """Canonical CRM KPI service aggregation."""
 
     def test_crm_kpis_service_aggregation(self, tmp_path):
         """Verify CrmService.get_kpis provides complete operational metrics."""
@@ -613,10 +613,10 @@ class TestFinding8CanonicalCrmKpis:
 
 
 # ==============================================================================
-# FINDING 12: EXCEL SYNC NON-DESTRUCTIVE HISTORY PRESERVATION
+# EXCEL SYNC NON-DESTRUCTIVE HISTORY PRESERVATION
 # ==============================================================================
-class TestFinding12ExcelSyncHistoryPreservation:
-    """Audit Finding 12: Sync never deletes or mutates historical OutreachAttempts."""
+class TestExcelSyncHistoryPreservation:
+    """Sync never deletes or mutates historical OutreachAttempts."""
 
     def test_excel_sync_preserves_attempts(self, tmp_path):
         engine = create_engine(f"sqlite:///{tmp_path / 'sync_preservation.db'}")

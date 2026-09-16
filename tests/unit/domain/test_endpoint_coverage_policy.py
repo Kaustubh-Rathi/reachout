@@ -1,4 +1,4 @@
-"""Unit tests for EndpointCoveragePolicy in Phase 7."""
+"""Unit tests for EndpointCoveragePolicy."""
 
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus

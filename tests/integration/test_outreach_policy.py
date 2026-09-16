@@ -1,6 +1,6 @@
-"""Phase 6 Outreach Policy, Templates, Company Coverage & Multi-Channel Dispatch Verification Tests.
+"""Outreach policy, templates, company coverage, and multi-channel dispatch tests.
 
-Verifies all six Phase 6 policy dimensions:
+Verifies the outreach policy dimensions:
 1. Message Templates & Variable Interpolation & Validation
 2. Company Coverage / Round-Robin (A1, B1, C1, A2, C2, C3) & Round State
 3. Contact Eligibility & Historical Contact Exclusion
@@ -52,9 +52,9 @@ from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
 
 @pytest.fixture
-def phase6_db(tmp_path):
-    """Create a temporary SQLite database engine and session factory for Phase 6 tests."""
-    db_file = tmp_path / "phase6_test.db"
+def outreach_db(tmp_path):
+    """Create a temporary SQLite database engine and session factory."""
+    db_file = tmp_path / "outreach_test.db"
     engine = create_engine(f"sqlite:///{db_file.as_posix()}", connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -65,7 +65,7 @@ def phase6_db(tmp_path):
     return session_factory
 
 
-class TestPhase6Templates:
+class TestTemplates:
     """Dimension 1: Templates verification suite."""
 
     def test_all_4_whatsapp_templates_exist_and_match_specs(self):
@@ -117,16 +117,16 @@ class TestPhase6Templates:
         assert "[Name]" not in rendered.body
         assert "[Company Name]" not in rendered.body
 
-    def test_unresolved_variable_validation_fails_pre_dispatch(self, phase6_db):
+    def test_unresolved_variable_validation_fails_pre_dispatch(self, outreach_db):
         """Verify attempt fails validation before external dispatch if required placeholder is unresolvable."""
         worker = OutreachWorker(
-            session_factory=phase6_db,
+            session_factory=outreach_db,
             whatsapp_provider=MockWhatsAppProvider(),
             email_provider=MockEmailProvider(),
             rate_limiter=RateLimiter(default_channel_delay={"WHATSAPP": 0.001, "EMAIL": 0.001}),
         )
 
-        with phase6_db() as session:
+        with outreach_db() as session:
             comp = Company.create(name="Google LLC", company_id="google")
             SqliteCompanyRepository(session).save(comp)
 
@@ -169,7 +169,7 @@ class TestPhase6Templates:
         ]
 
 
-class TestPhase6CompanyCoverage:
+class TestCompanyCoverage:
     """Dimension 2: Company Coverage / Round-Robin verification suite."""
 
     def test_canonical_dataset_company_first_ordering(self):
@@ -219,7 +219,7 @@ class TestPhase6CompanyCoverage:
         assert metrics2.companies_with_remaining_contacts == 1  # Only C has remaining
 
 
-class TestPhase6HistoricalExclusion:
+class TestHistoricalExclusion:
     """Dimension 3: Contact Eligibility & Historical Exclusion verification suite."""
 
     def test_historical_contact_excluded_from_automatic_campaign(self):
@@ -240,9 +240,9 @@ class TestPhase6HistoricalExclusion:
         res_em = evaluate_automatic_eligibility(contact_wa_sent, Channel.EMAIL)
         assert res_em.is_eligible is True
 
-    def test_manual_resend_bypasses_duplicate_and_creates_new_attempt(self, phase6_db):
+    def test_manual_resend_bypasses_duplicate_and_creates_new_attempt(self, outreach_db):
         """Manual resend creates a new immutable OutreachAttempt while preserving history."""
-        with phase6_db() as session:
+        with outreach_db() as session:
             comp = Company.create(name="Apple Inc", company_id="apple")
             SqliteCompanyRepository(session).save(comp)
 
@@ -290,7 +290,7 @@ class TestPhase6HistoricalExclusion:
             assert all_attempts[1].status == OutreachStatus.SENT
 
 
-class TestPhase6ChannelFallback:
+class TestChannelFallback:
     """Dimension 4 & 5: Channel Fallback and Safety verification suite."""
 
     def test_missing_phone_falls_back_to_email(self):
@@ -320,7 +320,7 @@ class TestPhase6ChannelFallback:
         )
 
 
-class TestPhase6SenderRotation:
+class TestSenderRotation:
     """Dimension 4: Multi-Sender Rotation and Availability Precedence suite."""
 
     def test_rotation_skips_unavailable_or_auth_required_senders(self):
@@ -362,7 +362,7 @@ class TestPhase6SenderRotation:
         assert sorted(visited) == sorted(s.id for s in senders)
 
 
-class TestPhase6CampaignQuota:
+class TestCampaignQuota:
     """Dimension 6: Campaign Quota tracking suite."""
 
     def test_automatic_quota_and_manual_reserve(self):
@@ -387,12 +387,12 @@ class TestPhase6CampaignQuota:
         assert campaign.can_dispatch_automatic() is False
 
 
-class TestPhase6EndToEndScenario:
+class TestEndToEndScenario:
     """Section 28: End-to-End Scenario verification."""
 
-    def test_end_to_end_company_first_multi_sender_and_fallback(self, phase6_db):
+    def test_end_to_end_company_first_multi_sender_and_fallback(self, outreach_db):
         """Full execution of Section 28: Apple(2), Uber(2), GreyOrange(3) with 4 senders."""
-        with phase6_db() as session:
+        with outreach_db() as session:
             # Create Senders
             wa1 = SenderAccount.create(
                 channel=Channel.WHATSAPP, provider="MOCK", identity="+91001", display_name="WA 1", sender_id="WA-001"
@@ -443,14 +443,14 @@ class TestPhase6EndToEndScenario:
             session.commit()
 
         # Prioritization test
-        with phase6_db() as session:
+        with outreach_db() as session:
             all_c = SqliteContactRepository(session).list_all()
             ordered = prioritize_company_first(all_c)
             ordered_names = [c.name for c in ordered]
             assert ordered_names == ["HR1", "HR5", "HR3", "HR2", "HR6", "HR4", "HR7"]
 
 
-class TestPhase6DataIntegrity:
+class TestDataIntegrity:
     """Verify source artifacts remain completely untouched and byte-identical."""
 
     def test_source_files_sha256_integrity(self):

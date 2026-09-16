@@ -1,4 +1,4 @@
-"""Unit tests for Phase 8 Excel multi-endpoint normalization and sync metrics."""
+"""Unit tests for Excel multi-endpoint normalization and sync metrics."""
 
 from app.infrastructure.source.synchronizer import extract_emails, extract_phone_numbers
 from app.ports.source import SyncSummary
@@ -22,7 +22,7 @@ def test_excel_normalization_multiple_phones_and_emails():
 
 
 def test_sync_summary_metrics_structure():
-    """Verify SyncSummary data structure tracks all required Phase 8 sync metrics."""
+    """Verify SyncSummary tracks all required sync metrics."""
     summary = SyncSummary(
         total_read=50,
         new_companies=5,

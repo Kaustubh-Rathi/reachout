@@ -1,4 +1,4 @@
-"""Integration tests for Phase 8 Company Hierarchy API and Real-time Event Streaming."""
+"""Integration tests for the company hierarchy API and real-time event streaming."""
 
 from __future__ import annotations
 

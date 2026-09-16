@@ -1,4 +1,4 @@
-"""Integration tests for Phase 8 Non-Destructive Source Synchronization & History Preservation."""
+"""Integration tests for non-destructive source synchronization and history preservation."""
 
 from __future__ import annotations
 

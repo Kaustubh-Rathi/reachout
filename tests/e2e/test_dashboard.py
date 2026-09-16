@@ -24,12 +24,15 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+import pytest
 from playwright.sync_api import Page
 
 from app.domain.enums import CRMOutcome, InterviewState
 from app.infrastructure.database import SessionFactory
 from app.services.crm_service import CrmService
 from tests.e2e.conftest import BASE_URL
+
+pytestmark = pytest.mark.e2e
 
 
 def test_dashboard_loading_and_kpis(browser_page: Page):

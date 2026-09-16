@@ -1,5 +1,6 @@
-"""E2E Playwright tests for Phase 8 Control Plane, Sender Management, QR Authentication & Readiness."""
+"""E2E browser tests for the sender control plane, authentication, and readiness."""
 
+import pytest
 from playwright.sync_api import Page
 
 from app.domain.enums import Channel, SenderStatus
@@ -8,8 +9,10 @@ from app.services.sender_service import SenderService
 
 BASE_URL = "http://127.0.0.1:8899"
 
+pytestmark = pytest.mark.e2e
 
-def test_phase8_header_and_senders_control_plane(browser_page: Page):
+
+def test_senders_control_plane(browser_page: Page):
     """Verify the sender & authentication control plane renders with its controls."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
@@ -39,7 +42,7 @@ def test_phase8_header_and_senders_control_plane(browser_page: Page):
     assert not page.is_visible("#senders-modal.open")
 
 
-def test_phase8_readiness_modal_on_blocked_start(browser_page: Page):
+def test_readiness_modal_on_blocked_start(browser_page: Page):
     """Test that starting outreach when unauthenticated triggers the Readiness Error Modal."""
     with SessionFactory() as session:
         from app.domain.enums import CampaignStatus
