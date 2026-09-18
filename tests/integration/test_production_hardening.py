@@ -53,6 +53,7 @@ from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.infrastructure.security.credential_vault import CredentialVault, default_credential_vault
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
+from app.ports.infrastructure import SystemClock
 from app.ports.source import SourceRow
 from app.services.crm_service import CrmService
 from app.services.sender_service import SenderService
@@ -220,6 +221,7 @@ class TestPacingAndSenderRotation:
             rate_limiter=rl,
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         with SessionFactory() as session:

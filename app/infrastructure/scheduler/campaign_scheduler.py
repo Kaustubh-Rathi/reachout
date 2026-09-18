@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from app.domain.contact import Contact
@@ -33,7 +32,7 @@ from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter, default_rate_limiter
-from app.ports.infrastructure import CampaignScheduler, DomainEvent, EventPublisher
+from app.ports.infrastructure import CampaignScheduler, Clock, DomainEvent, EventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +46,13 @@ class PersistentCampaignScheduler(CampaignScheduler):
         worker: OutreachWorker,
         event_publisher: EventPublisher,
         repository_factory: Any,
+        clock: Clock,
     ) -> None:
         self.session_factory = session_factory
         self.worker = worker
         self.event_publisher = event_publisher
         self.repository_factory = repository_factory
+        self.clock = clock
         self._lock = threading.RLock()
         self._active_threads: Dict[str, threading.Thread] = {}
         self._pause_flags: Dict[str, threading.Event] = {}
@@ -66,7 +67,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
     def run_crash_recovery_audit(self) -> int:
         """Scan database for orphaned in-flight attempts following process restart and mark as RECOVERY_REQUIRED."""
         recovered_count = 0
-        now = datetime.now(timezone.utc)
+        now = self.clock.now()
         with self.session_factory() as session:
             repos = self.repository_factory(session)
             outreach_repo = repos.outreach
@@ -221,7 +222,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     campaign_repo.set_status(
                         campaign_id,
                         CampaignStatus.STOPPED,
-                        ended_at=datetime.now(timezone.utc),
+                        ended_at=self.clock.now(),
                     )
                     session.commit()
 
@@ -544,7 +545,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                                 OutreachStatus.PREPARED,
                                 OutreachStatus.SENDING,
                             ):
-                                a.mark_failed("ERR_WORKER_EXCEPTION", str(exc), datetime.now(timezone.utc))
+                                a.mark_failed("ERR_WORKER_EXCEPTION", str(exc), self.clock.now())
                                 orep.save(a)
                         sess.commit()
                 except Exception:
@@ -571,10 +572,12 @@ def get_campaign_scheduler(
     global _campaign_scheduler_instance
     if _campaign_scheduler_instance is None:
         from app.composition import build_repositories, get_event_bus
+        from app.ports.infrastructure import SystemClock
 
         sf = session_factory or SessionFactory
         bus = event_publisher or get_event_bus()
         limiter = rate_limiter or default_rate_limiter
+        clock = SystemClock()
         w = worker or OutreachWorker(
             session_factory=sf,
             whatsapp_provider=get_whatsapp_provider(),
@@ -582,12 +585,14 @@ def get_campaign_scheduler(
             rate_limiter=limiter,
             event_publisher=bus,
             repository_factory=build_repositories,
+            clock=clock,
         )
         _campaign_scheduler_instance = PersistentCampaignScheduler(
             session_factory=sf,
             worker=w,
             event_publisher=bus,
             repository_factory=build_repositories,
+            clock=clock,
         )
     return _campaign_scheduler_instance
 

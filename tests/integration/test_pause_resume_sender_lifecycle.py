@@ -40,6 +40,7 @@ from app.infrastructure.repositories.sqlite_template_repository import SqliteTem
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.infrastructure import SystemClock
 from app.services.campaign_service import CampaignService
 from app.services.sender_service import SenderService
 from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
@@ -107,12 +108,14 @@ class TestPauseModifyResumeLifecycle:
             rate_limiter=rate_limiter,
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         scheduler = PersistentCampaignScheduler(
             session_factory=test_db_setup,
             worker=worker,
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         # Seed initial database state
@@ -427,12 +430,14 @@ class TestPauseResumeMatrixAndRestart:
             rate_limiter=rate_limiter,
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         scheduler1 = PersistentCampaignScheduler(
             session_factory=test_db_setup,
             worker=worker1,
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         # Setup and start campaign
@@ -483,12 +488,14 @@ class TestPauseResumeMatrixAndRestart:
             rate_limiter=rate_limiter,
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         scheduler2 = PersistentCampaignScheduler(
             session_factory=test_db_setup,
             worker=worker2,
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         # Run startup crash recovery audit

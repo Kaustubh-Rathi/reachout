@@ -16,6 +16,7 @@ from app.infrastructure.repositories.sqlite_contact_repository import SqliteCont
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
+from app.ports.infrastructure import SystemClock
 from app.services.contact_service import ContactService
 from app.services.template_service import TemplateService
 from tests.doubles.builders import build_worker
@@ -126,6 +127,7 @@ def test_multi_endpoint_round_robin_dispatch(isolated_session_factory):
         worker=build_worker(SessionFactory),
         event_publisher=EventBus(),
         repository_factory=build_repositories,
+        clock=SystemClock(),
     )
 
     scheduler.start_campaign(camp_id)

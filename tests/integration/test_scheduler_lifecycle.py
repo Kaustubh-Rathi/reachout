@@ -26,6 +26,7 @@ from app.infrastructure.repositories import (
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.infrastructure import SystemClock
 from app.ports.providers import ProviderSendResult
 from tests.doubles.fake_providers import FakeEmailProvider
 
@@ -69,6 +70,7 @@ def scheduler_env(tmp_path):
         rate_limiter=rate_limiter,
         event_publisher=event_bus,
         repository_factory=build_repositories,
+        clock=SystemClock(),
     )
 
     scheduler = PersistentCampaignScheduler(
@@ -76,6 +78,7 @@ def scheduler_env(tmp_path):
         worker=worker,
         event_publisher=event_bus,
         repository_factory=build_repositories,
+        clock=SystemClock(),
     )
 
     # Seed test data: 3 companies, 2 contacts each (A1, A2, B1, B2, C1, C2)

@@ -13,6 +13,7 @@ from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.infrastructure import SystemClock
 from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
 
 
@@ -37,6 +38,7 @@ def build_worker(
         rate_limiter=rate_limiter or fast_rate_limiter(),
         event_publisher=event_publisher or EventBus(),
         repository_factory=build_repositories,
+        clock=SystemClock(),
     )
 
 
@@ -52,4 +54,5 @@ def build_scheduler(
         worker=worker or build_worker(session_factory),
         event_publisher=event_publisher or EventBus(),
         repository_factory=build_repositories,
+        clock=SystemClock(),
     )

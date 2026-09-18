@@ -46,6 +46,7 @@ from app.infrastructure.scheduler.campaign_scheduler import (
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.infrastructure import SystemClock
 from app.ports.providers import ProviderSendResult, ProviderStatusResult
 from app.services.campaign_service import CampaignService
 from app.services.outreach_service import OutreachService
@@ -332,12 +333,14 @@ class TestSchedulerUnificationAndDelegation:
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         scheduler = PersistentCampaignScheduler(
             session_factory=SessionFactory,
             worker=worker,
             event_publisher=event_bus,
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         # Seed data
@@ -452,6 +455,7 @@ class TestStartupCrashRecovery:
             worker=build_worker(SessionFactory),
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         recovered_count = scheduler.run_crash_recovery_audit()
 
