@@ -1,4 +1,7 @@
-// Global State Management
+import { apiErrorText, apiFetch } from './modules/api.js';
+import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
+
+    // Global State Management
     let state = {
       companies: [],
       hierarchies: [],
@@ -81,40 +84,6 @@
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') closeMoreMenu();
     });
-
-    // 0. Central apiFetch() Helper Wrapper
-    async function apiFetch(url, options = {}) {
-      const headers = { ...(options.headers || {}) };
-
-      if (options.body && typeof options.body === 'string' && !headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-      }
-
-      const config = {
-        ...options,
-        headers: headers,
-      };
-
-      try {
-        const response = await fetch(url, config);
-        return response;
-      } catch (err) {
-        console.error('API Fetch error:', err);
-        throw err;
-      }
-    }
-
-    // Extract a human-readable message from a failed API response.
-    async function apiErrorText(res) {
-      try {
-        const body = await res.json();
-        if (body && body.detail) {
-          if (typeof body.detail === 'string') return body.detail;
-          return body.detail.message || body.detail.reason || JSON.stringify(body.detail);
-        }
-      } catch (e) { /* non-JSON body */ }
-      return res.statusText || `HTTP ${res.status}`;
-    }
 
     // App Initialization
     window.addEventListener('DOMContentLoaded', async () => {
@@ -1914,27 +1883,6 @@
       }
     }
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    // Escape a value that is interpolated inside a single-quoted JS string that
-    // itself lives in a double-quoted HTML attribute (e.g. onclick="f('...')").
-    // Escapes HTML first, then JS, so neither context can be broken out of.
-    function jsAttr(str) {
-      return escapeHtml(String(str == null ? '' : str).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
-    }
-
-    // JSON-encode a value for a single-quoted data-args attribute.
-    function jsonAttr(value) {
-      return escapeHtml(JSON.stringify(value));
-    }
 
     function showToast(message, type = 'info') {
       const container = document.getElementById('toast-container');
@@ -2152,9 +2100,23 @@
       });
     }
 
+    // Registry of all delegated actions (module scope is not global).
+    const ACTIONS = {
+      addEmailSession, addWhatsAppSession, applyFilters, archiveContact, checkWhatsAppAuthStatus,
+      closeDiscrepanciesDrawer, closeEmailConfigModal, closeHistoryModal, closeMoreMenu, closeReadinessModal,
+      closeRecoveryDrawer, closeSendModal, closeSendersDrawer, closeSyncModal, closeTemplateForm,
+      closeTemplatesDrawer, closeWhatsAppQrModal, deactivateSender, fetchDiscrepancies, fetchRecoveryQueue,
+      fetchSenders, handleSearchChange, handleTemplateSelectChange, onCampaignAction, openDiscrepanciesDrawer,
+      openEmailConfigModal, openHistoryModal, openRecoveryDrawer, openSendModal, openSendersDrawer,
+      openTemplateForm, openTemplateFormById, openTemplatesDrawer, reactivateSender, resolveConfirm,
+      resolveRecoveryAttempt, retryLoad, saveAndVerifyEmailConfig, saveTemplate, setPriorityFilter,
+      setThemeMode, startWhatsAppAuth, stopCampaign, submitSendMessage, toggleCompany, toggleMoreMenu,
+      triggerSync, updateContactStatus, verifyEmailSender,
+    };
+
     function runActionNames(el, names, event) {
       names.forEach(function (name) {
-        const fn = window[name];
+        const fn = ACTIONS[name];
         if (typeof fn !== 'function') {
           console.error('Unknown action:', name);
           return;
