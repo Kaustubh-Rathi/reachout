@@ -12,6 +12,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from app.domain.errors import ConfigurationError
+
 # ---------------------------------------------------------------------------
 # .env loader (dependency-free). Loads ROOT/.env if present; existing env vars
 # take precedence so real secrets are never overwritten.
@@ -20,21 +22,21 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = ROOT_DIR / ".env"
 if _ENV_FILE.exists():
     try:
-        for _line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
-            _line = _line.strip()
-            if not _line or _line.startswith("#") or "=" not in _line:
-                continue
-            _key, _, _val = _line.partition("=")
-            _key = _key.strip()
-            if _key and _key not in os.environ:
-                os.environ[_key] = _val.strip()
-    except Exception:
-        # A malformed .env must never crash the app; fall back to env/defaults.
-        pass
+        _lines = _ENV_FILE.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ConfigurationError(f"Unable to read .env at {_ENV_FILE}: {exc}") from exc
+    for _line in _lines:
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _key, _, _val = _line.partition("=")
+        _key = _key.strip()
+        if _key and _key not in os.environ:
+            os.environ[_key] = _val.strip()
 
 
 def _env(name: str, default: str = "") -> str:
-    """Read an environment variable, stripping it, with a default fallback."""
+    """Read an environment variable (stripped), falling back to a configured default."""
     return os.environ.get(name, default).strip()
 
 

@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 
+from app.domain.errors import SourceError
 from app.ports.source import SyncSummary
 from app.services.context import ServiceContext, build_service_context
 
@@ -57,7 +58,7 @@ class SyncService:
             elif candidate_3.exists():
                 path = str(candidate_3)
             else:
-                raise FileNotFoundError("No default source workbook found in data directory.")
+                raise SourceError("No default source workbook found in data directory.")
 
         filename = Path(path).name
         self.event_publisher.publish_event(

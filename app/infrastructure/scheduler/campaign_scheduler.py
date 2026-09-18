@@ -7,6 +7,7 @@ N-scale sender distribution, quota enforcement, channel fallback, and crash reco
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from datetime import datetime, timezone
@@ -40,6 +41,8 @@ from app.infrastructure.repositories.sqlite_template_repository import SqliteTem
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter, default_rate_limiter
 from app.ports.infrastructure import CampaignScheduler, DomainEvent, EventPublisher
+
+logger = logging.getLogger(__name__)
 
 
 class PersistentCampaignScheduler(CampaignScheduler):
@@ -445,9 +448,10 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     if effective_channel.value not in reported:
                         reported.add(effective_channel.value)
                         rot_state["reported_unavailable_channels"] = sorted(reported)
-                        print(
-                            f"[Scheduler] No ACTIVE sender for channel {effective_channel.value} "
-                            f"in campaign {campaign_id}"
+                        logger.warning(
+                            "No ACTIVE sender for channel %s in campaign %s",
+                            effective_channel.value,
+                            campaign_id,
                         )
                         self.event_publisher.publish(
                             DomainEvent(
@@ -532,10 +536,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 # Surface attempt-execution failures instead of silently skipping the
                 # contact. Mark the attempt FAILED (if one was created) so it is visible
                 # in the audit trail and does not linger in an in-flight state.
-                import traceback
-
-                traceback.print_exc()
-                print(f"[Scheduler] Attempt error for contact {contact_id}: {exc}")
+                logger.exception("Attempt error for contact %s", contact_id)
                 try:
                     with self.session_factory() as sess:
                         orep = SqliteOutreachRepository(sess)
@@ -549,8 +550,8 @@ class PersistentCampaignScheduler(CampaignScheduler):
                                 a.mark_failed("ERR_WORKER_EXCEPTION", str(exc), datetime.now(timezone.utc))
                                 orep.save(a)
                         sess.commit()
-                except Exception as mark_exc:
-                    print(f"[Scheduler] Also failed to record attempt failure: {mark_exc}")
+                except Exception:
+                    logger.exception("Failed to record attempt failure for contact %s", contact_id)
                 time.sleep(1.0)
 
         with self._lock:

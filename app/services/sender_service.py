@@ -6,6 +6,7 @@ OAuth tokens, or session secrets.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any, Dict, List, Optional
 
@@ -17,6 +18,8 @@ from app.domain.errors import NotFoundError, ValidationError
 from app.domain.sender_account import SenderAccount
 from app.ports.infrastructure import SessionManager
 from app.services.context import ServiceContext, build_service_context
+
+logger = logging.getLogger(__name__)
 
 
 def _normalise_full_phone(phone: str) -> str:
@@ -75,7 +78,7 @@ class SenderService:
                 except ValueError as exc:
                     # An unrecognized status string in the session manager is a real
                     # divergence; surface it instead of silently skipping it.
-                    print(f"[SenderService] Skipping unrecognized auth status {st_str!r} for sender {s.id}: {exc}")
+                    logger.warning("Skipping unrecognized auth status %r for sender %s: %s", st_str, s.id, exc)
 
         # Email senders reconciliation
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
@@ -95,7 +98,7 @@ class SenderService:
                     # Two vault IDs can resolve to the same email address. The
                     # database allows only one sender per channel identity, so
                     # keep the existing registration instead of crashing startup.
-                    print(f"[SenderService] Skipping vault sender {vid!r}: duplicate EMAIL identity already registered")
+                    logger.warning("Skipping vault sender %r: duplicate EMAIL identity already registered", vid)
                     continue
                 new_sender = SenderAccount(
                     id=vid,
@@ -113,7 +116,7 @@ class SenderService:
                 except IntegrityError:
                     # Preserve startup when another row claims the same identity
                     # through a route not covered by the pre-check above.
-                    print(f"[SenderService] Skipping vault sender {vid!r}: duplicate EMAIL identity already registered")
+                    logger.warning("Skipping vault sender %r: duplicate EMAIL identity already registered", vid)
                     continue
                 existing_em_ids.add(vid)
                 existing_em_identities.add(normalized_identity)
@@ -285,9 +288,7 @@ class SenderService:
                     # Surface the failure instead of leaving a phantom ACTIVE session
                     # with no DB row (the operator would be misled into thinking the
                     # WhatsApp session persisted). Mark auth state ERROR so the UI shows it.
-                    import traceback
-
-                    traceback.print_exc()
+                    logger.exception("Failed to persist WhatsApp session for %s", sender_id)
                     self.session_manager.set_auth_state(
                         sender_id,
                         SenderStatus.ERROR,
@@ -306,9 +307,7 @@ class SenderService:
                 except Exception:
                     # Surface re-auth status-sync failures so sender status never silently
                     # diverges from reality.
-                    import traceback
-
-                    traceback.print_exc()
+                    logger.exception("Re-auth status sync failed for sender %s", sender_id)
 
             self.event_publisher.publish_event(event_name, payload)
 

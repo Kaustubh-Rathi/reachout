@@ -8,12 +8,15 @@ subscribers (WebSocket / SSE) without duplicate broadcasting or legacy aliasing.
 from __future__ import annotations
 
 import asyncio
+import logging
 import threading
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Callable, Deque, Dict, List, Optional
 
 from app.ports.infrastructure import DomainEvent
+
+logger = logging.getLogger(__name__)
 
 EventListener = Callable[[DomainEvent], None]
 
@@ -110,8 +113,8 @@ class EventBus:
         for listener in all_target_listeners:
             try:
                 listener(event)
-            except Exception as exc:
-                print(f"[EventBus] Error in event listener {listener}: {exc}")
+            except Exception:
+                logger.exception("Error in event listener %s", listener)
 
     def publish_event(self, event_type: str, payload: Dict[str, Any]) -> DomainEvent:
         """Convenience helper to construct and broadcast a single domain event."""

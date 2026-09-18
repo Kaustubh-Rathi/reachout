@@ -6,6 +6,7 @@ serving the operational dashboard UI, and managing startup/shutdown lifecycle.
 
 from __future__ import annotations
 
+import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -22,6 +23,7 @@ from app.config import (
     HTML_MAX_LIMIT_TOKEN,
     MAX_OUTREACH_LIMIT,
 )
+from app.domain.errors import SourceError
 from app.infrastructure.database import SessionFactory, init_db
 from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
 from app.services.crm_service import CrmService
@@ -32,6 +34,8 @@ from app.services.template_service import TemplateService
 ROOT_DIR = Path(__file__).resolve().parent.parent
 UI_DIR = ROOT_DIR / "ui"
 DATA_DIR = ROOT_DIR / "data"
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -49,14 +53,16 @@ async def lifespan(app: FastAPI):
             sync_svc = SyncService(session)
             try:
                 sync_svc.sync_source()
-            except Exception as exc:
-                print(f"[Notice] Initial automatic sync deferred: {exc}")
+            except SourceError as exc:
+                # No default workbook / unreadable source on first run is expected;
+                # any other failure propagates so startup fails loudly.
+                logger.info("Initial automatic sync deferred: %s", exc)
 
     # Startup Crash Recovery Audit: Inspect and recover any in-flight attempts & auto-pause campaigns
     scheduler = get_campaign_scheduler()
     recovered = scheduler.run_crash_recovery_audit()
     if recovered > 0:
-        print(f"[Crash Recovery] Startup audit recovered {recovered} stale in-flight attempt(s).")
+        logger.warning("Startup crash recovery audit recovered %d stale in-flight attempt(s)", recovered)
 
     yield
     # Shutdown logic if needed
@@ -110,8 +116,8 @@ def main():
         try:
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-        except Exception:
-            pass
+        except (AttributeError, OSError):
+            logger.debug("stdout/stderr reconfigure unavailable", exc_info=True)
 
     import argparse
 
