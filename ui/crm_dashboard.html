@@ -51,32 +51,32 @@
           <span id="hdr-readiness-text">Checking…</span>
         </span>
       </div>
-      <button class="btn btn-outline btn-sm" id="senders-btn" onclick="openSendersDrawer()">
+      <button class="btn btn-outline btn-sm" id="senders-btn" data-action="openSendersDrawer">
         <span>👥 Senders</span>
       </button>
-      <button class="btn btn-outline btn-sm" id="templates-btn" onclick="openTemplatesDrawer()">
+      <button class="btn btn-outline btn-sm" id="templates-btn" data-action="openTemplatesDrawer">
         <span>📝 Templates</span>
       </button>
-      <button class="btn btn-secondary btn-sm" id="sync-btn" onclick="triggerSync()">
+      <button class="btn btn-secondary btn-sm" id="sync-btn" data-action="triggerSync">
         <span>🔄 Sync</span>
       </button>
       <div class="menu-wrap">
-        <button class="btn btn-outline btn-sm btn-icon" id="more-menu-btn" aria-haspopup="true" aria-expanded="false" title="More actions" onclick="toggleMoreMenu(event)">
+        <button class="btn btn-outline btn-sm btn-icon" id="more-menu-btn" aria-haspopup="true" aria-expanded="false" title="More actions" data-action="toggleMoreMenu" data-args='["$event"]'>
           <span>⋯</span>
         </button>
         <div class="menu-panel" id="more-menu-panel" role="menu">
           <a href="/api/contacts/export/csv" id="export-csv-btn" role="menuitem" download>
             <span>📥</span><span>Export CSV</span>
           </a>
-          <button type="button" id="discrepancies-btn" role="menuitem" onclick="closeMoreMenu(); openDiscrepanciesDrawer();">
+          <button type="button" id="discrepancies-btn" role="menuitem" data-action="closeMoreMenu openDiscrepanciesDrawer">
             <span>⚠️</span><span>Data Discrepancies</span>
           </button>
         </div>
       </div>
       <div class="theme-toggle" role="group" aria-label="Color theme">
-        <button type="button" id="theme-system" data-theme-mode="system" title="Match system theme" aria-label="Use system theme" aria-pressed="false" onclick="setThemeMode('system')">💻</button>
-        <button type="button" id="theme-light" data-theme-mode="light" title="Light theme" aria-label="Use light theme" aria-pressed="false" onclick="setThemeMode('light')">☀️</button>
-        <button type="button" id="theme-dark" data-theme-mode="dark" title="Dark theme" aria-label="Use dark theme" aria-pressed="false" onclick="setThemeMode('dark')">🌙</button>
+        <button type="button" id="theme-system" data-theme-mode="system" title="Match system theme" aria-label="Use system theme" aria-pressed="false" data-action="setThemeMode" data-args='["system"]'>💻</button>
+        <button type="button" id="theme-light" data-theme-mode="light" title="Light theme" aria-label="Use light theme" aria-pressed="false" data-action="setThemeMode" data-args='["light"]'>☀️</button>
+        <button type="button" id="theme-dark" data-theme-mode="dark" title="Dark theme" aria-label="Use dark theme" aria-pressed="false" data-action="setThemeMode" data-args='["dark"]'>🌙</button>
       </div>
     </div>
   </header>
@@ -84,7 +84,7 @@
   <div id="ws-banner" role="status" aria-live="polite">🔄 Reconnecting to the live event stream… updates will resume automatically.</div>
   <div id="load-error-banner" role="alert" aria-live="assertive">
     <span>⚠️ Some dashboard data could not be loaded. <span id="load-error-areas"></span></span>
-    <button type="button" class="btn btn-outline btn-xs" onclick="retryLoad()">Retry</button>
+    <button type="button" class="btn btn-outline btn-xs" data-action="retryLoad">Retry</button>
   </div>
 
   <main>
@@ -140,7 +140,7 @@
         <div class="kpi-value" id="val-failed">0</div>
         <div class="kpi-sub">Failed dispatches</div>
       </div>
-      <div class="kpi-card kpi-recovery" id="kpi-recovery" role="button" tabindex="0" title="Open the recovery queue" aria-label="Open the recovery queue" onclick="openRecoveryDrawer()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openRecoveryDrawer(); }">
+      <div class="kpi-card kpi-recovery" id="kpi-recovery" role="button" tabindex="0" title="Open the recovery queue" aria-label="Open the recovery queue" data-action="openRecoveryDrawer">
         <div class="kpi-label">Recovery Required</div>
         <div class="kpi-value" id="val-recovery">0</div>
         <div class="kpi-sub">Blocked in recovery queue &bull; click to review</div>
@@ -157,10 +157,10 @@
           <label for="campaign-limit-input" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Limit:</label>
           <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Max contacts to outreach in this run" style="width: 68px; padding: 0.25rem 0.4rem; font-size: 0.8rem; background: var(--bg-surface-raised); border: 1px solid var(--border-color); border-radius: var(--radius-xs); color: var(--text-primary); text-align: center; font-weight: 600;">
         </div>
-        <button class="btn btn-secondary btn-sm" id="campaign-action-btn" onclick="onCampaignAction()">
+        <button class="btn btn-secondary btn-sm" id="campaign-action-btn" data-action="onCampaignAction">
           <span id="campaign-action-label">▶ New Run</span>
         </button>
-        <button class="btn btn-rose btn-sm" id="stop-campaign-btn" onclick="stopCampaign()" disabled hidden title="Stop the campaign permanently">
+        <button class="btn btn-rose btn-sm" id="stop-campaign-btn" data-action="stopCampaign" disabled hidden title="Stop the campaign permanently">
           <span>⏹ Stop</span>
         </button>
       </div>
@@ -198,14 +198,14 @@
     <section class="filters-bar">
       <div class="search-wrapper">
         <span class="search-icon" aria-hidden="true">🔍</span>
-        <input type="text" class="search-input" id="search-input" aria-label="Search companies, contacts, phone, email, notes" placeholder="Search company, name, phone, email, notes..." oninput="handleSearchChange()">
+        <input type="text" class="search-input" id="search-input" aria-label="Search companies, contacts, phone, email, notes" placeholder="Search company, name, phone, email, notes..." data-input="handleSearchChange">
       </div>
 
-      <select class="select-input" id="company-filter" aria-label="Filter by company" onchange="applyFilters()">
+      <select class="select-input" id="company-filter" aria-label="Filter by company" data-change="applyFilters">
         <option value="ALL">All Companies</option>
       </select>
 
-      <select class="select-input" id="crm-status-filter" aria-label="Filter by CRM outcome" onchange="applyFilters()">
+      <select class="select-input" id="crm-status-filter" aria-label="Filter by CRM outcome" data-change="applyFilters">
         <option value="ALL">All CRM Outcomes</option>
         <option value="INTERESTED">Interested</option>
         <option value="NOT_INTERESTED">Not Interested</option>
@@ -213,7 +213,7 @@
         <option value="NONE">No Status / Uncontacted</option>
       </select>
 
-      <select class="select-input" id="channel-filter" aria-label="Filter by outreach status" onchange="applyFilters()">
+      <select class="select-input" id="channel-filter" aria-label="Filter by outreach status" data-change="applyFilters">
         <option value="ALL">All Outreach Statuses</option>
         <option value="SENT">Any Contacted</option>
         <option value="NOT_SENT">Uncontacted</option>
@@ -222,13 +222,13 @@
       </select>
 
       <div class="priority-pills" role="group" aria-label="Priority filters">
-        <button class="pill-btn active" data-filter="ALL" aria-pressed="true" onclick="setPriorityFilter('ALL')">All</button>
-        <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" aria-pressed="false" onclick="setPriorityFilter('FOLLOW_UP_DUE')"><span aria-hidden="true">⚠️</span> Follow-up Due</button>
-        <button class="pill-btn pill-recovery" data-filter="RECOVERY" aria-pressed="false" onclick="setPriorityFilter('RECOVERY')"><span aria-hidden="true">⏱</span> Recovery Queue</button>
-        <button class="pill-btn" data-filter="INTERESTED" aria-pressed="false" onclick="setPriorityFilter('INTERESTED')"><span aria-hidden="true">★</span> Interested</button>
-        <button class="pill-btn" data-filter="RECENTLY_ACTIVE" aria-pressed="false" onclick="setPriorityFilter('RECENTLY_ACTIVE')"><span aria-hidden="true">⚡</span> Recently Active</button>
-        <button class="pill-btn" data-filter="UNCONTACTED" aria-pressed="false" onclick="setPriorityFilter('UNCONTACTED')">Uncontacted</button>
-        <button class="pill-btn" data-filter="NOT_INTERESTED" aria-pressed="false" onclick="setPriorityFilter('NOT_INTERESTED')">Not Interested</button>
+        <button class="pill-btn active" data-filter="ALL" aria-pressed="true" data-action="setPriorityFilter" data-args='["ALL"]'>All</button>
+        <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" aria-pressed="false" data-action="setPriorityFilter" data-args='["FOLLOW_UP_DUE"]'><span aria-hidden="true">⚠️</span> Follow-up Due</button>
+        <button class="pill-btn pill-recovery" data-filter="RECOVERY" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECOVERY"]'><span aria-hidden="true">⏱</span> Recovery Queue</button>
+        <button class="pill-btn" data-filter="INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["INTERESTED"]'><span aria-hidden="true">★</span> Interested</button>
+        <button class="pill-btn" data-filter="RECENTLY_ACTIVE" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECENTLY_ACTIVE"]'><span aria-hidden="true">⚡</span> Recently Active</button>
+        <button class="pill-btn" data-filter="UNCONTACTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["UNCONTACTED"]'>Uncontacted</button>
+        <button class="pill-btn" data-filter="NOT_INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["NOT_INTERESTED"]'>Not Interested</button>
       </div>
     </section>
 
@@ -264,7 +264,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="send-modal-title">Send Message</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeSendModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeSendModal">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="modal-contact-id">
@@ -288,7 +288,7 @@
 
         <div class="form-group">
           <label class="form-label" for="modal-template-select">Template</label>
-          <select class="form-control" id="modal-template-select" onchange="handleTemplateSelectChange()"></select>
+          <select class="form-control" id="modal-template-select" data-change="handleTemplateSelectChange"></select>
         </div>
 
         <div class="form-group" id="modal-subject-group" style="display: none;">
@@ -308,8 +308,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-outline" onclick="closeSendModal()">Cancel</button>
-        <button class="btn btn-primary" id="modal-submit-send-btn" onclick="submitSendMessage()">Send Now</button>
+        <button class="btn btn-outline" data-action="closeSendModal">Cancel</button>
+        <button class="btn btn-primary" id="modal-submit-send-btn" data-action="submitSendMessage">Send Now</button>
       </div>
     </div>
   </div>
@@ -319,7 +319,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="history-modal-title">Activity Timeline</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeHistoryModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeHistoryModal">&times;</button>
       </div>
       <div class="modal-body">
         <div id="history-contact-summary" style="margin-bottom: 0.5rem; font-size: 0.825rem; color: var(--text-secondary);"></div>
@@ -328,7 +328,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeHistoryModal()">Close</button>
+        <button class="btn btn-secondary" data-action="closeHistoryModal">Close</button>
       </div>
     </div>
   </div>
@@ -343,7 +343,7 @@
             Real-time session state, WhatsApp QR linking, and SMTP connection verification.
           </div>
         </div>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeSendersDrawer()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeSendersDrawer">&times;</button>
       </div>
       <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 1.25rem;">
         <div id="senders-list-container" style="display: flex; flex-direction: column; gap: 1.25rem;">
@@ -359,7 +359,7 @@
                   Each session operates in an isolated browser context with dedicated QR code authentication.
                 </div>
               </div>
-              <button class="btn btn-emerald btn-xs" onclick="addWhatsAppSession()">+ Add WhatsApp Session</button>
+              <button class="btn btn-emerald btn-xs" data-action="addWhatsAppSession">+ Add WhatsApp Session</button>
             </div>
 
 
@@ -380,7 +380,7 @@
                   Authenticated SMTP credentials and TLS delivery verification.
                 </div>
               </div>
-              <button class="btn btn-outline btn-xs" onclick="addEmailSession()">+ Add Email Sender</button>
+              <button class="btn btn-outline btn-xs" data-action="addEmailSession">+ Add Email Sender</button>
             </div>
 
             <div id="email-senders-list-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.85rem;">
@@ -394,8 +394,8 @@
           Readiness: <strong id="overall-readiness-text" style="color: var(--accent-amber);">Checking...</strong>
         </div>
         <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-secondary" onclick="fetchSenders()">Refresh State</button>
-          <button class="btn btn-primary" onclick="closeSendersDrawer()">Done</button>
+          <button class="btn btn-secondary" data-action="fetchSenders">Refresh State</button>
+          <button class="btn btn-primary" data-action="closeSendersDrawer">Done</button>
         </div>
       </div>
     </div>
@@ -406,7 +406,7 @@
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header">
         <h3 id="email-config-title">Configure Email Credentials</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeEmailConfigModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeEmailConfigModal">&times;</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -443,8 +443,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeEmailConfigModal()">Cancel</button>
-        <button class="btn btn-primary" id="save-email-cfg-btn" onclick="saveAndVerifyEmailConfig()">
+        <button class="btn btn-secondary" data-action="closeEmailConfigModal">Cancel</button>
+        <button class="btn btn-primary" id="save-email-cfg-btn" data-action="saveAndVerifyEmailConfig">
           <span>Save &amp; Verify Connection</span>
         </button>
       </div>
@@ -456,7 +456,7 @@
     <div class="modal-content" style="max-width: 460px;">
       <div class="modal-header">
         <h3 id="wa-qr-title">Link WhatsApp Device</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeWhatsAppQrModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeWhatsAppQrModal">&times;</button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 0.9rem; padding: 1.5rem 1.25rem;">
         <div id="wa-qr-subtitle" style="font-size: 0.8rem; color: var(--text-secondary); text-align: center;">Waiting for QR code...</div>
@@ -465,7 +465,7 @@
         <div id="wa-qr-status" style="font-size: 0.82rem; color: var(--text-secondary); text-align: center; min-height: 1.2rem;">Launching secure browser...</div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeWhatsAppQrModal()">Cancel</button>
+        <button class="btn btn-secondary" data-action="closeWhatsAppQrModal">Cancel</button>
       </div>
     </div>
   </div>
@@ -477,7 +477,7 @@
         <h3 id="discrepancies-modal-title" style="color: var(--accent-amber); display: flex; align-items: center; gap: 0.4rem;">
           <span>⚠️ Data Discrepancies</span>
         </h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeDiscrepanciesDrawer()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeDiscrepanciesDrawer">&times;</button>
       </div>
       <div class="modal-body">
         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
@@ -488,8 +488,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="fetchDiscrepancies()">Refresh</button>
-        <button class="btn btn-primary" onclick="closeDiscrepanciesDrawer()">Done</button>
+        <button class="btn btn-secondary" data-action="fetchDiscrepancies">Refresh</button>
+        <button class="btn btn-primary" data-action="closeDiscrepanciesDrawer">Done</button>
       </div>
     </div>
   </div>
@@ -501,7 +501,7 @@
         <h3 id="readiness-modal-title" style="color: var(--accent-rose); display: flex; align-items: center; gap: 0.4rem;">
           <span>⚠️ Outreach Cannot Start</span>
         </h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeReadinessModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeReadinessModal">&times;</button>
       </div>
       <div class="modal-body">
         <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.5rem;" id="readiness-error-reason">
@@ -515,8 +515,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeReadinessModal()">Dismiss</button>
-        <button class="btn btn-emerald" onclick="closeReadinessModal(); openSendersDrawer();">
+        <button class="btn btn-secondary" data-action="closeReadinessModal">Dismiss</button>
+        <button class="btn btn-emerald" data-action="closeReadinessModal openSendersDrawer">
           <span>👥 Open Senders &amp; Authenticate</span>
         </button>
       </div>
@@ -528,11 +528,11 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="templates-modal-title">Message Templates</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeTemplatesDrawer()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeTemplatesDrawer">&times;</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; justify-content: flex-end; margin-bottom: 0.75rem;">
-          <button class="btn btn-emerald btn-xs" id="add-template-btn" onclick="openTemplateForm(null)">+ Add Template</button>
+          <button class="btn btn-emerald btn-xs" id="add-template-btn" data-action="openTemplateForm" data-args='[null]'>+ Add Template</button>
         </div>
         <div id="template-form-container" style="display: none; flex-direction: column; gap: 0.75rem; margin-bottom: 0.75rem; padding: 0.85rem; background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-md);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -568,8 +568,8 @@
             <input type="text" id="tpl-attachment-ref" class="form-control" placeholder="Path to resume or attachment (optional)">
           </div>
           <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-            <button class="btn btn-secondary btn-xs" onclick="closeTemplateForm()">Cancel</button>
-            <button class="btn btn-primary btn-xs" onclick="saveTemplate()">Save Template</button>
+            <button class="btn btn-secondary btn-xs" data-action="closeTemplateForm">Cancel</button>
+            <button class="btn btn-primary btn-xs" data-action="saveTemplate">Save Template</button>
           </div>
         </div>
         <div id="templates-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -577,7 +577,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeTemplatesDrawer()">Close</button>
+        <button class="btn btn-secondary" data-action="closeTemplatesDrawer">Close</button>
       </div>
     </div>
   </div>
@@ -587,7 +587,7 @@
     <div class="modal-content" style="max-width: 580px;">
       <div class="modal-header">
         <h3 id="sync-modal-title">Source Synchronization Summary</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeSyncModal()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeSyncModal">&times;</button>
       </div>
       <div class="modal-body" id="sync-modal-body">
         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
@@ -613,7 +613,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary" onclick="closeSyncModal()">Done</button>
+        <button class="btn btn-primary" data-action="closeSyncModal">Done</button>
       </div>
     </div>
   </div>
@@ -625,7 +625,7 @@
         <h3 id="recovery-modal-title" style="color: var(--accent-amber); display: flex; align-items: center; gap: 0.4rem;">
           <span>⏱ Recovery Queue</span>
         </h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="closeRecoveryDrawer()">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeRecoveryDrawer">&times;</button>
       </div>
       <div class="modal-body">
         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
@@ -637,8 +637,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="fetchRecoveryQueue()">Refresh</button>
-        <button class="btn btn-primary" onclick="closeRecoveryDrawer()">Done</button>
+        <button class="btn btn-secondary" data-action="fetchRecoveryQueue">Refresh</button>
+        <button class="btn btn-primary" data-action="closeRecoveryDrawer">Done</button>
       </div>
     </div>
   </div>
@@ -648,14 +648,14 @@
     <div class="modal-content" style="max-width: 440px;">
       <div class="modal-header">
         <h3 id="confirm-modal-title">Confirm action</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" onclick="resolveConfirm(false)">&times;</button>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="resolveConfirm" data-args='[false]'>&times;</button>
       </div>
       <div class="modal-body">
         <p id="confirm-modal-message" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;"></p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="resolveConfirm(false)">Cancel</button>
-        <button class="btn btn-rose" id="confirm-modal-ok" onclick="resolveConfirm(true)">Confirm</button>
+        <button class="btn btn-secondary" data-action="resolveConfirm" data-args='[false]'>Cancel</button>
+        <button class="btn btn-rose" id="confirm-modal-ok" data-action="resolveConfirm" data-args='[true]'>Confirm</button>
       </div>
     </div>
   </div>
