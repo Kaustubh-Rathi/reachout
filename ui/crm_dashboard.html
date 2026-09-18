@@ -67,6 +67,27 @@
       --on-amber: #ffffff;
       --on-rose: #ffffff;
 
+      /* Semantic KPI accents (WCAG AA on light surfaces) */
+      --kpi-contacted: #4338ca;
+      --kpi-email: #0369a1;
+      --kpi-interested: #047857;
+      --kpi-interview: #6d28d9;
+      --kpi-recovery: #be123c;
+
+      /* Company status badges (theme-aware) */
+      --status-not-contacted: #be123c;
+      --status-not-contacted-bg: rgba(190, 18, 60, 0.10);
+      --status-not-contacted-border: rgba(190, 18, 60, 0.30);
+      --status-in-progress: #b45309;
+      --status-in-progress-bg: rgba(180, 83, 9, 0.12);
+      --status-in-progress-border: rgba(180, 83, 9, 0.30);
+      --status-contacted: #047857;
+      --status-contacted-bg: rgba(4, 120, 87, 0.10);
+      --status-contacted-border: rgba(4, 120, 87, 0.28);
+      --status-closed: #475569;
+      --status-closed-bg: rgba(71, 85, 105, 0.12);
+      --status-closed-border: rgba(71, 85, 105, 0.30);
+
       --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
       --shadow-md: 0 4px 10px -2px rgba(15, 23, 42, 0.10), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
       --shadow-lg: 0 12px 24px -6px rgba(15, 23, 42, 0.14), 0 4px 8px -4px rgba(15, 23, 42, 0.08);
@@ -86,7 +107,7 @@
 
       --text-primary: #f8fafc;
       --text-secondary: #94a3b8;
-      --text-muted: #64748b;
+      --text-muted: #94a3b8;
 
       --accent-emerald: #10b981;
       --accent-emerald-bg: rgba(16, 185, 129, 0.12);
@@ -112,6 +133,27 @@
       --on-blue: #082f49;
       --on-amber: #451a03;
       --on-rose: #ffffff;
+
+      /* Semantic KPI accents */
+      --kpi-contacted: #a5b4fc;
+      --kpi-email: #38bdf8;
+      --kpi-interested: #34d399;
+      --kpi-interview: #a78bfa;
+      --kpi-recovery: #fb7185;
+
+      /* Company status badges (theme-aware) */
+      --status-not-contacted: #fb7185;
+      --status-not-contacted-bg: rgba(244, 63, 94, 0.15);
+      --status-not-contacted-border: rgba(244, 63, 94, 0.30);
+      --status-in-progress: #fbbf24;
+      --status-in-progress-bg: rgba(245, 158, 11, 0.15);
+      --status-in-progress-border: rgba(245, 158, 11, 0.30);
+      --status-contacted: #34d399;
+      --status-contacted-bg: rgba(16, 185, 129, 0.15);
+      --status-contacted-border: rgba(16, 185, 129, 0.30);
+      --status-closed: #94a3b8;
+      --status-closed-bg: rgba(100, 116, 139, 0.20);
+      --status-closed-border: rgba(100, 116, 139, 0.40);
 
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
       --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.40), 0 2px 4px -2px rgba(0, 0, 0, 0.30);
@@ -445,14 +487,15 @@
       color: var(--text-primary);
     }
 
-    /* Loading Spinner */
+    /* Loading Spinner — uses currentColor so it stays visible on any button */
     .spinner {
       display: inline-block;
       width: 13px;
       height: 13px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      border: 2px solid currentColor;
+      border-top-color: transparent;
       border-radius: 50%;
-      border-top-color: #fff;
+      opacity: 0.8;
       animation: spin 0.6s linear infinite;
       vertical-align: middle;
     }
@@ -524,19 +567,19 @@
 
     /* KPI Card Accents */
     .kpi-card.kpi-eligible .kpi-value { color: var(--accent-blue); }
-    .kpi-card.kpi-contacted .kpi-value { color: #a5b4fc; }
+    .kpi-card.kpi-contacted .kpi-value { color: var(--kpi-contacted); }
     .kpi-card.kpi-wa .kpi-value { color: var(--accent-emerald); }
-    .kpi-card.kpi-email .kpi-value { color: #38bdf8; }
-    .kpi-card.kpi-interested .kpi-value { color: #34d399; }
+    .kpi-card.kpi-email .kpi-value { color: var(--kpi-email); }
+    .kpi-card.kpi-interested .kpi-value { color: var(--kpi-interested); }
     .kpi-card.kpi-not-interested .kpi-value { color: var(--accent-rose); }
-    .kpi-card.kpi-interview .kpi-value { color: #a78bfa; }
+    .kpi-card.kpi-interview .kpi-value { color: var(--kpi-interview); }
     .kpi-card.kpi-followup {
       border-color: var(--accent-amber-border);
-      background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, var(--bg-surface) 100%);
+      background: linear-gradient(180deg, var(--accent-amber-bg) 0%, var(--bg-surface) 100%);
     }
     .kpi-card.kpi-followup .kpi-value { color: var(--accent-amber); }
     .kpi-card.kpi-failed .kpi-value { color: var(--accent-rose); }
-    .kpi-card.kpi-recovery .kpi-value { color: #fb7185; }
+    .kpi-card.kpi-recovery .kpi-value { color: var(--kpi-recovery); }
 
     /* Control Plane Card */
     .control-plane {
@@ -590,6 +633,18 @@
       background: var(--accent-blue-bg);
       color: var(--accent-blue);
       border-color: var(--accent-blue-border);
+    }
+
+    .campaign-status-badge.status-failed {
+      background: var(--accent-rose-bg);
+      color: var(--accent-rose);
+      border-color: var(--accent-rose-border);
+    }
+
+    .campaign-status-badge.status-stopped {
+      background: var(--bg-surface-hover);
+      color: var(--text-secondary);
+      border-color: var(--border-medium);
     }
 
     .campaign-progress-box {
@@ -1078,27 +1133,27 @@
     }
 
     .status-not-contacted {
-      background: rgba(244, 63, 94, 0.15);
-      color: #fb7185;
-      border: 1px solid rgba(244, 63, 94, 0.3);
+      background: var(--status-not-contacted-bg);
+      color: var(--status-not-contacted);
+      border: 1px solid var(--status-not-contacted-border);
     }
 
     .status-in-progress {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: var(--status-in-progress-bg);
+      color: var(--status-in-progress);
+      border: 1px solid var(--status-in-progress-border);
     }
 
     .status-contacted {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: var(--status-contacted-bg);
+      color: var(--status-contacted);
+      border: 1px solid var(--status-contacted-border);
     }
 
     .status-closed {
-      background: rgba(100, 116, 139, 0.2);
-      color: #94a3b8;
-      border: 1px solid rgba(100, 116, 139, 0.4);
+      background: var(--status-closed-bg);
+      color: var(--status-closed);
+      border: 1px solid var(--status-closed-border);
     }
 
     .company-meta-pills {
@@ -1230,6 +1285,21 @@
       text-align: center;
     }
     #ws-banner.visible { display: block; }
+
+    #load-error-banner {
+      display: none;
+      width: 100%;
+      padding: 0.45rem 1rem;
+      background: var(--accent-rose-bg);
+      border-bottom: 1px solid var(--accent-rose-border);
+      color: var(--accent-rose);
+      font-size: 0.78rem;
+      font-weight: 600;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+    }
+    #load-error-banner.visible { display: flex; }
 
     /* Clickable recovery KPI drills into the recovery queue drawer */
     .kpi-card.kpi-recovery[role="button"] { cursor: pointer; }
@@ -1401,6 +1471,10 @@
   </header>
 
   <div id="ws-banner" role="status" aria-live="polite">🔄 Reconnecting to the live event stream… updates will resume automatically.</div>
+  <div id="load-error-banner" role="alert" aria-live="assertive">
+    <span>⚠️ Some dashboard data could not be loaded. <span id="load-error-areas"></span></span>
+    <button type="button" class="btn btn-outline btn-xs" onclick="retryLoad()">Retry</button>
+  </div>
 
   <main>
     <!-- Section 4: Operational KPI Metrics Dashboard -->
@@ -1512,15 +1586,15 @@
     <!-- Section 8: Search & Priority Filter Bar -->
     <section class="filters-bar">
       <div class="search-wrapper">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" id="search-input" placeholder="Search company, name, phone, email, notes..." oninput="handleSearchChange()">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input type="text" class="search-input" id="search-input" aria-label="Search companies, contacts, phone, email, notes" placeholder="Search company, name, phone, email, notes..." oninput="handleSearchChange()">
       </div>
 
-      <select class="select-input" id="company-filter" onchange="applyFilters()">
+      <select class="select-input" id="company-filter" aria-label="Filter by company" onchange="applyFilters()">
         <option value="ALL">All Companies</option>
       </select>
 
-      <select class="select-input" id="crm-status-filter" onchange="applyFilters()">
+      <select class="select-input" id="crm-status-filter" aria-label="Filter by CRM outcome" onchange="applyFilters()">
         <option value="ALL">All CRM Outcomes</option>
         <option value="INTERESTED">Interested</option>
         <option value="NOT_INTERESTED">Not Interested</option>
@@ -1528,7 +1602,7 @@
         <option value="NONE">No Status / Uncontacted</option>
       </select>
 
-      <select class="select-input" id="channel-filter" onchange="applyFilters()">
+      <select class="select-input" id="channel-filter" aria-label="Filter by outreach status" onchange="applyFilters()">
         <option value="ALL">All Outreach Statuses</option>
         <option value="SENT">Any Contacted</option>
         <option value="NOT_SENT">Uncontacted</option>
@@ -1536,14 +1610,14 @@
         <option value="EMAIL_SENT">Email Sent</option>
       </select>
 
-      <div class="priority-pills">
-        <button class="pill-btn active" data-filter="ALL" onclick="setPriorityFilter('ALL')">All</button>
-        <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" onclick="setPriorityFilter('FOLLOW_UP_DUE')">⚠️ Follow-up Due</button>
-        <button class="pill-btn pill-recovery" data-filter="RECOVERY" onclick="setPriorityFilter('RECOVERY')">⏱ Recovery Queue</button>
-        <button class="pill-btn" data-filter="INTERESTED" onclick="setPriorityFilter('INTERESTED')">★ Interested</button>
-        <button class="pill-btn" data-filter="RECENTLY_ACTIVE" onclick="setPriorityFilter('RECENTLY_ACTIVE')">⚡ Recently Active</button>
-        <button class="pill-btn" data-filter="UNCONTACTED" onclick="setPriorityFilter('UNCONTACTED')">Uncontacted</button>
-        <button class="pill-btn" data-filter="NOT_INTERESTED" onclick="setPriorityFilter('NOT_INTERESTED')">Not Interested</button>
+      <div class="priority-pills" role="group" aria-label="Priority filters">
+        <button class="pill-btn active" data-filter="ALL" aria-pressed="true" onclick="setPriorityFilter('ALL')">All</button>
+        <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" aria-pressed="false" onclick="setPriorityFilter('FOLLOW_UP_DUE')"><span aria-hidden="true">⚠️</span> Follow-up Due</button>
+        <button class="pill-btn pill-recovery" data-filter="RECOVERY" aria-pressed="false" onclick="setPriorityFilter('RECOVERY')"><span aria-hidden="true">⏱</span> Recovery Queue</button>
+        <button class="pill-btn" data-filter="INTERESTED" aria-pressed="false" onclick="setPriorityFilter('INTERESTED')"><span aria-hidden="true">★</span> Interested</button>
+        <button class="pill-btn" data-filter="RECENTLY_ACTIVE" aria-pressed="false" onclick="setPriorityFilter('RECENTLY_ACTIVE')"><span aria-hidden="true">⚡</span> Recently Active</button>
+        <button class="pill-btn" data-filter="UNCONTACTED" aria-pressed="false" onclick="setPriorityFilter('UNCONTACTED')">Uncontacted</button>
+        <button class="pill-btn" data-filter="NOT_INTERESTED" aria-pressed="false" onclick="setPriorityFilter('NOT_INTERESTED')">Not Interested</button>
       </div>
     </section>
 
@@ -1592,32 +1666,32 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Target Endpoint / Destination</label>
+          <label class="form-label" for="modal-destination-select">Target Endpoint / Destination</label>
           <select class="form-control" id="modal-destination-select"></select>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Sender Account</label>
+          <label class="form-label" for="modal-sender-select">Sender Account</label>
           <select class="form-control" id="modal-sender-select"></select>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Template</label>
+          <label class="form-label" for="modal-template-select">Template</label>
           <select class="form-control" id="modal-template-select" onchange="handleTemplateSelectChange()"></select>
         </div>
 
         <div class="form-group" id="modal-subject-group" style="display: none;">
-          <label class="form-label">Email Subject</label>
+          <label class="form-label" for="modal-subject-input">Email Subject</label>
           <input type="text" class="form-control" id="modal-subject-input">
         </div>
 
         <div class="form-group">
-          <label class="form-label">Message Body</label>
+          <label class="form-label" for="modal-body-input">Message Body</label>
           <textarea class="form-control" id="modal-body-input" rows="5"></textarea>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Attachment (optional)</label>
+          <label class="form-label" for="modal-attachment-input">Attachment (optional)</label>
           <input type="text" class="form-control" id="modal-attachment-input" placeholder="e.g. resume.pdf (relative to project root)">
           <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem;">Prefilled from the selected template. A missing file fails the send.</div>
         </div>
@@ -1726,33 +1800,33 @@
       <div class="modal-body">
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div class="form-group">
-            <label class="form-label">Session ID</label>
+            <label class="form-label" for="cfg-email-id">Session ID</label>
             <input type="text" id="cfg-email-id" class="form-control" value="EMAIL_SESSION_1" placeholder="e.g. EMAIL_SESSION_1">
           </div>
           <div class="form-group">
-            <label class="form-label">Display Name</label>
+            <label class="form-label" for="cfg-email-name">Display Name</label>
             <input type="text" id="cfg-email-name" class="form-control" value="Email Primary" placeholder="e.g. Email Primary (Gmail)">
           </div>
           <div class="form-group">
-            <label class="form-label">Email Address (From Identity)</label>
+            <label class="form-label" for="cfg-email-addr">Email Address (From Identity)</label>
             <input type="email" id="cfg-email-addr" class="form-control" value="outreach.primary@domain.com" placeholder="name@domain.com">
           </div>
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem;">
             <div class="form-group">
-              <label class="form-label">SMTP Host</label>
+              <label class="form-label" for="cfg-email-host">SMTP Host</label>
               <input type="text" id="cfg-email-host" class="form-control" value="smtp.gmail.com" placeholder="smtp.gmail.com">
             </div>
             <div class="form-group">
-              <label class="form-label">Port</label>
+              <label class="form-label" for="cfg-email-port">Port</label>
               <input type="number" id="cfg-email-port" class="form-control" value="587">
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">SMTP Username</label>
+            <label class="form-label" for="cfg-email-user">SMTP Username</label>
             <input type="text" id="cfg-email-user" class="form-control" placeholder="SMTP Username / Email">
           </div>
           <div class="form-group">
-            <label class="form-label">SMTP Password / App Password</label>
+            <label class="form-label" for="cfg-email-pwd">SMTP Password / App Password</label>
             <input type="password" id="cfg-email-pwd" class="form-control" placeholder="••••••••••••">
           </div>
         </div>
@@ -1854,16 +1928,16 @@
             <strong id="template-form-title" style="color: var(--accent-blue);">Add Template</strong>
           </div>
           <div class="form-group">
-            <label class="form-label">Template ID</label>
+            <label class="form-label" for="tpl-id">Template ID</label>
             <input type="text" id="tpl-id" class="form-control" placeholder="e.g. TEMPLATE_1">
           </div>
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem;">
             <div class="form-group">
-              <label class="form-label">Name</label>
+              <label class="form-label" for="tpl-name">Name</label>
               <input type="text" id="tpl-name" class="form-control" placeholder="e.g. Initial Outreach">
             </div>
             <div class="form-group">
-              <label class="form-label">Channel</label>
+              <label class="form-label" for="tpl-channel">Channel</label>
               <select id="tpl-channel" class="form-control">
                 <option value="WHATSAPP">WHATSAPP</option>
                 <option value="EMAIL">EMAIL</option>
@@ -1871,15 +1945,15 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Subject (optional)</label>
+            <label class="form-label" for="tpl-subject">Subject (optional)</label>
             <input type="text" id="tpl-subject" class="form-control" placeholder="Email subject line">
           </div>
           <div class="form-group">
-            <label class="form-label">Body</label>
+            <label class="form-label" for="tpl-body">Body</label>
             <textarea id="tpl-body" class="form-control" rows="4" placeholder="Message body / content"></textarea>
           </div>
           <div class="form-group">
-            <label class="form-label">Resume / Attachment Path</label>
+            <label class="form-label" for="tpl-attachment-ref">Resume / Attachment Path</label>
             <input type="text" id="tpl-attachment-ref" class="form-control" placeholder="Path to resume or attachment (optional)">
           </div>
           <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -1979,6 +2053,10 @@
 
     let activeEventSource = null;
     let activeWebSocket = null;
+    let hierarchiesAbort = null;
+    let eventReconnectTimer = null;
+    let eventReconnectDelay = 3000;
+    const EVENT_RECONNECT_MAX = 30000;
 
     // ------------------------------------------------------------------
     // Theme management (system / light / dark) — persisted per browser
@@ -2104,9 +2182,13 @@
         if (res.ok) {
           const data = await res.json();
           renderKpis(data);
+          clearLoadError('KPIs');
+        } else {
+          reportLoadError('KPIs');
         }
       } catch (err) {
         console.error('Error loading KPIs:', err);
+        reportLoadError('KPIs');
       }
     }
 
@@ -2138,9 +2220,13 @@
             opt.textContent = `${c.name} (${c.contact_count})`;
             select.appendChild(opt);
           });
+          clearLoadError('companies');
+        } else {
+          reportLoadError('companies');
         }
       } catch (err) {
         console.error('Error loading companies:', err);
+        reportLoadError('companies');
       }
     }
 
@@ -2175,15 +2261,23 @@
         if (state.selectedChannelStatus !== 'ALL') params.set('channel_status', state.selectedChannelStatus);
 
         if (summary) summary.innerHTML = 'Refreshing company hierarchies&hellip;';
-        const res = await apiFetch(`/api/companies/hierarchy?${params.toString()}`);
+        // Cancel any in-flight hierarchy request so a slow earlier response
+        // cannot overwrite the results of a newer search/filter.
+        if (hierarchiesAbort) hierarchiesAbort.abort();
+        hierarchiesAbort = new AbortController();
+        const res = await apiFetch(`/api/companies/hierarchy?${params.toString()}`, { signal: hierarchiesAbort.signal });
         if (res.ok) {
           state.hierarchies = await res.json();
           renderHierarchyView(state.hierarchies);
+          clearLoadError('hierarchies');
         } else {
+          reportLoadError('hierarchies');
           showToast('Failed to load hierarchies: ' + await apiErrorText(res), 'error');
         }
       } catch (err) {
+        if (err.name === 'AbortError') return;
         console.error('Error loading hierarchies:', err);
+        reportLoadError('hierarchies');
         showToast('Failed to load hierarchies: ' + err.message, 'error');
       } finally {
         if (summary) summary.innerHTML = defaultSummary;
@@ -2244,7 +2338,7 @@
         (comp.contacts || []).forEach((hr, hrIdx) => {
           const curStatus = hr.crm_outcome || 'NOT_CONTACTED';
           const statusSelect = `
-            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" onchange="updateContactStatus('${hr.contact_id}', this.value)">
+            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" onfocus="this.dataset.prev=this.value" onchange="updateContactStatus('${hr.contact_id}', this.value, this)">
               <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
               <option value="PENDING_REPLY" ${curStatus === 'PENDING_REPLY' ? 'selected' : ''}>Pending Reply</option>
               <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
@@ -2391,7 +2485,8 @@
     }
 
     // 5. CRM Status Update Action
-    async function updateContactStatus(contactId, status) {
+    async function updateContactStatus(contactId, status, selectEl) {
+      if (selectEl) selectEl.dataset.prev = selectEl.dataset.prev || selectEl.value;
       try {
         const res = await apiFetch('/api/crm/status', {
           method: 'POST',
@@ -2404,9 +2499,11 @@
         } else {
           const err = await res.json();
           showToast(`Error: ${err.detail || 'Status update failed'}`, 'error');
+          if (selectEl) selectEl.value = selectEl.dataset.prev;
         }
       } catch (err) {
         showToast('Error updating status: ' + err.message, 'error');
+        if (selectEl) selectEl.value = selectEl.dataset.prev;
       }
     }
 
@@ -2438,9 +2535,13 @@
           if (list && list.length > 0) {
             updateCampaignControls(list[0]);
           }
+          clearLoadError('campaigns');
+        } else {
+          reportLoadError('campaigns');
         }
       } catch (err) {
         console.error('Error fetching campaigns:', err);
+        reportLoadError('campaigns');
       }
     }
 
@@ -2906,9 +3007,13 @@
           state.senders = await res.json();
           updateHeaderSendersIndicator();
           renderSendersModal();
+          clearLoadError('senders');
+        } else {
+          reportLoadError('senders');
         }
       } catch (err) {
         console.error('Error loading senders:', err);
+        reportLoadError('senders');
       }
     }
 
@@ -3417,9 +3522,15 @@
     async function fetchTemplates() {
       try {
         const res = await apiFetch('/api/templates');
-        if (res.ok) state.templates = await res.json();
+        if (res.ok) {
+          state.templates = await res.json();
+          clearLoadError('templates');
+        } else {
+          reportLoadError('templates');
+        }
       } catch (err) {
         console.error('Error loading templates:', err);
+        reportLoadError('templates');
       }
     }
 
@@ -3581,39 +3692,56 @@
     }
 
     // 12. Real-Time Streaming (WebSocket with Automatic Reconnect & SSE Fallback)
-    function initEventStream() {
+    function scheduleEventReconnect() {
+      if (eventReconnectTimer) return;
+      setWsBanner(true);
+      eventReconnectTimer = setTimeout(() => {
+        eventReconnectTimer = null;
+        eventReconnectDelay = Math.min(eventReconnectDelay * 2, EVENT_RECONNECT_MAX);
+        initEventStream();
+      }, eventReconnectDelay);
+    }
+
+    function closeEventTransports() {
       if (activeWebSocket) {
-        try { activeWebSocket.close(); } catch(e) {}
+        try { activeWebSocket.onclose = null; activeWebSocket.close(); } catch (e) {}
         activeWebSocket = null;
       }
       if (activeEventSource) {
-        try { activeEventSource.close(); } catch(e) {}
+        try { activeEventSource.close(); } catch (e) {}
         activeEventSource = null;
       }
+    }
+
+    function initEventStream() {
+      closeEventTransports();
 
       try {
         const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${proto}//${window.location.host}/api/events/ws`;
-        activeWebSocket = new WebSocket(wsUrl);
+        const socket = new WebSocket(wsUrl);
+        activeWebSocket = socket;
 
-        activeWebSocket.onopen = () => {
+        socket.onopen = () => {
+          eventReconnectDelay = 3000;
           setWsBanner(false);
         };
 
-        activeWebSocket.onmessage = (e) => {
+        socket.onmessage = (e) => {
           try {
-            const eventData = JSON.parse(e.data);
-            handleLiveEvent(eventData);
+            handleLiveEvent(JSON.parse(e.data));
           } catch (err) {}
         };
 
-        activeWebSocket.onerror = () => {
-          fallbackToSSE();
+        // Only fall back while this socket is still the active transport.
+        socket.onerror = () => {
+          if (activeWebSocket === socket) fallbackToSSE();
         };
 
-        activeWebSocket.onclose = () => {
-          setWsBanner(true);
-          setTimeout(initEventStream, 3000);
+        socket.onclose = () => {
+          if (activeWebSocket !== socket) return;
+          activeWebSocket = null;
+          scheduleEventReconnect();
         };
       } catch (e) {
         fallbackToSSE();
@@ -3625,18 +3753,59 @@
       if (banner) banner.classList.toggle('visible', !!visible);
     }
 
+    // ---- Initial/background load failure reporting ----
+    const loadErrors = new Set();
+
+    function renderLoadErrors() {
+      const banner = document.getElementById('load-error-banner');
+      const areas = document.getElementById('load-error-areas');
+      if (loadErrors.size === 0) {
+        if (banner) banner.classList.remove('visible');
+        return;
+      }
+      if (areas) areas.textContent = 'Unavailable: ' + Array.from(loadErrors).join(', ') + '.';
+      if (banner) banner.classList.add('visible');
+    }
+
+    function reportLoadError(area) {
+      loadErrors.add(area);
+      renderLoadErrors();
+    }
+
+    function clearLoadError(area) {
+      if (loadErrors.delete(area)) renderLoadErrors();
+    }
+
+    async function retryLoad() {
+      loadErrors.clear();
+      renderLoadErrors();
+      await Promise.allSettled([
+        fetchKpis(),
+        fetchCompanies(),
+        fetchHierarchies(),
+        fetchCampaigns(),
+        fetchSenders(),
+        fetchTemplates(),
+      ]);
+    }
+
     function fallbackToSSE() {
       if (activeEventSource) return;
+      // Stop the WebSocket so its close handler cannot schedule a competing reconnect.
+      if (activeWebSocket) {
+        try { activeWebSocket.onclose = null; activeWebSocket.onerror = null; activeWebSocket.close(); } catch (e) {}
+        activeWebSocket = null;
+      }
       activeEventSource = new EventSource('/api/events/stream');
 
       activeEventSource.onopen = () => {
+        eventReconnectDelay = 3000;
         setWsBanner(false);
       };
 
       activeEventSource.onmessage = (e) => {
         try {
-          const eventData = JSON.parse(e.data);
-          handleLiveEvent(eventData);
+          handleLiveEvent(JSON.parse(e.data));
         } catch (err) {}
       };
 
@@ -3653,7 +3822,12 @@
       });
 
       activeEventSource.onerror = () => {
-        setWsBanner(true);
+        // Tear down SSE and retry the preferred WebSocket transport with backoff.
+        if (activeEventSource) {
+          try { activeEventSource.close(); } catch (e) {}
+          activeEventSource = null;
+        }
+        scheduleEventReconnect();
       };
     }
 
@@ -3726,7 +3900,9 @@
     function setPriorityFilter(filterName) {
       state.selectedPriorityFilter = filterName;
       document.querySelectorAll('.priority-pills .pill-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-filter') === filterName);
+        const isActive = btn.getAttribute('data-filter') === filterName;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       });
       fetchHierarchies();
     }
@@ -3790,6 +3966,62 @@
       const openOverlays = document.querySelectorAll('.modal-overlay.open');
       if (openOverlays.length === 0) return;
       openOverlays[openOverlays.length - 1].classList.remove('open');
+    });
+
+    // ---- Modal focus management: initial focus, focus trap, restore, scroll lock ----
+    let currentTopModal = null;
+    let modalReturnFocus = null;
+
+    function openModals() {
+      return Array.from(document.querySelectorAll('.modal-overlay.open'));
+    }
+
+    function modalFocusables(modal) {
+      const selector = 'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      return Array.from(modal.querySelectorAll(selector)).filter((el) => el.offsetParent !== null);
+    }
+
+    function syncModalState() {
+      const modals = openModals();
+      document.body.style.overflow = modals.length > 0 ? 'hidden' : '';
+      const top = modals.length > 0 ? modals[modals.length - 1] : null;
+      if (top === currentTopModal) return;
+      if (top) {
+        modalReturnFocus = document.activeElement;
+        const focusables = modalFocusables(top);
+        if (focusables.length > 0) focusables[0].focus();
+        else {
+          top.setAttribute('tabindex', '-1');
+          top.focus();
+        }
+      } else if (modalReturnFocus && typeof modalReturnFocus.focus === 'function') {
+        modalReturnFocus.focus();
+      }
+      currentTopModal = top;
+    }
+
+    new MutationObserver(syncModalState).observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Tab') return;
+      const modals = openModals();
+      if (modals.length === 0) return;
+      const top = modals[modals.length - 1];
+      const focusables = modalFocusables(top);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     });
 
     function openRecoveryDrawer() {
