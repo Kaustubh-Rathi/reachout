@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import build_repositories
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -67,12 +68,14 @@ def scheduler_env(tmp_path):
         email_provider=FakeEmailProvider(),
         rate_limiter=rate_limiter,
         event_publisher=event_bus,
+        repository_factory=build_repositories,
     )
 
     scheduler = PersistentCampaignScheduler(
         session_factory=SessionFactory,
         worker=worker,
         event_publisher=event_bus,
+        repository_factory=build_repositories,
     )
 
     # Seed test data: 3 companies, 2 contacts each (A1, A2, B1, B2, C1, C2)

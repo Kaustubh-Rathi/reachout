@@ -21,6 +21,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import build_repositories
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -126,6 +127,7 @@ class TestTemplates:
             email_provider=MockEmailProvider(),
             rate_limiter=RateLimiter(default_channel_delay={"WHATSAPP": 0.001, "EMAIL": 0.001}),
             event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
 
         with outreach_db() as session:

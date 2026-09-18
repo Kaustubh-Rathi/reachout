@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import build_repositories
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -104,6 +105,7 @@ class TestCrashRecoveryAndPreSend:
             email_provider=FakeEmailProvider(),
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
+            repository_factory=build_repositories,
         )
 
         with session_factory() as session:
@@ -135,11 +137,13 @@ class TestCrashRecoveryAndPreSend:
             email_provider=FakeEmailProvider(),
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
+            repository_factory=build_repositories,
         )
         scheduler = PersistentCampaignScheduler(
             session_factory=session_factory,
             worker=worker,
             event_publisher=event_bus,
+            repository_factory=build_repositories,
         )
 
         # Simulate 2 orphaned attempts stuck in SENDING and QUEUED from a crashed process
@@ -208,6 +212,7 @@ class TestCrashRecoveryAndPreSend:
             email_provider=FakeEmailProvider(),
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
+            repository_factory=build_repositories,
         )
 
         with session_factory() as session:

@@ -31,12 +31,6 @@ from app.domain.policies.template_rotation import select_template_round_robin
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
-from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
-from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter, default_rate_limiter
 from app.ports.infrastructure import CampaignScheduler, DomainEvent, EventPublisher
@@ -52,10 +46,12 @@ class PersistentCampaignScheduler(CampaignScheduler):
         session_factory: Any,
         worker: OutreachWorker,
         event_publisher: EventPublisher,
+        repository_factory: Any,
     ) -> None:
         self.session_factory = session_factory
         self.worker = worker
         self.event_publisher = event_publisher
+        self.repository_factory = repository_factory
         self._lock = threading.RLock()
         self._active_threads: Dict[str, threading.Thread] = {}
         self._pause_flags: Dict[str, threading.Event] = {}
@@ -72,8 +68,9 @@ class PersistentCampaignScheduler(CampaignScheduler):
         recovered_count = 0
         now = datetime.now(timezone.utc)
         with self.session_factory() as session:
-            outreach_repo = SqliteOutreachRepository(session)
-            campaign_repo = SqliteCampaignRepository(session)
+            repos = self.repository_factory(session)
+            outreach_repo = repos.outreach
+            campaign_repo = repos.campaign
 
             in_flight_statuses = [OutreachStatus.SENDING, OutreachStatus.QUEUED]
             for st in in_flight_statuses:
@@ -114,7 +111,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
         """Start execution of a campaign in the background."""
         with self._lock:
             with self.session_factory() as session:
-                campaign_repo = SqliteCampaignRepository(session)
+                campaign_repo = self.repository_factory(session).campaign
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if not campaign:
                     raise NotFoundError(f"Campaign '{campaign_id}' not found")
@@ -160,7 +157,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 self._pause_flags[campaign_id].set()
 
             with self.session_factory() as session:
-                campaign_repo = SqliteCampaignRepository(session)
+                campaign_repo = self.repository_factory(session).campaign
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if campaign and campaign.status in (CampaignStatus.STARTING, CampaignStatus.RUNNING):
                     campaign_repo.set_status(campaign_id, CampaignStatus.PAUSED)
@@ -177,7 +174,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
         """Resume a paused campaign."""
         with self._lock:
             with self.session_factory() as session:
-                campaign_repo = SqliteCampaignRepository(session)
+                campaign_repo = self.repository_factory(session).campaign
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if not campaign:
                     raise NotFoundError(f"Campaign '{campaign_id}' not found")
@@ -218,7 +215,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 self._pause_flags[campaign_id].clear()
 
             with self.session_factory() as session:
-                campaign_repo = SqliteCampaignRepository(session)
+                campaign_repo = self.repository_factory(session).campaign
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if campaign and not campaign.status.is_terminal:
                     campaign_repo.set_status(
@@ -252,7 +249,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
             # 1. Target max count check
             if max_count is not None and dispatched_count >= max_count:
                 with self.session_factory() as session:
-                    campaign_repo = SqliteCampaignRepository(session)
+                    campaign_repo = self.repository_factory(session).campaign
                     campaign = campaign_repo.get_by_id(campaign_id)
                     if campaign and campaign.status == CampaignStatus.RUNNING:
                         campaign.complete()
@@ -268,12 +265,13 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
             # 2. Recompute eligible candidate list and senders from fresh database state
             with self.session_factory() as session:
-                campaign_repo = SqliteCampaignRepository(session)
-                contact_repo = SqliteContactRepository(session)
-                outreach_repo = SqliteOutreachRepository(session)
-                template_repo = SqliteTemplateRepository(session)
-                sender_repo = SqliteSenderRepository(session)
-                suppression_repo = SqliteSuppressionRepository(session)
+                repos = self.repository_factory(session)
+                campaign_repo = repos.campaign
+                contact_repo = repos.contact
+                outreach_repo = repos.outreach
+                template_repo = repos.template
+                sender_repo = repos.sender
+                suppression_repo = repos.suppression
 
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if not campaign or campaign.status.is_terminal:
@@ -538,7 +536,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 logger.exception("Attempt error for contact %s", contact_id)
                 try:
                     with self.session_factory() as sess:
-                        orep = SqliteOutreachRepository(sess)
+                        orep = self.repository_factory(sess).outreach
                         # Find any PREPARED/SENDING attempt for this contact+channel
                         target_channel = selected_template.channel if selected_template else None
                         for a in orep.list_by_contact(contact_id):
@@ -572,7 +570,7 @@ def get_campaign_scheduler(
     """Get or create the canonical PersistentCampaignScheduler instance."""
     global _campaign_scheduler_instance
     if _campaign_scheduler_instance is None:
-        from app.composition import get_event_bus
+        from app.composition import build_repositories, get_event_bus
 
         sf = session_factory or SessionFactory
         bus = event_publisher or get_event_bus()
@@ -583,11 +581,13 @@ def get_campaign_scheduler(
             email_provider=get_email_provider(),
             rate_limiter=limiter,
             event_publisher=bus,
+            repository_factory=build_repositories,
         )
         _campaign_scheduler_instance = PersistentCampaignScheduler(
             session_factory=sf,
             worker=w,
             event_publisher=bus,
+            repository_factory=build_repositories,
         )
     return _campaign_scheduler_instance
 
