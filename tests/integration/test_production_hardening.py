@@ -20,7 +20,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.composition import build_repositories
+from app.composition import build_repositories, get_credential_vault
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
@@ -51,7 +51,7 @@ from app.infrastructure.repositories import (
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.infrastructure.security.credential_vault import CredentialVault, default_credential_vault
+from app.infrastructure.security.credential_vault import CredentialVault
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.ports.infrastructure import SystemClock
 from app.ports.source import SourceRow
@@ -620,8 +620,8 @@ class TestSmtpCredentialPersistence:
             "host": "smtp.test.local",
             "port": "587",
         }
-        default_credential_vault.save_credentials("snd_em_first_duplicate", duplicate_credentials)
-        default_credential_vault.save_credentials("snd_em_second_duplicate", duplicate_credentials)
+        get_credential_vault().save_credentials("snd_em_first_duplicate", duplicate_credentials)
+        get_credential_vault().save_credentials("snd_em_second_duplicate", duplicate_credentials)
 
         with SessionFactory() as session:
             svc = SenderService(session)

@@ -96,33 +96,34 @@ def pytest_sessionstart(session):
 def isolate_provider_storage(request, monkeypatch, tmp_path):
     if request.node.get_closest_marker("live_e2e"):
         return
+    from app.composition import get_credential_vault, get_session_manager
     from app.infrastructure.providers import session_manager
-    from app.infrastructure.security.credential_vault import default_credential_vault
 
-    monkeypatch.setattr(default_credential_vault, "vault_path", tmp_path / "smtp_vault.enc")
-    monkeypatch.setattr(default_credential_vault, "key_path", tmp_path / "vault_key")
-    monkeypatch.setattr(default_credential_vault, "_cache", None)
+    credential_vault = get_credential_vault()
+    monkeypatch.setattr(credential_vault, "vault_path", tmp_path / "smtp_vault.enc")
+    monkeypatch.setattr(credential_vault, "key_path", tmp_path / "vault_key")
+    monkeypatch.setattr(credential_vault, "_cache", None)
     monkeypatch.setattr(session_manager, "DEFAULT_SESSIONS_ROOT", tmp_path / "sessions")
-    monkeypatch.setattr(session_manager.default_session_manager, "sessions_root", tmp_path / "sessions")
+    monkeypatch.setattr(get_session_manager(), "sessions_root", tmp_path / "sessions")
 
 
 @pytest.fixture(autouse=True)
 def reset_test_provider_overrides():
     """Reset provider doubles, rate limiter, scheduler, and env overrides per test."""
+    from app.composition import get_rate_limiter
     from app.infrastructure.providers.factory import set_email_provider, set_whatsapp_provider
     from app.infrastructure.scheduler.campaign_scheduler import reset_campaign_scheduler
-    from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
     from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
 
     fake_wa = FakeWhatsAppProvider()
     fake_em = FakeEmailProvider()
     set_whatsapp_provider(fake_wa)
     set_email_provider(fake_em)
-    default_rate_limiter.reset()
+    get_rate_limiter().reset()
     yield
     set_whatsapp_provider(fake_wa)
     set_email_provider(fake_em)
-    default_rate_limiter.reset()
+    get_rate_limiter().reset()
     reset_campaign_scheduler()
     os.environ.pop("OUTREACH_MODE", None)
 

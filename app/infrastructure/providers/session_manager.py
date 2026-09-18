@@ -512,7 +512,3 @@ class WhatsAppSessionManager:
         if is_temp:
             self.remove_session_dir(sender_id)
             self.drop_auth_state(sender_id)
-
-
-# Canonical app-wide singleton so QR auth state survives across HTTP requests.
-default_session_manager = WhatsAppSessionManager()

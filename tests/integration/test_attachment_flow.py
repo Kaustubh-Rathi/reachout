@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import get_credential_vault
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel
@@ -101,7 +102,8 @@ def test_whatsapp_provider_rejects_missing_attachment(tmp_path):
 def test_email_provider_rejects_missing_attachment():
     """SMTP provider must refuse a missing attachment before connecting."""
     provider = SmtpEmailProvider(
-        credential_store={"EM-1": {"user": "u@example.com", "password": "p", "host": "smtp.test", "port": "587"}}
+        credential_vault=get_credential_vault(),
+        credential_store={"EM-1": {"user": "u@example.com", "password": "p", "host": "smtp.test", "port": "587"}},
     )
     attempt = OutreachAttempt.prepare(
         contact_id="cnt_1",

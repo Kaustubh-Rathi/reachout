@@ -165,7 +165,3 @@ class CredentialVault:
             if self._cache is None:
                 self._cache = self._load_vault()
             return list(self._cache.keys())
-
-
-# Canonical singleton vault instance
-default_credential_vault = CredentialVault()
