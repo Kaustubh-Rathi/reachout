@@ -11,8 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_db_session
 from app.domain.enums import Channel
-from app.infrastructure.database import get_session
 from app.services.template_service import TemplateService
 
 router = APIRouter(prefix="/api/templates", tags=["Templates"])
@@ -46,7 +46,7 @@ class UpdateTemplateRequest(BaseModel):
 def list_templates(
     channel: Optional[str] = Query(None, description="Optional filter by 'WHATSAPP' or 'EMAIL'"),
     active_only: bool = Query(False, description="Filter only active templates"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> List[Dict[str, Any]]:
     """List configured message templates."""
     svc = TemplateService(session)
@@ -68,7 +68,7 @@ def list_templates(
 
 
 @router.get("/{template_id}")
-def get_template(template_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_template(template_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Retrieve single template."""
     svc = TemplateService(session)
     t = svc.get_template(template_id)
@@ -88,7 +88,7 @@ def get_template(template_id: str, session: Session = Depends(get_session)) -> D
 
 
 @router.post("")
-def create_template(payload: CreateTemplateRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def create_template(payload: CreateTemplateRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Create a new message template."""
     svc = TemplateService(session)
     try:
@@ -118,7 +118,7 @@ def create_template(payload: CreateTemplateRequest, session: Session = Depends(g
 
 @router.put("/{template_id}")
 def update_template(
-    template_id: str, payload: UpdateTemplateRequest, session: Session = Depends(get_session)
+    template_id: str, payload: UpdateTemplateRequest, session: Session = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """Update template body, subject, attachment, phone number, or active flag."""
     svc = TemplateService(session)

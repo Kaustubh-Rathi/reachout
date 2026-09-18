@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Protocol, runtime_checkable
 
 from app.domain.enums import SenderStatus
 
@@ -68,6 +68,19 @@ class EventPublisher(Protocol):
 
     def publish_event(self, event_type: str, payload: Dict[str, Any]) -> DomainEvent:
         """Construct and publish a single domain event from a name and payload."""
+        ...
+
+
+@runtime_checkable
+class EventStream(Protocol):
+    """Port for consuming the live event stream (SSE / WebSocket) and its history."""
+
+    def subscribe_async(self) -> AsyncGenerator[DomainEvent, None]:
+        """Yield domain events as they are published."""
+        ...
+
+    def get_history(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return recent events in reverse chronological order."""
         ...
 
 

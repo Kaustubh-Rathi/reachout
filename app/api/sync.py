@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database import get_session
+from app.api.dependencies import get_db_session
 from app.services.sync_service import SyncService
 
 router = APIRouter(prefix="/api/sync", tags=["Sync"])
@@ -25,7 +25,7 @@ class SyncRequest(BaseModel):
 
 
 @router.post("")
-def sync_contacts(payload: SyncRequest = SyncRequest(), session: Session = Depends(get_session)) -> Dict[str, Any]:
+def sync_contacts(payload: SyncRequest = SyncRequest(), session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Trigger non-destructive synchronization from external Excel/CSV."""
     svc = SyncService(session)
     try:
@@ -35,7 +35,7 @@ def sync_contacts(payload: SyncRequest = SyncRequest(), session: Session = Depen
 
 
 @router.get("/summary")
-def get_sync_summary(session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_sync_summary(session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Retrieve outcome metrics from the most recent sync."""
     svc = SyncService(session)
     return svc.get_last_sync_summary()

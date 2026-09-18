@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database import get_session
+from app.api.dependencies import get_db_session
 from app.services.crm_service import CrmService
 
 router = APIRouter(prefix="/api/crm", tags=["CRM"])
@@ -39,7 +39,7 @@ class UpdateNotesRequest(BaseModel):
 
 
 @router.post("/status")
-def update_status(payload: UpdateStatusRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def update_status(payload: UpdateStatusRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Update contact CRM business status directly from CRM control plane."""
     svc = CrmService(session)
     try:
@@ -49,7 +49,7 @@ def update_status(payload: UpdateStatusRequest, session: Session = Depends(get_s
 
 
 @router.post("/interested")
-def mark_interested(payload: ContactActionRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def mark_interested(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark contact as interested. Records interested_at and transitions interview to PENDING."""
     svc = CrmService(session)
     try:
@@ -59,7 +59,7 @@ def mark_interested(payload: ContactActionRequest, session: Session = Depends(ge
 
 
 @router.post("/not-interested")
-def mark_not_interested(payload: ContactActionRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def mark_not_interested(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark contact as not interested. Moves contact to bottom tier and clears reminders."""
     svc = CrmService(session)
     try:
@@ -69,7 +69,7 @@ def mark_not_interested(payload: ContactActionRequest, session: Session = Depend
 
 
 @router.post("/interview")
-def mark_interview(payload: ContactActionRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def mark_interview(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark interview scheduled/progressing. Follow-up reminder is no longer due."""
     svc = CrmService(session)
     try:
@@ -79,7 +79,7 @@ def mark_interview(payload: ContactActionRequest, session: Session = Depends(get
 
 
 @router.post("/not-interview")
-def mark_not_interview(payload: ContactActionRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def mark_not_interview(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark not interviewing / rejected. Follow-up reminder is no longer due."""
     svc = CrmService(session)
     try:
@@ -89,7 +89,7 @@ def mark_not_interview(payload: ContactActionRequest, session: Session = Depends
 
 
 @router.post("/notes")
-def update_notes(payload: UpdateNotesRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def update_notes(payload: UpdateNotesRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Update conversation notes for contact."""
     svc = CrmService(session)
     try:
@@ -101,7 +101,7 @@ def update_notes(payload: UpdateNotesRequest, session: Session = Depends(get_ses
 @router.get("/reminders")
 def list_reminders(
     only_due: bool = Query(False, description="Filter only to reminders currently due"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> List[Dict[str, Any]]:
     """List pending/due follow-up reminders."""
     svc = CrmService(session)
@@ -111,7 +111,7 @@ def list_reminders(
 @router.post("/reminders/generate")
 def generate_reminders(
     threshold_days: int = Query(7, ge=1, le=90),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> List[Dict[str, Any]]:
     """Scan interested contacts and generate due follow-up reminders."""
     svc = CrmService(session)
@@ -119,7 +119,7 @@ def generate_reminders(
 
 
 @router.get("/kpis")
-def get_kpis(session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_kpis(session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Retrieve mathematically verified KPI statistics."""
     svc = CrmService(session)
     return svc.get_kpis()

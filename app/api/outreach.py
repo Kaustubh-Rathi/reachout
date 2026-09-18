@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database import get_session
+from app.api.dependencies import get_db_session
 from app.services.outreach_service import OutreachService
 
 router = APIRouter(prefix="/api/outreach", tags=["Outreach"])
@@ -48,7 +48,7 @@ class ResolveRecoveryRequest(BaseModel):
 
 
 @router.post("/send-whatsapp")
-def send_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def send_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Manually dispatch a WhatsApp message to a specific endpoint."""
     svc = OutreachService(session)
     try:
@@ -65,7 +65,7 @@ def send_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_s
 
 
 @router.post("/send-email")
-def send_email(payload: SendEmailRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def send_email(payload: SendEmailRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Manually dispatch an Email message to a specific endpoint."""
     svc = OutreachService(session)
     try:
@@ -83,7 +83,7 @@ def send_email(payload: SendEmailRequest, session: Session = Depends(get_session
 
 
 @router.post("/resend-whatsapp")
-def resend_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def resend_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Trigger manual WhatsApp resend creating a new attempt while preserving history."""
     svc = OutreachService(session)
     try:
@@ -100,7 +100,7 @@ def resend_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get
 
 
 @router.post("/resend-email")
-def resend_email(payload: SendEmailRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def resend_email(payload: SendEmailRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Trigger manual Email resend creating a new attempt while preserving history."""
     svc = OutreachService(session)
     try:
@@ -118,14 +118,14 @@ def resend_email(payload: SendEmailRequest, session: Session = Depends(get_sessi
 
 
 @router.get("/history/{contact_id}")
-def get_contact_history(contact_id: str, session: Session = Depends(get_session)) -> List[Dict[str, Any]]:
+def get_contact_history(contact_id: str, session: Session = Depends(get_db_session)) -> List[Dict[str, Any]]:
     """Retrieve full chronological outreach attempts for a contact."""
     svc = OutreachService(session)
     return svc.get_history(contact_id)
 
 
 @router.get("/recovery")
-def get_recovery_queue(session: Session = Depends(get_session)) -> List[Dict[str, Any]]:
+def get_recovery_queue(session: Session = Depends(get_db_session)) -> List[Dict[str, Any]]:
     """List attempts requiring operator recovery or unknown provider statuses."""
     svc = OutreachService(session)
     return svc.get_recovery_queue()
@@ -133,7 +133,7 @@ def get_recovery_queue(session: Session = Depends(get_session)) -> List[Dict[str
 
 @router.post("/recovery/{attempt_id}/resolve")
 def resolve_recovery_attempt(
-    attempt_id: str, payload: ResolveRecoveryRequest, session: Session = Depends(get_session)
+    attempt_id: str, payload: ResolveRecoveryRequest, session: Session = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """Resolve a stuck recovery attempt."""
     svc = OutreachService(session)

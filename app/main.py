@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
 
         # If contacts table is empty, auto-sync initial workbook if present
         crm_svc = CrmService(session)
-        if crm_svc.contact_repo.list_all() == []:
+        if not crm_svc.has_any_contacts():
             sync_svc = SyncService(session)
             try:
                 sync_svc.sync_source()

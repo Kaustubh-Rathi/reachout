@@ -36,6 +36,10 @@ class CrmService:
         self.event_publisher = ctx.event_publisher
         self.clock = ctx.clock
 
+    def has_any_contacts(self) -> bool:
+        """Return whether any contact exists (used to decide first-run auto-sync)."""
+        return bool(self.contact_repo.list_all())
+
     def update_status(self, contact_id: str, status: str, timestamp: Optional[datetime] = None) -> Dict[str, Any]:
         """Update contact CRM business status directly.
 

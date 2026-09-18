@@ -12,9 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_db_session
 from app.config import DEFAULT_OUTREACH_LIMIT, MAX_OUTREACH_LIMIT
 from app.domain.enums import Channel
-from app.infrastructure.database import get_session
 from app.services.campaign_service import CampaignService
 
 router = APIRouter(prefix="/api/campaigns", tags=["Campaigns"])
@@ -39,14 +39,14 @@ class QuickStartRequest(BaseModel):
 
 
 @router.get("")
-def list_campaigns(session: Session = Depends(get_session)) -> List[Dict[str, Any]]:
+def list_campaigns(session: Session = Depends(get_db_session)) -> List[Dict[str, Any]]:
     """List all campaigns with progress metrics."""
     svc = CampaignService(session)
     return svc.list_campaigns()
 
 
 @router.post("")
-def create_campaign(payload: CampaignCreateRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def create_campaign(payload: CampaignCreateRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Create a new campaign entity."""
     svc = CampaignService(session)
     try:
@@ -70,7 +70,7 @@ def create_campaign(payload: CampaignCreateRequest, session: Session = Depends(g
 def check_outreach_readiness(
     channel: Optional[str] = Query("WHATSAPP", description="Target outreach channel"),
     campaign_id: Optional[str] = Query(None),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> Dict[str, Any]:
     """Pre-flight validation check verifying all prerequisites before starting outreach."""
     svc = CampaignService(session)
@@ -83,7 +83,7 @@ def check_outreach_readiness(
 
 @router.post("/quick-start")
 def quick_start_campaign(
-    payload: QuickStartRequest = QuickStartRequest(), session: Session = Depends(get_session)
+    payload: QuickStartRequest = QuickStartRequest(), session: Session = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """Convenience endpoint to launch an outreach campaign immediately on eligible DB contacts."""
     svc = CampaignService(session)
@@ -124,7 +124,7 @@ def quick_start_campaign(
 
 
 @router.get("/{campaign_id}")
-def get_campaign(campaign_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Get campaign details and current progress."""
     svc = CampaignService(session)
     try:
@@ -135,7 +135,7 @@ def get_campaign(campaign_id: str, session: Session = Depends(get_session)) -> D
 
 @router.post("/{campaign_id}/start")
 def start_campaign(
-    campaign_id: str, max_count: Optional[int] = Query(None), session: Session = Depends(get_session)
+    campaign_id: str, max_count: Optional[int] = Query(None), session: Session = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """Start campaign. Computes eligible contacts dynamically from current DB state."""
     svc = CampaignService(session)
@@ -158,7 +158,7 @@ def start_campaign(
 
 
 @router.post("/{campaign_id}/pause")
-def pause_campaign(campaign_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def pause_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Pause an active campaign."""
     svc = CampaignService(session)
     try:
@@ -168,7 +168,7 @@ def pause_campaign(campaign_id: str, session: Session = Depends(get_session)) ->
 
 
 @router.post("/{campaign_id}/resume")
-def resume_campaign(campaign_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def resume_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Resume a paused campaign with readiness check."""
     svc = CampaignService(session)
     try:
@@ -192,7 +192,7 @@ def resume_campaign(campaign_id: str, session: Session = Depends(get_session)) -
 
 
 @router.post("/{campaign_id}/stop")
-def stop_campaign(campaign_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def stop_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Stop/cancel a campaign."""
     svc = CampaignService(session)
     try:
@@ -202,7 +202,7 @@ def stop_campaign(campaign_id: str, session: Session = Depends(get_session)) -> 
 
 
 @router.get("/{campaign_id}/progress")
-def get_campaign_progress(campaign_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_campaign_progress(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Inspect real-time progress metrics for a campaign."""
     svc = CampaignService(session)
     try:
@@ -212,7 +212,7 @@ def get_campaign_progress(campaign_id: str, session: Session = Depends(get_sessi
 
 
 @router.get("/{campaign_id}/status")
-def get_campaign_status(campaign_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_campaign_status(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Alias for campaign progress / status inspection."""
     svc = CampaignService(session)
     try:
