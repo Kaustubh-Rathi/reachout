@@ -63,11 +63,11 @@ def test_readiness_modal_on_blocked_start(browser_page: Page):
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
 
-    # Wait for start button to be enabled
-    page.wait_for_selector("#start-campaign-btn:not([disabled])", timeout=20000)
+    # Wait for the consolidated campaign action to be enabled
+    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=20000)
 
     # Click New Run
-    page.click("#start-campaign-btn")
+    page.click("#campaign-action-btn")
     page.wait_for_selector("#readiness-modal.open", timeout=20000)
     assert page.is_visible("#readiness-error-reason")
     assert page.is_visible("text=NO_ACTIVE_WHATSAPP_SESSION")

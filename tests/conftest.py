@@ -61,6 +61,7 @@ def _checkpoint_sqlite(path: Path) -> None:
 # Configure test environment BEFORE any database module is loaded
 _TEMP_TEST_DIR = tempfile.mkdtemp(prefix="reachout_pytest_isolation_")
 _TEST_DB_FILE = Path(_TEMP_TEST_DIR) / "test_reachout_isolated.db"
+os.environ.setdefault("REACHOUT_LIVE_DATABASE_URL", os.environ.get("DATABASE_URL", f"sqlite:///{PROD_DB.as_posix()}"))
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB_FILE.as_posix()}"
 os.environ["OUTREACH_CHANNEL_DELAY_WA"] = "0.01"
 os.environ["OUTREACH_CHANNEL_DELAY_EM"] = "0.01"
@@ -89,6 +90,20 @@ def pytest_sessionstart(session):
 
     set_whatsapp_provider(FakeWhatsAppProvider())
     set_email_provider(FakeEmailProvider())
+
+
+@pytest.fixture(autouse=True)
+def isolate_provider_storage(request, monkeypatch, tmp_path):
+    if request.node.get_closest_marker("live_e2e"):
+        return
+    from app.infrastructure.providers import session_manager
+    from app.infrastructure.security.credential_vault import default_credential_vault
+
+    monkeypatch.setattr(default_credential_vault, "vault_path", tmp_path / "smtp_vault.enc")
+    monkeypatch.setattr(default_credential_vault, "key_path", tmp_path / "vault_key")
+    monkeypatch.setattr(default_credential_vault, "_cache", None)
+    monkeypatch.setattr(session_manager, "DEFAULT_SESSIONS_ROOT", tmp_path / "sessions")
+    monkeypatch.setattr(session_manager.default_session_manager, "sessions_root", tmp_path / "sessions")
 
 
 @pytest.fixture(autouse=True)

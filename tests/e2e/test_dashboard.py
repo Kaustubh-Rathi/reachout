@@ -39,10 +39,11 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
     """Test dashboard page loads with all 11 required KPI metrics."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_selector("header h1", timeout=20000)
 
     # Verify brand & header
     assert "Reachout CRM" in page.title()
-    assert page.is_visible("text=Reachout CRM")
+    assert page.locator("header h1", has_text="Reachout CRM").is_visible()
 
     # Verify all required KPI metric cards exist
     required_kpis = [
@@ -60,6 +61,28 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
     ]
     for kpi in required_kpis:
         assert page.is_visible(f"text={kpi}"), f"KPI card '{kpi}' must be visible on dashboard"
+
+
+def test_theme_toggle_switches_modes(browser_page: Page):
+    """The theme control must resolve and switch between light, dark, and system."""
+    page = browser_page
+    page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_selector("header h1", timeout=20000)
+
+    html = page.locator("html")
+    assert html.get_attribute("data-theme") in ("light", "dark")
+
+    page.click("#theme-dark")
+    assert html.get_attribute("data-theme") == "dark"
+    assert html.get_attribute("data-theme-mode") == "dark"
+
+    page.click("#theme-light")
+    assert html.get_attribute("data-theme") == "light"
+    assert html.get_attribute("data-theme-mode") == "light"
+
+    page.click("#theme-system")
+    assert html.get_attribute("data-theme-mode") == "system"
+    assert html.get_attribute("data-theme") in ("light", "dark")
 
 
 def test_contact_display_and_email_visibility(browser_page: Page):
@@ -84,29 +107,31 @@ def test_contact_display_and_email_visibility(browser_page: Page):
 
 
 def test_campaign_lifecycle_controls(browser_page: Page):
-    """Test campaign control plane buttons: Start Outreach, Pause, Resume, Stop."""
+    """Test the consolidated campaign control: one context-aware action + contextual stop."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_selector("#campaign-action-btn", timeout=20000)
 
-    start_btn = page.locator("#start-campaign-btn")
-    pause_btn = page.locator("#pause-campaign-btn")
-    resume_btn = page.locator("#resume-campaign-btn")
+    action_btn = page.locator("#campaign-action-btn")
     stop_btn = page.locator("#stop-campaign-btn")
-    assert resume_btn.count() == 1
+    assert action_btn.count() == 1
     assert stop_btn.count() == 1
 
-    # If start button is enabled, click start
-    if start_btn.is_enabled():
-        start_btn.click()
+    # Idle/terminal state exposes a single "New Run" action.
+    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=20000)
+    assert "New Run" in action_btn.inner_text()
+
+    if action_btn.get_attribute("data-action") == "start":
+        action_btn.click()
         page.wait_for_timeout(500)
 
-    # Check status
-    status_pill = page.locator("#campaign-status-pill")
-    status_text = status_pill.inner_text().strip()
+    status_text = page.locator("#campaign-status-pill").inner_text().strip()
     assert status_text in ("RUNNING", "COMPLETED", "PAUSED", "IDLE")
 
-    if pause_btn.is_enabled():
-        pause_btn.click()
+    # While running, the same control offers Pause.
+    if status_text == "RUNNING":
+        assert "Pause" in action_btn.inner_text()
+        action_btn.click()
         page.wait_for_timeout(300)
         assert page.locator("#campaign-status-pill").inner_text().strip() in ("PAUSED", "COMPLETED", "RUNNING")
 
