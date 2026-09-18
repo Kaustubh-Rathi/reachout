@@ -30,7 +30,6 @@ from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.policies.template_rotation import select_template_round_robin
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
-from app.infrastructure.events.event_bus import default_event_bus
 from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
@@ -573,8 +572,10 @@ def get_campaign_scheduler(
     """Get or create the canonical PersistentCampaignScheduler instance."""
     global _campaign_scheduler_instance
     if _campaign_scheduler_instance is None:
+        from app.composition import get_event_bus
+
         sf = session_factory or SessionFactory
-        bus = event_publisher or default_event_bus
+        bus = event_publisher or get_event_bus()
         limiter = rate_limiter or default_rate_limiter
         w = worker or OutreachWorker(
             session_factory=sf,

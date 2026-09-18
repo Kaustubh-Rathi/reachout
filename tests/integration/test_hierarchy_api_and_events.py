@@ -6,13 +6,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import get_event_bus
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
-from app.infrastructure.events.event_bus import default_event_bus, event_bus
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
@@ -137,11 +137,12 @@ def test_event_bus_bridge_and_event_publishing():
     def subscriber(ev):
         received.append(ev)
 
-    default_event_bus.subscribe(subscriber)
+    bus = get_event_bus()
+    bus.subscribe(subscriber)
 
     try:
-        # Publish event on domain bus
-        event = event_bus.publish_event(
+        # Publish event on the canonical process bus
+        event = bus.publish_event(
             "OUTREACH_SENT",
             {
                 "contact_id": "cnt_101",
@@ -153,9 +154,8 @@ def test_event_bus_bridge_and_event_publishing():
         assert event.event_type == "OUTREACH_SENT"
         assert event.payload["destination"] == "919876543210"
 
-        # Also publish through default_event_bus
-        default_event_bus.publish(event)
+        bus.publish(event)
         assert len(received) >= 1
         assert received[-1].event_type == "OUTREACH_SENT"
     finally:
-        default_event_bus.unsubscribe(subscriber)
+        bus.unsubscribe(subscriber)
