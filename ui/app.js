@@ -299,7 +299,7 @@
         (comp.contacts || []).forEach((hr, hrIdx) => {
           const curStatus = hr.crm_outcome || 'NOT_CONTACTED';
           const statusSelect = `
-            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" onfocus="this.dataset.prev=this.value" onchange="updateContactStatus('${hr.contact_id}', this.value, this)">
+            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" data-change="updateContactStatus" data-args='["${hr.contact_id}","$value","$el"]'>
               <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
               <option value="PENDING_REPLY" ${curStatus === 'PENDING_REPLY' ? 'selected' : ''}>Pending Reply</option>
               <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
@@ -336,10 +336,10 @@
             }
 
             const sendBtn = recoveryAtt
-              ? `<button class="btn btn-amber btn-xs" onclick="openRecoveryDrawer()">⏱ Review queue</button>`
+              ? `<button class="btn btn-amber btn-xs" data-action="openRecoveryDrawer">⏱ Review queue</button>`
               : (ep.channel === 'WHATSAPP'
-                ? `<button class="btn btn-emerald btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'WHATSAPP', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend WA' : 'Send WA'}</button>`
-                : `<button class="btn btn-primary btn-xs" onclick="openSendModal('${jsAttr(hr.contact_id)}', 'EMAIL', ${isSent}, '${jsAttr(ep.address)}')">${isSent ? 'Resend Email' : 'Send Email'}</button>`);
+                ? `<button class="btn btn-emerald btn-xs" data-action="openSendModal" data-args='["${jsAttr(hr.contact_id)}","WHATSAPP",${isSent},"${jsAttr(ep.address)}"]'>${isSent ? 'Resend WA' : 'Send WA'}</button>`
+                : `<button class="btn btn-primary btn-xs" data-action="openSendModal" data-args='["${jsAttr(hr.contact_id)}","EMAIL",${isSent},"${jsAttr(ep.address)}"]'>${isSent ? 'Resend Email' : 'Send Email'}</button>`);
 
             endpointsHtml += `
               <div class="endpoint-box ${epClass}">
@@ -392,8 +392,8 @@
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                   <span>CRM Status:</span>
                   ${statusSelect}
-                  <button class="btn btn-secondary btn-xs" onclick="openHistoryModal('${hr.contact_id}')">History</button>
-                  <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive / DNC" onclick="archiveContact('${hr.contact_id}')">🗑</button>
+                  <button class="btn btn-secondary btn-xs" data-action="openHistoryModal" data-args='["${hr.contact_id}"]'>History</button>
+                  <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive / DNC" aria-label="Archive contact" data-action="archiveContact" data-args='["${hr.contact_id}"]'>🗑</button>
                 </div>
               </div>
               <div class="hr-contact-meta" style="font-size: 0.72rem; color: var(--text-secondary); padding: 0.35rem 0.9rem 0; display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -413,7 +413,7 @@
         });
 
         card.innerHTML = `
-          <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" onclick="toggleCompany('${jsAttr(comp.id)}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleCompany('${jsAttr(comp.id)}'); }" title="Click to expand / collapse HR contacts">
+          <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='["${jsAttr(comp.id)}"]' title="Click to expand / collapse HR contacts">
             <div class="company-title-area">
               <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
               <span class="company-name-lg">${escapeHtml(comp.name)}</span>
@@ -1073,19 +1073,19 @@
           let actionButtons = '';
           if (s.status === 'INACTIVE') {
             actionButtons = `
-              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${jsAttr(s.id)}')" title="Reactivate sender into rotation">
+              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='["${jsAttr(s.id)}"]' title="Reactivate sender into rotation">
                 <span>⚡ Reactivate</span>
               </button>
             `;
           } else {
             actionButtons = `
-              <button class="btn btn-emerald btn-xs" onclick="startWhatsAppAuth('${jsAttr(s.id)}')" title="Re-authenticate this WhatsApp sender (re-scan QR)">
+              <button class="btn btn-emerald btn-xs" data-action="startWhatsAppAuth" data-args='["${jsAttr(s.id)}"]' title="Re-authenticate this WhatsApp sender (re-scan QR)">
                 <span>📱 Re-Authenticate</span>
               </button>
-              <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${jsAttr(s.id)}')" title="Check connection health">
+              <button class="btn btn-outline btn-xs" data-action="checkWhatsAppAuthStatus" data-args='["${jsAttr(s.id)}"]' title="Check connection health">
                 <span>🔍 Status</span>
               </button>
-              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation (history preserved)">
+              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='["${jsAttr(s.id)}"]' title="Deactivate and pause from rotation (history preserved)">
                 <span>⏸️ Deactivate</span>
               </button>
             `;
@@ -1138,19 +1138,19 @@
           let actionButtons = '';
           if (s.status === 'INACTIVE') {
             actionButtons = `
-              <button class="btn btn-outline btn-xs" onclick="reactivateSender('${jsAttr(s.id)}')" title="Reactivate sender">
+              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='["${jsAttr(s.id)}"]' title="Reactivate sender">
                 <span>⚡ Reactivate</span>
               </button>
             `;
           } else {
             actionButtons = `
-              <button class="btn btn-primary btn-xs" onclick="openEmailConfigModal('${jsAttr(s.id)}')">
+              <button class="btn btn-primary btn-xs" data-action="openEmailConfigModal" data-args='["${jsAttr(s.id)}"]'>
                 <span>⚙️ Re-configure</span>
               </button>
-              <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${jsAttr(s.id)}')">
+              <button class="btn btn-outline btn-xs" data-action="verifyEmailSender" data-args='["${jsAttr(s.id)}"]'>
                 <span>🔌 Test &amp; Verify</span>
               </button>
-              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation (history preserved)">
+              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='["${jsAttr(s.id)}"]' title="Deactivate and pause from rotation (history preserved)">
                 <span>⏸️ Deactivate</span>
               </button>
             `;
@@ -1519,7 +1519,7 @@
             <strong>${escapeHtml(t.id)} - ${escapeHtml(t.name)}</strong>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <span class="badge badge-sent">${escapeHtml(t.channel)}</span>
-              <button class="btn btn-outline btn-xs" onclick="openTemplateFormById('${jsAttr(t.id)}')">Edit</button>
+              <button class="btn btn-outline btn-xs" data-action="openTemplateFormById" data-args='["${jsAttr(t.id)}"]'>Edit</button>
             </div>
           </div>
           ${t.subject ? `<div style="font-size: 0.75rem; color: var(--accent-blue); font-weight: 600;">Subject: ${escapeHtml(t.subject)}</div>` : ''}
@@ -1931,6 +1931,11 @@
       return escapeHtml(String(str == null ? '' : str).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
     }
 
+    // JSON-encode a value for a single-quoted data-args attribute.
+    function jsonAttr(value) {
+      return escapeHtml(JSON.stringify(value));
+    }
+
     function showToast(message, type = 'info') {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
@@ -2060,15 +2065,14 @@
           return;
         }
         container.innerHTML = '<div style="font-size:0.8rem;color:var(--text-secondary);">' + items.length + ' attempt(s) need operator review.</div>' + items.map(function (it) {
-          const safeId = jsAttr(it.id);
           return '<div style="border:1px solid var(--border-medium);border-left:3px solid var(--accent-amber);border-radius:var(--radius-sm);padding:0.6rem 0.75rem;">'
             + '<div style="font-weight:600;font-size:0.82rem;">' + escapeHtml(it.contact_name || 'Unknown contact') + ' <span style="color:var(--text-secondary);font-weight:400;">@ ' + escapeHtml(it.company || '') + '</span></div>'
             + '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.15rem;"><strong>' + escapeHtml(it.channel || '') + '</strong> &rarr; <span style="font-family:monospace;">' + escapeHtml(it.destination || '') + '</span> &bull; <span class="badge badge-recovery">' + escapeHtml(it.status || '') + '</span>' + (it.prepared_at ? ' &bull; ' + formatDate(it.prepared_at) : '') + '</div>'
             + (it.failure_detail ? '<div style="font-size:0.75rem;color:var(--accent-rose);margin-top:0.15rem;">' + escapeHtml(it.failure_detail) + '</div>' : '')
             + '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
-            + '<button class="btn btn-emerald btn-xs" onclick="resolveRecoveryAttempt(\'' + safeId + '\', \'mark_sent\')">Confirm sent</button>'
-            + '<button class="btn btn-primary btn-xs" onclick="resolveRecoveryAttempt(\'' + safeId + '\', \'retry\')">Retry</button>'
-            + '<button class="btn btn-outline btn-xs" style="color:var(--accent-rose);" onclick="resolveRecoveryAttempt(\'' + safeId + '\', \'cancel\')">Cancel</button>'
+            + '<button class="btn btn-emerald btn-xs" data-action="resolveRecoveryAttempt" data-args=\'[' + jsonAttr(it.id) + ',"mark_sent"]\'>Confirm sent</button>'
+            + '<button class="btn btn-primary btn-xs" data-action="resolveRecoveryAttempt" data-args=\'[' + jsonAttr(it.id) + ',"retry"]\'>Retry</button>'
+            + '<button class="btn btn-outline btn-xs" style="color:var(--accent-rose);" data-action="resolveRecoveryAttempt" data-args=\'[' + jsonAttr(it.id) + ',"cancel"]\'>Cancel</button>'
             + '</div></div>';
         }).join('');
       } catch (err) {
@@ -2125,3 +2129,62 @@
         container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading discrepancies: ' + escapeHtml(err.message) + '</div>';
       }
     }
+
+    // ------------------------------------------------------------------
+    // Delegated event dispatch (replaces inline on* handlers).
+    // Elements declare data-action / data-change / data-input (space-separated
+    // action names) and optional data-args='[...]' with $value/$el/$event tokens.
+    // ------------------------------------------------------------------
+    function resolveActionArgs(el, event) {
+      let args = [];
+      if (el.dataset.args) {
+        try {
+          args = JSON.parse(el.dataset.args);
+        } catch (err) {
+          console.error('Invalid data-args on', el, err);
+        }
+      }
+      return args.map(function (a) {
+        if (a === '$value') return el.value;
+        if (a === '$el') return el;
+        if (a === '$event') return event;
+        return a;
+      });
+    }
+
+    function runActionNames(el, names, event) {
+      names.forEach(function (name) {
+        const fn = window[name];
+        if (typeof fn !== 'function') {
+          console.error('Unknown action:', name);
+          return;
+        }
+        fn.apply(el, resolveActionArgs(el, event));
+      });
+    }
+
+    function delegateEvent(event, attr) {
+      const el = event.target.closest('[' + attr + ']');
+      if (!el) return;
+      const names = (el.getAttribute(attr) || '').trim().split(/\s+/).filter(Boolean);
+      runActionNames(el, names, event);
+    }
+
+    document.addEventListener('focusin', function (event) {
+      // Capture the previous value so failed changes can roll back.
+      const el = event.target;
+      if (el && el.matches && el.matches('[data-change]')) el.dataset.prev = el.value;
+    });
+    document.addEventListener('click', function (event) { delegateEvent(event, 'data-action'); });
+    document.addEventListener('change', function (event) { delegateEvent(event, 'data-change'); });
+    document.addEventListener('input', function (event) { delegateEvent(event, 'data-input'); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const el = event.target.closest('[data-action]');
+      if (!el) return;
+      const tag = el.tagName;
+      if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      event.preventDefault();
+      const names = (el.getAttribute('data-action') || '').trim().split(/\s+/).filter(Boolean);
+      runActionNames(el, names, event);
+    });
