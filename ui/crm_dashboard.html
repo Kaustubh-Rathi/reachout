@@ -7,50 +7,132 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      var MODE_KEY = 'reachout-theme-mode';
+      var mode = 'system';
+      try { mode = localStorage.getItem(MODE_KEY) || 'system'; } catch (e) { mode = 'system'; }
+      if (mode !== 'light' && mode !== 'dark' && mode !== 'system') mode = 'system';
+      var mql = window.matchMedia('(prefers-color-scheme: dark)');
+      var resolved = mode === 'system' ? (mql.matches ? 'dark' : 'light') : mode;
+      document.documentElement.setAttribute('data-theme-mode', mode);
+      document.documentElement.setAttribute('data-theme', resolved);
+    })();
+  </script>
   <style>
-    :root {
+    /* ===================================================================
+       THEME TOKENS
+       data-theme-mode = user preference (system | light | dark)
+       data-theme      = resolved theme actually applied (light | dark)
+       The early inline script in <head> resolves "system" before paint.
+       =================================================================== */
+    :root,
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg-base: #f4f5f7;
+      --bg-surface: #ffffff;
+      --bg-surface-raised: #f9fafb;
+      --bg-surface-hover: #f1f3f5;
+      --border-subtle: #e8eaed;
+      --border-medium: #d1d5db;
+      --border-color: #d1d5db;
+      --border-focus: #2563eb;
+
+      --text-primary: #111827;
+      --text-secondary: #4b5563;
+      --text-muted: #6b7280;
+
+      --accent-emerald: #047857;
+      --accent-emerald-bg: rgba(5, 150, 105, 0.10);
+      --accent-emerald-border: rgba(5, 150, 105, 0.28);
+
+      --accent-blue: #1d4ed8;
+      --accent-blue-bg: rgba(37, 99, 235, 0.10);
+      --accent-blue-border: rgba(37, 99, 235, 0.28);
+
+      --accent-amber: #b45309;
+      --accent-amber-bg: rgba(217, 119, 6, 0.12);
+      --accent-amber-border: rgba(217, 119, 6, 0.30);
+
+      --accent-rose: #be123c;
+      --accent-rose-bg: rgba(225, 29, 72, 0.10);
+      --accent-rose-border: rgba(225, 29, 72, 0.28);
+
+      --accent-indigo: #4338ca;
+      --accent-indigo-bg: rgba(99, 102, 241, 0.10);
+      --accent-indigo-border: rgba(99, 102, 241, 0.28);
+
+      --on-emerald: #ffffff;
+      --on-blue: #ffffff;
+      --on-amber: #ffffff;
+      --on-rose: #ffffff;
+
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 4px 10px -2px rgba(15, 23, 42, 0.10), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+      --shadow-lg: 0 12px 24px -6px rgba(15, 23, 42, 0.14), 0 4px 8px -4px rgba(15, 23, 42, 0.08);
+      --shadow-xl: 0 24px 48px -12px rgba(15, 23, 42, 0.20), 0 8px 16px -8px rgba(15, 23, 42, 0.10);
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
       --bg-base: #090d16;
       --bg-surface: #0f172a;
       --bg-surface-raised: #1e293b;
       --bg-surface-hover: #334155;
       --border-subtle: #1e293b;
       --border-medium: #334155;
+      --border-color: #334155;
       --border-focus: #38bdf8;
-      
+
       --text-primary: #f8fafc;
       --text-secondary: #94a3b8;
       --text-muted: #64748b;
-      
+
       --accent-emerald: #10b981;
       --accent-emerald-bg: rgba(16, 185, 129, 0.12);
-      --accent-emerald-border: rgba(16, 185, 129, 0.3);
+      --accent-emerald-border: rgba(16, 185, 129, 0.30);
 
       --accent-blue: #38bdf8;
       --accent-blue-bg: rgba(56, 189, 248, 0.12);
-      --accent-blue-border: rgba(56, 189, 248, 0.3);
+      --accent-blue-border: rgba(56, 189, 248, 0.30);
 
       --accent-amber: #f59e0b;
       --accent-amber-bg: rgba(245, 158, 11, 0.12);
-      --accent-amber-border: rgba(245, 158, 11, 0.3);
+      --accent-amber-border: rgba(245, 158, 11, 0.30);
 
       --accent-rose: #f43f5e;
       --accent-rose-bg: rgba(244, 63, 94, 0.12);
-      --accent-rose-border: rgba(244, 63, 94, 0.3);
+      --accent-rose-border: rgba(244, 63, 94, 0.30);
 
       --accent-indigo: #818cf8;
       --accent-indigo-bg: rgba(129, 140, 248, 0.12);
-      --accent-indigo-border: rgba(129, 140, 248, 0.3);
+      --accent-indigo-border: rgba(129, 140, 248, 0.30);
 
+      --on-emerald: #022c22;
+      --on-blue: #082f49;
+      --on-amber: #451a03;
+      --on-rose: #ffffff;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.40), 0 2px 4px -2px rgba(0, 0, 0, 0.30);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.50), 0 4px 6px -4px rgba(0, 0, 0, 0.40);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.60), 0 8px 10px -6px rgba(0, 0, 0, 0.50);
+    }
+
+    :root {
       --radius-xs: 4px;
       --radius-sm: 6px;
       --radius-md: 10px;
       --radius-lg: 14px;
       --radius-full: 9999px;
+    }
 
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
-      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
     }
 
     * {
@@ -88,8 +170,7 @@
 
     /* Top Navigation */
     header {
-      background: rgba(15, 23, 42, 0.95);
-      backdrop-filter: blur(12px);
+      background: var(--bg-surface);
       border-bottom: 1px solid var(--border-subtle);
       position: sticky;
       top: 0;
@@ -195,8 +276,9 @@
 
     .btn-primary {
       background: #0284c7;
-      color: white;
+      color: #ffffff;
       border-color: #0284c7;
+      box-shadow: var(--shadow-sm);
     }
     .btn-primary:hover:not(:disabled) {
       background: #0369a1;
@@ -205,28 +287,28 @@
 
     .btn-emerald {
       background: var(--accent-emerald);
-      color: #022c22;
+      color: var(--on-emerald);
       font-weight: 700;
     }
     .btn-emerald:hover:not(:disabled) {
-      background: #059669;
+      filter: brightness(1.08);
     }
 
     .btn-amber {
       background: var(--accent-amber);
-      color: #451a03;
+      color: var(--on-amber);
       font-weight: 700;
     }
     .btn-amber:hover:not(:disabled) {
-      background: #d97706;
+      filter: brightness(1.08);
     }
 
     .btn-rose {
       background: var(--accent-rose);
-      color: white;
+      color: var(--on-rose);
     }
     .btn-rose:hover:not(:disabled) {
-      background: #e11d48;
+      filter: brightness(1.08);
     }
 
     .btn-secondary {
@@ -236,7 +318,8 @@
     }
     .btn-secondary:hover:not(:disabled) {
       background: var(--bg-surface-hover);
-      color: white;
+      color: var(--text-primary);
+      border-color: var(--border-focus);
     }
 
     .btn-outline {
@@ -250,6 +333,14 @@
       border-color: var(--border-focus);
     }
 
+    .btn-icon {
+      padding: 0.4rem;
+      width: 2rem;
+      height: 2rem;
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+
     .btn-xs {
       font-size: 0.725rem;
       padding: 0.25rem 0.5rem;
@@ -259,6 +350,99 @@
     .btn-sm {
       font-size: 0.775rem;
       padding: 0.35rem 0.65rem;
+    }
+
+    /* ------------------------------------------------------------------
+       Theme toggle (segmented: system / light / dark)
+       ------------------------------------------------------------------ */
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px;
+      background: var(--bg-surface-raised);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-full);
+    }
+
+    .theme-toggle button {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      line-height: 1;
+      width: 1.85rem;
+      height: 1.85rem;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .theme-toggle button:hover {
+      color: var(--text-primary);
+      background: var(--bg-surface-hover);
+    }
+
+    .theme-toggle button[aria-pressed="true"] {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* ------------------------------------------------------------------
+       Overflow ("More") menu
+       ------------------------------------------------------------------ */
+    .menu-wrap {
+      position: relative;
+      display: inline-flex;
+    }
+
+    .menu-panel {
+      position: absolute;
+      top: calc(100% + 0.4rem);
+      right: 0;
+      min-width: 13rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      padding: 0.3rem;
+      z-index: 80;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .menu-panel.open {
+      display: flex;
+    }
+
+    .menu-panel button,
+    .menu-panel a {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.45rem 0.6rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      font-family: inherit;
+    }
+
+    .menu-panel button:hover,
+    .menu-panel a:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
     }
 
     /* Loading Spinner */
@@ -1187,20 +1371,32 @@
         </span>
       </div>
       <button class="btn btn-outline btn-sm" id="senders-btn" onclick="openSendersDrawer()">
-        <span>👥 Senders &amp; Auth</span>
+        <span>👥 Senders</span>
       </button>
       <button class="btn btn-outline btn-sm" id="templates-btn" onclick="openTemplatesDrawer()">
         <span>📝 Templates</span>
       </button>
       <button class="btn btn-secondary btn-sm" id="sync-btn" onclick="triggerSync()">
-        <span>🔄 Sync Contacts</span>
+        <span>🔄 Sync</span>
       </button>
-      <a href="/api/contacts/export/csv" class="btn btn-outline btn-sm" id="export-csv-btn" download>
-        <span>📥 Export CSV</span>
-      </a>
-      <button class="btn btn-outline btn-sm" id="discrepancies-btn" onclick="openDiscrepanciesDrawer()">
-        <span>⚠️ Data Discrepancies</span>
-      </button>
+      <div class="menu-wrap">
+        <button class="btn btn-outline btn-sm btn-icon" id="more-menu-btn" aria-haspopup="true" aria-expanded="false" title="More actions" onclick="toggleMoreMenu(event)">
+          <span>⋯</span>
+        </button>
+        <div class="menu-panel" id="more-menu-panel" role="menu">
+          <a href="/api/contacts/export/csv" id="export-csv-btn" role="menuitem" download>
+            <span>📥</span><span>Export CSV</span>
+          </a>
+          <button type="button" id="discrepancies-btn" role="menuitem" onclick="closeMoreMenu(); openDiscrepanciesDrawer();">
+            <span>⚠️</span><span>Data Discrepancies</span>
+          </button>
+        </div>
+      </div>
+      <div class="theme-toggle" role="group" aria-label="Color theme">
+        <button type="button" id="theme-system" data-theme-mode="system" title="Match system theme" aria-label="Use system theme" aria-pressed="false" onclick="setThemeMode('system')">💻</button>
+        <button type="button" id="theme-light" data-theme-mode="light" title="Light theme" aria-label="Use light theme" aria-pressed="false" onclick="setThemeMode('light')">☀️</button>
+        <button type="button" id="theme-dark" data-theme-mode="dark" title="Dark theme" aria-label="Use dark theme" aria-pressed="false" onclick="setThemeMode('dark')">🌙</button>
+      </div>
     </div>
   </header>
 
@@ -1272,20 +1468,14 @@
         <div>
           <span class="campaign-status-badge" id="campaign-status-pill">IDLE</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.35rem; margin: 0 0.25rem;">
-          <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Limit:</label>
+        <div style="display: flex; align-items: center; gap: 0.35rem; margin: 0 0.25rem;" id="campaign-limit-wrap">
+          <label for="campaign-limit-input" style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;">Limit:</label>
           <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Max contacts to outreach in this run" style="width: 68px; padding: 0.25rem 0.4rem; font-size: 0.8rem; background: var(--bg-surface-raised); border: 1px solid var(--border-color); border-radius: var(--radius-xs); color: var(--text-primary); text-align: center; font-weight: 600;">
         </div>
-        <button class="btn btn-secondary btn-sm" id="start-campaign-btn" onclick="startCampaign()">
-          <span>▶ New Run</span>
+        <button class="btn btn-secondary btn-sm" id="campaign-action-btn" onclick="onCampaignAction()">
+          <span id="campaign-action-label">▶ New Run</span>
         </button>
-        <button class="btn btn-amber btn-sm" id="pause-campaign-btn" onclick="pauseCampaign()" disabled>
-          <span>⏸ Pause</span>
-        </button>
-        <button class="btn btn-primary btn-sm" id="resume-campaign-btn" onclick="resumeCampaign()" disabled>
-          <span>⏯ Resume</span>
-        </button>
-        <button class="btn btn-rose btn-sm" id="stop-campaign-btn" onclick="stopCampaign()" disabled>
+        <button class="btn btn-rose btn-sm" id="stop-campaign-btn" onclick="stopCampaign()" disabled hidden title="Stop the campaign permanently">
           <span>⏹ Stop</span>
         </button>
       </div>
@@ -1790,6 +1980,69 @@
     let activeEventSource = null;
     let activeWebSocket = null;
 
+    // ------------------------------------------------------------------
+    // Theme management (system / light / dark) — persisted per browser
+    // ------------------------------------------------------------------
+    const THEME_MODE_KEY = 'reachout-theme-mode';
+    const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function resolveTheme(mode) {
+      if (mode === 'light' || mode === 'dark') return mode;
+      return themeMedia.matches ? 'dark' : 'light';
+    }
+
+    function applyTheme(mode) {
+      const resolved = resolveTheme(mode);
+      document.documentElement.setAttribute('data-theme-mode', mode);
+      document.documentElement.setAttribute('data-theme', resolved);
+      document.querySelectorAll('.theme-toggle button[data-theme-mode]').forEach((btn) => {
+        btn.setAttribute('aria-pressed', btn.getAttribute('data-theme-mode') === mode ? 'true' : 'false');
+      });
+    }
+
+    function setThemeMode(mode) {
+      if (mode !== 'light' && mode !== 'dark' && mode !== 'system') mode = 'system';
+      try { localStorage.setItem(THEME_MODE_KEY, mode); } catch (e) { /* storage unavailable */ }
+      applyTheme(mode);
+    }
+
+    themeMedia.addEventListener('change', () => {
+      let mode = 'system';
+      try { mode = localStorage.getItem(THEME_MODE_KEY) || 'system'; } catch (e) { mode = 'system'; }
+      if (mode === 'system') applyTheme('system');
+    });
+
+    // ------------------------------------------------------------------
+    // Header overflow ("More") menu
+    // ------------------------------------------------------------------
+    function toggleMoreMenu(event) {
+      if (event) event.stopPropagation();
+      const panel = document.getElementById('more-menu-panel');
+      const btn = document.getElementById('more-menu-btn');
+      if (!panel) return;
+      const willOpen = !panel.classList.contains('open');
+      panel.classList.toggle('open', willOpen);
+      if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }
+
+    function closeMoreMenu() {
+      const panel = document.getElementById('more-menu-panel');
+      const btn = document.getElementById('more-menu-btn');
+      if (panel) panel.classList.remove('open');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+
+    document.addEventListener('click', (event) => {
+      const panel = document.getElementById('more-menu-panel');
+      if (panel && panel.classList.contains('open') && !event.target.closest('.menu-wrap')) {
+        closeMoreMenu();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeMoreMenu();
+    });
+
     // 0. Central apiFetch() Helper Wrapper
     async function apiFetch(url, options = {}) {
       const headers = { ...(options.headers || {}) };
@@ -1826,6 +2079,9 @@
 
     // App Initialization
     window.addEventListener('DOMContentLoaded', async () => {
+      let mode = 'system';
+      try { mode = localStorage.getItem(THEME_MODE_KEY) || 'system'; } catch (e) { mode = 'system'; }
+      applyTheme(mode);
       await loadInitialData();
       initEventStream();
     });
@@ -2191,39 +2447,49 @@
     function updateCampaignControls(camp) {
       state.activeCampaign = camp;
       const statusPill = document.getElementById('campaign-status-pill');
-      const startBtn = document.getElementById('start-campaign-btn');
-      const pauseBtn = document.getElementById('pause-campaign-btn');
-      const resumeBtn = document.getElementById('resume-campaign-btn');
+      const actionBtn = document.getElementById('campaign-action-btn');
+      const actionLabel = document.getElementById('campaign-action-label');
       const stopBtn = document.getElementById('stop-campaign-btn');
+      const limitWrap = document.getElementById('campaign-limit-wrap');
+      const limitInput = document.getElementById('campaign-limit-input');
 
       const st = camp ? camp.status : 'IDLE';
       statusPill.innerText = st;
       statusPill.className = 'campaign-status-badge';
 
       const banner = document.getElementById('campaign-paused-banner');
+
+      // Single context-aware primary control: Start -> Pause -> Resume.
       if (st === 'RUNNING') {
         statusPill.classList.add('status-running');
-        startBtn.disabled = true;
-        pauseBtn.disabled = false;
-        resumeBtn.disabled = true;
-        stopBtn.disabled = false;
+        actionBtn.className = 'btn btn-amber btn-sm';
+        actionLabel.innerText = '⏸ Pause';
+        actionBtn.dataset.action = 'pause';
+        actionBtn.disabled = false;
+        if (stopBtn) { stopBtn.hidden = false; stopBtn.disabled = false; }
+        if (limitWrap) limitWrap.style.display = 'none';
         if (banner) banner.style.display = 'none';
       } else if (st === 'PAUSED') {
         statusPill.classList.add('status-paused');
-        startBtn.disabled = true;
-        pauseBtn.disabled = true;
-        resumeBtn.disabled = false;
-        stopBtn.disabled = false;
+        actionBtn.className = 'btn btn-primary btn-sm';
+        actionLabel.innerText = '▶ Resume';
+        actionBtn.dataset.action = 'resume';
+        actionBtn.disabled = false;
+        if (stopBtn) { stopBtn.hidden = false; stopBtn.disabled = false; }
+        if (limitWrap) limitWrap.style.display = 'none';
         if (banner) banner.style.display = 'flex';
       } else {
         if (st === 'COMPLETED') statusPill.classList.add('status-completed');
-        startBtn.disabled = false;
-        pauseBtn.disabled = true;
-        resumeBtn.disabled = true;
-        stopBtn.disabled = true;
+        else if (st === 'FAILED') statusPill.classList.add('status-failed');
+        actionBtn.className = 'btn btn-secondary btn-sm';
+        actionLabel.innerText = '▶ New Run';
+        actionBtn.dataset.action = 'start';
+        actionBtn.disabled = false;
+        if (stopBtn) { stopBtn.hidden = true; stopBtn.disabled = true; }
+        if (limitWrap) limitWrap.style.display = 'flex';
+        if (limitInput) limitInput.disabled = false;
         if (banner) banner.style.display = 'none';
       }
-
 
       if (camp) {
         document.getElementById('prog-pct').innerText = `${camp.progress_percent}%`;
@@ -2241,6 +2507,14 @@
       }
     }
 
+    function onCampaignAction() {
+      const btn = document.getElementById('campaign-action-btn');
+      const action = btn ? btn.dataset.action : 'start';
+      if (action === 'pause') return pauseCampaign();
+      if (action === 'resume') return resumeCampaign();
+      return startCampaign();
+    }
+
     async function startCampaign() {
       const limitInput = document.getElementById('campaign-limit-input');
       const parsedLimit = limitInput ? parseInt(limitInput.value, 10) : NaN;
@@ -2251,10 +2525,12 @@
         if (limitInput) limitInput.value = maxCount;
         showToast(`Limit capped at the maximum of ${__MAX_OUTREACH_LIMIT__}.`, 'info');
       }
-      const startBtn = document.getElementById('start-campaign-btn');
-      const originalText = startBtn.innerHTML;
-      startBtn.disabled = true;
-      startBtn.innerHTML = '<span class="spinner"></span> Starting...';
+      const actionBtn = document.getElementById('campaign-action-btn');
+      const originalHtml = actionBtn ? actionBtn.innerHTML : '';
+      if (actionBtn) {
+        actionBtn.disabled = true;
+        actionBtn.innerHTML = '<span class="spinner"></span> Starting...';
+      }
 
       try {
         const res = await apiFetch('/api/campaigns/quick-start', {
@@ -2274,8 +2550,10 @@
       } catch (err) {
         showToast('Failed to start campaign: ' + err.message, 'error');
       } finally {
-        startBtn.disabled = false;
-        startBtn.innerHTML = originalText;
+        if (actionBtn) {
+          actionBtn.innerHTML = originalHtml;
+          actionBtn.disabled = false;
+        }
       }
     }
 
@@ -2732,9 +3010,6 @@
               <button class="btn btn-outline btn-xs" onclick="reactivateSender('${jsAttr(s.id)}')" title="Reactivate sender into rotation">
                 <span>⚡ Reactivate</span>
               </button>
-              <button class="btn btn-rose btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
-                <span>🗑️ Remove</span>
-              </button>
             `;
           } else {
             actionButtons = `
@@ -2744,11 +3019,8 @@
               <button class="btn btn-outline btn-xs" onclick="checkWhatsAppAuthStatus('${jsAttr(s.id)}')" title="Check connection health">
                 <span>🔍 Status</span>
               </button>
-              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation">
+              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation (history preserved)">
                 <span>⏸️ Deactivate</span>
-              </button>
-              <button class="btn btn-outline btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
-                <span>🗑️</span>
               </button>
             `;
           }
@@ -2803,9 +3075,6 @@
               <button class="btn btn-outline btn-xs" onclick="reactivateSender('${jsAttr(s.id)}')" title="Reactivate sender">
                 <span>⚡ Reactivate</span>
               </button>
-              <button class="btn btn-rose btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
-                <span>🗑️ Remove</span>
-              </button>
             `;
           } else {
             actionButtons = `
@@ -2815,11 +3084,8 @@
               <button class="btn btn-outline btn-xs" onclick="verifyEmailSender('${jsAttr(s.id)}')">
                 <span>🔌 Test &amp; Verify</span>
               </button>
-              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation">
+              <button class="btn btn-amber btn-xs" onclick="deactivateSender('${jsAttr(s.id)}')" title="Deactivate and pause from rotation (history preserved)">
                 <span>⏸️ Deactivate</span>
-              </button>
-              <button class="btn btn-outline btn-xs" onclick="removeSender('${jsAttr(s.id)}')" title="Remove sender">
-                <span>🗑️</span>
               </button>
             `;
           }
@@ -3015,22 +3281,6 @@
       }
     }
 
-    async function removeSender(senderId) {
-      if (!confirm(`Are you sure you want to remove/deactivate sender '${senderId}'? Historical logs will be preserved.`)) return;
-      try {
-        const res = await apiFetch(`/api/senders/${senderId}`, { method: 'DELETE' });
-        if (res.ok) {
-          showToast(`Sender ${senderId} removed from active rotation.`, 'info');
-          await fetchSenders();
-        } else {
-          const err = await res.json();
-          showToast(`Failed: ${err.detail || 'Error'}`, 'error');
-        }
-      } catch (err) {
-        showToast('Error removing sender: ' + err.message, 'error');
-      }
-    }
-
     async function startWhatsAppAuth(senderId) {
       try {
         showToast(`Starting authentication for ${senderId}...`, 'info');
@@ -3051,11 +3301,19 @@
 
     async function checkWhatsAppAuthStatus(senderId) {
       try {
-        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/status`);
+        showToast(`Probing live session ${senderId}...`, 'info');
+        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/check`, { method: 'POST' });
         if (res.ok) {
           const data = await res.json();
-          showToast(`Session ${senderId} status: ${data.status}`, data.status === 'ACTIVE' ? 'success' : 'info');
+          if (data.status_changed) {
+            showToast(`Session ${senderId}: ${data.probe} — status updated to ${data.status}`, 'info');
+          } else {
+            showToast(`Session ${senderId} status: ${data.status}`, data.status === 'ACTIVE' ? 'success' : 'info');
+          }
           await fetchSenders();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showToast(`Health check failed: ${err.detail || 'Error'}`, 'error');
         }
       } catch (err) {
         showToast('Error checking status: ' + err.message, 'error');
