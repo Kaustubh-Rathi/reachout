@@ -12,7 +12,7 @@ from app.infrastructure.database import (
     get_session,
     init_db,
 )
-from app.infrastructure.events import EventBus, default_event_bus
+from app.infrastructure.events import EventBus
 from app.infrastructure.models import (
     CampaignModel,
     CompanyModel,
@@ -97,5 +97,4 @@ __all__ = [
     "PersistentCampaignScheduler",
     # Events
     "EventBus",
-    "default_event_bus",
 ]

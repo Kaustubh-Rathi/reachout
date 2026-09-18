@@ -141,8 +141,3 @@ class EventBus:
             }
             for e in sliced
         ]
-
-
-# Canonical singleton event bus instance
-default_event_bus = EventBus()
-event_bus = default_event_bus

@@ -75,8 +75,8 @@ def build_service_context(
     All concrete infrastructure imports live here (and only here) in the
     application layer, so services remain free of adapter dependencies.
     """
+    from app.composition import get_event_bus
     from app.infrastructure.database import SessionFactory
-    from app.infrastructure.events.event_bus import default_event_bus
     from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
     from app.infrastructure.providers.session_manager import default_session_manager
     from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
@@ -101,7 +101,7 @@ def build_service_context(
         template_repo=SqliteTemplateRepository(session),
         reminder_repo=SqliteReminderRepository(session),
         suppression_repo=SqliteSuppressionRepository(session),
-        event_publisher=event_publisher or default_event_bus,
+        event_publisher=event_publisher or get_event_bus(),
         clock=clock or SystemClock(),
         whatsapp_provider=get_whatsapp_provider(),
         email_provider=get_email_provider(),
