@@ -22,6 +22,7 @@ from app.domain.enums import CampaignStatus, Channel
 from app.domain.message_template import MessageTemplate
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
+from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
@@ -30,6 +31,7 @@ from app.infrastructure.repositories.sqlite_sender_repository import SqliteSende
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.services.company_service import CompanyService
+from tests.doubles.builders import build_worker
 
 
 @pytest.fixture
@@ -260,7 +262,9 @@ def test_deterministic_dry_run_dispatch(dry_run_session_factory, capsys):
         session.commit()
         camp_id = campaign.id
 
-    scheduler = PersistentCampaignScheduler(session_factory=SessionFactory)
+    scheduler = PersistentCampaignScheduler(
+        session_factory=SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+    )
     scheduler.start_campaign(camp_id)
     thread = scheduler._active_threads.get(camp_id)
     if thread:

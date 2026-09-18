@@ -33,6 +33,7 @@ from app.domain.enums import (
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.sender_account import SenderAccount
+from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
@@ -46,7 +47,8 @@ from app.infrastructure.scheduler.campaign_scheduler import (
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.services.campaign_service import CampaignService
-from tests.doubles.fake_providers import MockWhatsAppProvider
+from tests.doubles.builders import build_worker
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
 # ==============================================================================
 # 1. DATABASE ISOLATION & IMMUTABILITY VERIFICATION
@@ -62,8 +64,10 @@ class TestSchedulerAndRateLimiterIntegration:
             session_factory=SessionFactory,
             rate_limiter=rate_limiter,
             whatsapp_provider=mock_wa,
+            email_provider=MockEmailProvider(),
+            event_publisher=EventBus(),
         )
-        scheduler = PersistentCampaignScheduler(SessionFactory, worker=worker)
+        scheduler = PersistentCampaignScheduler(SessionFactory, worker=worker, event_publisher=EventBus())
         set_campaign_scheduler(scheduler)
 
         # Seed test data
@@ -129,6 +133,8 @@ class TestSchedulerAndRateLimiterIntegration:
             session_factory=SessionFactory,
             rate_limiter=rate_limiter,
             whatsapp_provider=mock_wa,
+            email_provider=MockEmailProvider(),
+            event_publisher=EventBus(),
         )
 
         with SessionFactory() as session:
@@ -212,7 +218,9 @@ class TestCampaignFullLifecycle:
             )
             session.commit()
 
-        scheduler = PersistentCampaignScheduler(SessionFactory)
+        scheduler = PersistentCampaignScheduler(
+            SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+        )
         set_campaign_scheduler(scheduler)
 
         # 1. START
@@ -311,7 +319,9 @@ class TestStartupCrashRecovery:
             attempt_id = attempt.id
 
         # Execute Startup Crash Recovery Audit
-        scheduler = PersistentCampaignScheduler(SessionFactory)
+        scheduler = PersistentCampaignScheduler(
+            SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+        )
         recovered_count = scheduler.run_crash_recovery_audit()
 
         assert recovered_count >= 1, "Crash recovery audit must recover the in-flight attempt"

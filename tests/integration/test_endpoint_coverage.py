@@ -8,6 +8,7 @@ from app.domain.contact import Contact
 from app.domain.enums import CampaignStatus, Channel, OutreachStatus, SenderStatus
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
+from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
@@ -16,6 +17,7 @@ from app.infrastructure.repositories.sqlite_sender_repository import SqliteSende
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.services.contact_service import ContactService
 from app.services.template_service import TemplateService
+from tests.doubles.builders import build_worker
 
 
 @pytest.fixture
@@ -118,7 +120,9 @@ def test_multi_endpoint_round_robin_dispatch(isolated_session_factory):
         camp_id = campaign.id
 
     # Launch Campaign via PersistentCampaignScheduler in mock mode
-    scheduler = PersistentCampaignScheduler(session_factory=SessionFactory)
+    scheduler = PersistentCampaignScheduler(
+        session_factory=SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+    )
 
     scheduler.start_campaign(camp_id)
     t = scheduler._active_threads.get(camp_id)

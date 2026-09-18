@@ -32,6 +32,7 @@ from app.infrastructure.providers.factory import (
     set_whatsapp_provider,
 )
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
+from app.infrastructure.providers.session_manager import default_session_manager
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
@@ -47,6 +48,7 @@ from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.providers import ProviderSendResult, ProviderStatusResult
 from app.services.campaign_service import CampaignService
 from app.services.outreach_service import OutreachService
+from tests.doubles.builders import build_worker
 from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
 
@@ -300,7 +302,7 @@ class TestProviderConfigurationAndFactory:
     """Test production provider resolution and programmatic test dependency injection."""
 
     def test_production_factory_resolves_playwright_and_smtp(self):
-        wa_provider = create_whatsapp_provider()
+        wa_provider = create_whatsapp_provider(session_manager=default_session_manager)
         em_provider = create_email_provider()
         assert isinstance(wa_provider, PlaywrightWhatsAppProvider)
         assert isinstance(em_provider, SmtpEmailProvider)
@@ -325,6 +327,7 @@ class TestSchedulerUnificationAndDelegation:
         worker = OutreachWorker(
             session_factory=SessionFactory,
             whatsapp_provider=mock_provider,
+            email_provider=MockEmailProvider(),
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
         )
@@ -441,7 +444,9 @@ class TestStartupCrashRecovery:
             session.commit()
 
         # Simulate Application Startup
-        scheduler = PersistentCampaignScheduler(session_factory=SessionFactory)
+        scheduler = PersistentCampaignScheduler(
+            session_factory=SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+        )
         recovered_count = scheduler.run_crash_recovery_audit()
 
         assert recovered_count == 2

@@ -47,13 +47,13 @@ def reset_provider_overrides() -> None:
 
 
 def create_whatsapp_provider(
-    session_manager: Optional[WhatsAppSessionManager] = None,
+    session_manager: WhatsAppSessionManager,
     headless: bool = False,
     timeout_seconds: int = 60,
 ) -> WhatsAppProvider:
     """Factory creating canonical production WhatsApp provider."""
     return PlaywrightWhatsAppProvider(
-        session_manager=session_manager or default_session_manager,
+        session_manager=session_manager,
         headless=headless,
         timeout_seconds=timeout_seconds,
     )
@@ -76,7 +76,7 @@ def get_whatsapp_provider() -> WhatsAppProvider:
     if _whatsapp_provider_override is not None:
         return _whatsapp_provider_override
     if _whatsapp_singleton is None:
-        _whatsapp_singleton = create_whatsapp_provider()
+        _whatsapp_singleton = create_whatsapp_provider(session_manager=default_session_manager)
     return _whatsapp_singleton
 
 

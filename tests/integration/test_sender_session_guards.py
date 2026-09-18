@@ -80,6 +80,7 @@ def test_worker_refuses_non_active_sender(session_factory):
     worker = OutreachWorker(
         session_factory=session_factory,
         whatsapp_provider=provider,
+        email_provider=FakeEmailProvider(),
         rate_limiter=RateLimiter(default_channel_delay={"WHATSAPP": 0.01, "EMAIL": 0.01}),
         event_publisher=EventBus(),
     )

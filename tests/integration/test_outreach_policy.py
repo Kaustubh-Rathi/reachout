@@ -40,6 +40,7 @@ from app.domain.template_catalog import (
     OFFICIAL_WHATSAPP_TEMPLATES,
 )
 from app.infrastructure.database import Base
+from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
@@ -124,6 +125,7 @@ class TestTemplates:
             whatsapp_provider=MockWhatsAppProvider(),
             email_provider=MockEmailProvider(),
             rate_limiter=RateLimiter(default_channel_delay={"WHATSAPP": 0.001, "EMAIL": 0.001}),
+            event_publisher=EventBus(),
         )
 
         with outreach_db() as session:

@@ -16,10 +16,7 @@ from typing import Optional
 from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.infrastructure.providers.attachments import resolve_attachment_path
-from app.infrastructure.providers.session_manager import (
-    WhatsAppSessionManager,
-    default_session_manager,
-)
+from app.infrastructure.providers.session_manager import WhatsAppSessionManager
 from app.ports.providers import ProviderSendResult, ProviderStatusResult
 
 SEND_LOG = Path(__file__).resolve().parent.parent.parent.parent / "logs" / "whatsapp_send.log"
@@ -39,12 +36,12 @@ class PlaywrightWhatsAppProvider:
 
     def __init__(
         self,
-        session_manager: Optional[WhatsAppSessionManager] = None,
+        session_manager: WhatsAppSessionManager,
         headless: bool = False,
         timeout_seconds: int = 60,
         expected_identity: Optional[str] = None,
     ) -> None:
-        self.session_manager = session_manager or default_session_manager
+        self.session_manager = session_manager
         self.headless = headless
         self.timeout_seconds = timeout_seconds
         self.expected_identity = expected_identity

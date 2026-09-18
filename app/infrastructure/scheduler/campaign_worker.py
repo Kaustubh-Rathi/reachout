@@ -15,14 +15,12 @@ from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachS
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.sender_account import SenderAccount
-from app.infrastructure.events.event_bus import default_event_bus
-from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-from app.infrastructure.scheduler.rate_limiter import RateLimiter, default_rate_limiter
+from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import DomainEvent, EventPublisher
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
 
@@ -33,16 +31,16 @@ class OutreachWorker:
     def __init__(
         self,
         session_factory: Any,
-        whatsapp_provider: Optional[WhatsAppProvider] = None,
-        email_provider: Optional[EmailProvider] = None,
-        rate_limiter: Optional[RateLimiter] = None,
-        event_publisher: Optional[EventPublisher] = None,
+        whatsapp_provider: WhatsAppProvider,
+        email_provider: EmailProvider,
+        rate_limiter: RateLimiter,
+        event_publisher: EventPublisher,
     ) -> None:
         self.session_factory = session_factory
-        self.whatsapp_provider = whatsapp_provider if whatsapp_provider is not None else get_whatsapp_provider()
-        self.email_provider = email_provider if email_provider is not None else get_email_provider()
-        self.rate_limiter = rate_limiter or default_rate_limiter
-        self.event_publisher = event_publisher or default_event_bus
+        self.whatsapp_provider = whatsapp_provider
+        self.email_provider = email_provider
+        self.rate_limiter = rate_limiter
+        self.event_publisher = event_publisher
 
     def _record_pre_send_failure(
         self,
