@@ -24,7 +24,7 @@ class SqliteTemplateRepository(TemplateRepository):
         return model.to_domain() if model else None
 
     def list_by_channel(self, channel: Channel, active_only: bool = False) -> List[MessageTemplate]:
-        channel_val = channel.value if hasattr(channel, "value") else str(channel)
+        channel_val = channel.value
         stmt = select(MessageTemplateModel).where(MessageTemplateModel.channel == channel_val)
         if active_only:
             stmt = stmt.where(MessageTemplateModel.active)
@@ -44,7 +44,7 @@ class SqliteTemplateRepository(TemplateRepository):
         existing = self.session.get(MessageTemplateModel, template.id)
         if existing:
             existing.name = template.name
-            existing.channel = template.channel.value if hasattr(template.channel, "value") else str(template.channel)
+            existing.channel = template.channel.value
             existing.body = template.body
             existing.subject = template.subject
             existing.attachment_ref = template.attachment_ref

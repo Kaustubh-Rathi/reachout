@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Container, Dict, List, Optional, Sequence, Set
 
 from app.domain.contact import Contact
-from app.domain.endpoint import CommunicationEndpoint, extract_endpoints_from_raw
+from app.domain.endpoint import CommunicationEndpoint
 from app.domain.enums import Channel, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 
@@ -46,12 +46,10 @@ def is_endpoint_covered(
         # Fallback to Contact model timestamps if no historical attempts provided
         if contact is not None:
             if endpoint.channel == Channel.WHATSAPP and endpoint.ordinal == 0 and contact.last_whatsapp_at is not None:
-                phones = contact.phones if hasattr(contact, "phones") else []
-                if len(phones) <= 1:
+                if len(contact.phones) <= 1:
                     return True
             elif endpoint.channel == Channel.EMAIL and endpoint.ordinal == 0 and contact.last_email_at is not None:
-                emails = contact.emails if hasattr(contact, "emails") else []
-                if len(emails) <= 1:
+                if len(contact.emails) <= 1:
                     return True
         return False
 
@@ -66,17 +64,13 @@ def is_endpoint_covered(
             continue
 
         # Match destination
-        attempt_dest = getattr(attempt, "destination", None)
+        attempt_dest = attempt.destination
         if attempt_dest:
             if endpoint.matches(attempt.channel, attempt_dest):
                 return True
         else:
             if contact is not None:
-                channel_endpoints = (
-                    [ep for ep in contact.endpoints if ep.channel == endpoint.channel]
-                    if hasattr(contact, "endpoints")
-                    else []
-                )
+                channel_endpoints = [ep for ep in contact.endpoints if ep.channel == endpoint.channel]
                 if len(channel_endpoints) <= 1 and endpoint.ordinal == 0:
                     return True
             else:
@@ -99,7 +93,7 @@ def get_endpoint_attempt_info(
     for att in historical_attempts:
         if att.contact_id != contact_id or att.channel != endpoint.channel:
             continue
-        dest = getattr(att, "destination", None)
+        dest = att.destination
         if dest and endpoint.matches(att.channel, dest):
             matching_attempts.append(att)
         elif not dest and endpoint.ordinal == 0:
@@ -145,7 +139,7 @@ def is_endpoint_permanently_failed(
         if attempt.contact_id != contact_id or attempt.channel != endpoint.channel:
             continue
         if attempt.status == OutreachStatus.FAILED:
-            dest = getattr(attempt, "destination", None)
+            dest = attempt.destination
             matches = endpoint.matches(attempt.channel, dest) if dest else (endpoint.ordinal == 0)
             if matches and attempt.failure_code in DEFINITIVE_ENDPOINT_FAILURES:
                 return True
@@ -162,7 +156,7 @@ def has_ambiguous_or_inflight_blocker(
     if not historical_attempts:
         return False
 
-    contact_id = contact.contact_id if hasattr(contact, "contact_id") else str(contact)
+    contact_id = contact.contact_id if isinstance(contact, Contact) else str(contact)
 
     for attempt in historical_attempts:
         if attempt.contact_id != contact_id:
@@ -193,9 +187,7 @@ def get_uncovered_endpoints(
         target_channel = channel
         hist = historical_attempts
 
-    all_endpoints = (
-        contact.endpoints if hasattr(contact, "endpoints") else extract_endpoints_from_raw(contact.phone, contact.email)
-    )
+    all_endpoints = contact.endpoints
 
     uncovered: List[CommunicationEndpoint] = []
 
@@ -237,9 +229,7 @@ def is_contact_fully_covered(
     suppressed_identifiers: Optional[Container[str]] = None,
 ) -> bool:
     """Determine if all valid intended communication endpoints for a contact have been successfully covered."""
-    all_endpoints = (
-        contact.endpoints if hasattr(contact, "endpoints") else extract_endpoints_from_raw(contact.phone, contact.email)
-    )
+    all_endpoints = contact.endpoints
     if not all_endpoints:
         return True  # No valid endpoints exist, cannot contact
 
@@ -284,9 +274,7 @@ def get_contact_endpoint_metrics(
     historical_attempts: Optional[Sequence[OutreachAttempt]] = None,
 ) -> Dict[str, Any]:
     """Generate detailed per-endpoint coverage audit metrics for UI, API, and dashboards."""
-    all_endpoints = (
-        contact.endpoints if hasattr(contact, "endpoints") else extract_endpoints_from_raw(contact.phone, contact.email)
-    )
+    all_endpoints = contact.endpoints
 
     wa_endpoints = []
     em_endpoints = []

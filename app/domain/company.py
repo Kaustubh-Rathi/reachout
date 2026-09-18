@@ -106,7 +106,7 @@ def calculate_company_status(
     for c in contacts:
         opt_out_tags = {"dnc", "opt_out", "opt-out", "do_not_contact", "unsubscribed", "closed"}
         c_tags = {t.strip().lower() for t in (c.tags or [])}
-        c_outcome = getattr(c, "crm_outcome", CRMOutcome.NONE)
+        c_outcome = c.crm_outcome
         if c_outcome not in (CRMOutcome.DO_NOT_CONTACT, CRMOutcome.CLOSED) and not (c_tags & opt_out_tags):
             all_dnc = False
             break
@@ -117,8 +117,7 @@ def calculate_company_status(
     covered_endpoints = 0
 
     for c in contacts:
-        eps = c.endpoints if hasattr(c, "endpoints") else []
-        for ep in eps:
+        for ep in c.endpoints:
             total_endpoints += 1
             if is_endpoint_covered(ep, c.contact_id, historical_attempts, c):
                 covered_endpoints += 1

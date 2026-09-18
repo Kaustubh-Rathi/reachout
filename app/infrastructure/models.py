@@ -427,8 +427,8 @@ class MessageTemplateModel(Base):
             body=self.body,
             subject=self.subject,
             attachment_ref=self.attachment_ref,
-            phone_number=getattr(self, "phone_number", None),
-            active=getattr(self, "active", True),
+            phone_number=self.phone_number,
+            active=self.active,
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
