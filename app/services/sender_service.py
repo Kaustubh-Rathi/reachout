@@ -1,34 +1,30 @@
-"""Sender Account management service.
+"""Sender Account inventory and readiness service.
 
-Handles multi-account sender identities across channels without exposing credentials,
-OAuth tokens, or session secrets.
+Handles multi-account sender identities across channels without exposing
+credentials, OAuth tokens, or session secrets. WhatsApp authentication and
+email credential concerns are delegated to dedicated collaborators.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel, SenderStatus
-from app.domain.errors import NotFoundError, ValidationError
 from app.domain.sender_account import SenderAccount
 from app.ports.infrastructure import SessionManager
 from app.services.context import ServiceContext, build_service_context
+from app.services.email_sender_service import EmailSenderService
+from app.services.whatsapp_auth_service import WhatsAppAuthService
 
 logger = logging.getLogger(__name__)
 
 
-def _normalise_full_phone(phone: str) -> str:
-    """Return the phone as its bare digit string (used as the sender identity)."""
-    return re.sub(r"\D", "", phone or "")
-
-
 class SenderService:
-    """Application service managing multi-sender accounts, authentication, and readiness."""
+    """Application service managing sender inventory, readiness, and lifecycle."""
 
     def __init__(
         self,
@@ -48,25 +44,85 @@ class SenderService:
         self._session_factory = session_factory or ctx.session_factory
         # Display names for in-memory temp WhatsApp ids (never persisted to the DB).
         self._temp_display_names: Dict[str, str] = {}
+        self._whatsapp = WhatsAppAuthService(
+            session=session,
+            repo=self.repo,
+            session_manager=self.session_manager,
+            event_publisher=self.event_publisher,
+            session_factory=self._session_factory,
+            temp_display_names=self._temp_display_names,
+        )
+        self._email = EmailSenderService(
+            session=session,
+            repo=self.repo,
+            email_provider=self.email_provider,
+            event_publisher=self.event_publisher,
+        )
+
+    # ------------------------------------------------------------- WhatsApp
+
+    def configure_whatsapp_sessions(self, count: int) -> List[Dict[str, Any]]:
+        """Ensure at least N WhatsApp sessions are configured, returning the list."""
+        self._whatsapp.configure_whatsapp_sessions(count)
+        return self.list_senders(channel="WHATSAPP")
+
+    def add_whatsapp_session(
+        self,
+        display_name: Optional[str] = None,
+        identity: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return self._whatsapp.add_whatsapp_session(display_name=display_name, identity=identity)
+
+    def start_whatsapp_authentication(self, sender_id: str) -> Dict[str, Any]:
+        return self._whatsapp.start_whatsapp_authentication(sender_id)
+
+    def get_whatsapp_auth_status(self, sender_id: str) -> Dict[str, Any]:
+        return self._whatsapp.get_whatsapp_auth_status(sender_id)
+
+    def check_whatsapp_session_health(self, sender_id: str, timeout_seconds: int = 20) -> Dict[str, Any]:
+        return self._whatsapp.check_whatsapp_session_health(sender_id, timeout_seconds=timeout_seconds)
+
+    # ---------------------------------------------------------------- Email
+
+    def configure_email_sender(
+        self,
+        id: str,
+        identity: str,
+        display_name: str,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        verify_now: bool = True,
+    ) -> Dict[str, Any]:
+        return self._email.configure_email_sender(
+            id=id,
+            identity=identity,
+            display_name=display_name,
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            verify_now=verify_now,
+        )
+
+    def verify_email_sender(self, sender_id: str) -> Dict[str, Any]:
+        return self._email.verify_email_sender(sender_id)
+
+    # ---------------------------------------------------------- reconciliation
 
     def reconcile_sender_states(self) -> None:
         """Reconcile stored sender statuses against persistent auth contexts and vaults on startup."""
-        # WhatsApp senders reconciliation
         wa_senders = self.repo.list_by_channel(Channel.WHATSAPP)
         for s in wa_senders:
             # A persisted ACTIVE WhatsApp sender whose on-disk authenticated profile
-            # is missing must not keep passing the readiness gate. Downgrade it so the
-            # operator is prompted to re-authenticate (symmetric with email creds).
+            # is missing must not keep passing the readiness gate.
             if s.status == SenderStatus.ACTIVE and not self.session_manager.has_persisted_session(s.id):
                 s.status = SenderStatus.AUTH_REQUIRED
                 self.repo.save(s)
                 continue
-            # Only reconcile when we actually hold a real, non-default in-memory auth
-            # state (a live temp flow or an in-progress re-auth). After a process
-            # restart the in-memory auth dict is empty, and get_auth_state() returns a
-            # NOT_CONFIGURED default that must NOT overwrite a persisted ACTIVE status
-            # (otherwise authenticated WhatsApp sessions silently regress to
-            # NOT_CONFIGURED on every boot and vanish from the dashboard).
+            # Only reconcile when we hold real in-memory auth state; a default
+            # NOT_CONFIGURED after restart must not overwrite persisted ACTIVE.
             if not self.session_manager.is_auth_known(s.id):
                 continue
             auth_info = self.session_manager.get_auth_state(s.id)
@@ -76,28 +132,20 @@ class SenderService:
                     s.status = SenderStatus(st_str)
                     self.repo.save(s)
                 except ValueError as exc:
-                    # An unrecognized status string in the session manager is a real
-                    # divergence; surface it instead of silently skipping it.
                     logger.warning("Skipping unrecognized auth status %r for sender %s: %s", st_str, s.id, exc)
 
-        # Email senders reconciliation
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
 
-        # F3/B4: Materialize vault-only email credentials into sender_accounts rows so no
-        # stored credential is stranded as a "phantom session" without a DB record.
+        # Materialize vault-only email credentials into sender_accounts rows.
         existing_em_ids = {s.id for s in em_senders}
         existing_em_identities = {(s.identity or "").strip().casefold() for s in em_senders}
-        vault_ids = self.credential_vault.list_senders_with_credentials()
-        for vid in vault_ids:
+        for vid in self.credential_vault.list_senders_with_credentials():
             if vid not in existing_em_ids:
                 creds = self.credential_vault.get_credentials(vid) or {}
                 user = (creds.get("user") or "").strip()
                 candidate_identity = user or vid
                 normalized_identity = candidate_identity.strip().casefold()
                 if normalized_identity in existing_em_identities:
-                    # Two vault IDs can resolve to the same email address. The
-                    # database allows only one sender per channel identity, so
-                    # keep the existing registration instead of crashing startup.
                     logger.warning("Skipping vault sender %r: duplicate EMAIL identity already registered", vid)
                     continue
                 new_sender = SenderAccount(
@@ -114,31 +162,26 @@ class SenderService:
                     with self.session.begin_nested():
                         self.repo.save(new_sender)
                 except IntegrityError:
-                    # Preserve startup when another row claims the same identity
-                    # through a route not covered by the pre-check above.
                     logger.warning("Skipping vault sender %r: duplicate EMAIL identity already registered", vid)
                     continue
                 existing_em_ids.add(vid)
                 existing_em_identities.add(normalized_identity)
 
-        # Refresh after materialization so the loop below sees newly-created rows.
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
-        email_provider = self.email_provider
         for s in em_senders:
-            creds = email_provider.get_sender_credentials(s.id)
+            creds = self.email_provider.get_sender_credentials(s.id)
             has_creds = bool(creds.get("user") and creds.get("password"))
-
             if s.status == SenderStatus.ACTIVE and not has_creds:
                 s.status = SenderStatus.AUTH_REQUIRED
                 self.repo.save(s)
 
         self.session.commit()
 
+    # ------------------------------------------------------------- inventory
+
     def list_senders(self, channel: Optional[str] = None) -> List[Dict[str, Any]]:
         """List all sender accounts in safe projection (no secrets/tokens/credentials)."""
         ch_enum = Channel(channel.upper()) if channel else None
-
-        senders = []
         if ch_enum:
             senders = self.repo.list_by_channel(ch_enum)
         else:
@@ -201,345 +244,6 @@ class SenderService:
             "status": sender.status.value,
         }
 
-    def configure_whatsapp_sessions(self, count: int) -> List[Dict[str, Any]]:
-        """Ensure exactly N WhatsApp sessions are configured in the repository."""
-        if count < 1:
-            raise ValidationError("WhatsApp session count must be at least 1")
-        existing_wa = self.repo.list_by_channel(Channel.WHATSAPP)
-        existing_map = {s.id: s for s in existing_wa}
-
-        # Create or update sessions up to count
-        for i in range(1, count + 1):
-            sess_id = f"WA_SESSION_{i}"
-            if sess_id not in existing_map:
-                new_sender = SenderAccount(
-                    id=sess_id,
-                    channel=Channel.WHATSAPP,
-                    provider="playwright_whatsapp",
-                    identity="",
-                    display_name=f"WhatsApp Session {i}",
-                    status=SenderStatus.AUTH_REQUIRED,
-                    daily_limit=50,
-                    hourly_limit=10,
-                )
-                self.repo.save(new_sender)
-                self.session_manager.set_auth_state(sess_id, SenderStatus.AUTH_REQUIRED)
-
-        self.session.commit()
-        return self.list_senders(channel="WHATSAPP")
-
-    def start_whatsapp_authentication(self, sender_id: str) -> Dict[str, Any]:
-        """Trigger QR authentication for a WhatsApp session.
-
-        Two modes:
-        * temp id (``tmp_auth_<uuid>``): brand-new session. Never persisted until login
-          succeeds; the worker renames the temp folder to ``wa_<phone>`` and this service
-          materialises the real record only on success.
-        * existing ``wa_<phone>``: re-authentication. Reuses the same folder/id and guards
-          that the scanned number still matches the stored one.
-        """
-        is_temp = sender_id.startswith("tmp_auth_")
-
-        existing_phone: Optional[str] = None
-        temp_display_name = "WhatsApp Session"
-        if not is_temp:
-            sender = self.repo.get_by_id(sender_id)
-            if not sender or sender.channel != Channel.WHATSAPP:
-                raise NotFoundError(f"WhatsApp sender '{sender_id}' not found")
-            sender.status = SenderStatus.AUTHENTICATING
-            self.repo.save(sender)
-            self.session.commit()
-            existing_phone = sender.identity or None
-        else:
-            # Display name for the pending temp session (set at add time).
-            temp_display_name = self._temp_display_names.get(sender_id, "WhatsApp Session")
-
-        def _resolve(sid: str, phone: str) -> Dict[str, Any]:
-            """Decide how to persist a successfully-logged-in WhatsApp session.
-
-            Runs in the background worker's thread; must not touch the caller's HTTP-bound
-            session object, so it opens its own DB session via SessionFactory.
-            """
-            if existing_phone is not None:
-                # Re-authentication of a stored sender: number must match.
-                if self._normalise_phone(phone) != self._normalise_phone(existing_phone):
-                    return {
-                        "status": "reject",
-                        "error": "Phone number mismatch: re-authentication must use the same WhatsApp number.",
-                    }
-                return {"status": "reuse"}
-
-            # Brand-new temp session: persist only if the phone is unique.
-            final_id = self._whatsapp_sender_id(phone)
-            if self._phone_exists(final_id):
-                return {
-                    "status": "reject",
-                    "error": "Duplicate phone number: a WhatsApp session for this number already exists.",
-                }
-            return {"status": "persist", "final_id": final_id}
-
-        def _auth_callback(event_name: str, payload: Dict[str, Any]) -> None:
-            st_val = payload.get("status")
-            # Materialise the real DB record for a freshly-authenticated temp session.
-            if st_val == "ACTIVE" and payload.get("temp_id"):
-                try:
-                    self._persist_whatsapp_session(payload, temp_display_name)
-                except Exception as exc:
-                    # Surface the failure instead of leaving a phantom ACTIVE session
-                    # with no DB row (the operator would be misled into thinking the
-                    # WhatsApp session persisted). Mark auth state ERROR so the UI shows it.
-                    logger.exception("Failed to persist WhatsApp session for %s", sender_id)
-                    self.session_manager.set_auth_state(
-                        sender_id,
-                        SenderStatus.ERROR,
-                        error_message=f"Failed to persist WhatsApp session: {exc}",
-                    )
-            elif st_val:
-                # Sync status for an existing persisted sender (re-auth).
-                try:
-                    with self._session_factory() as cb_sess:
-                        cb_repo = build_service_context(cb_sess).sender_repo
-                        cb_sender = cb_repo.get_by_id(payload.get("sender_id") or sender_id)
-                        if cb_sender:
-                            cb_sender.status = SenderStatus(st_val)
-                            cb_repo.save(cb_sender)
-                            cb_sess.commit()
-                except Exception:
-                    # Surface re-auth status-sync failures so sender status never silently
-                    # diverges from reality.
-                    logger.exception("Re-auth status sync failed for sender %s", sender_id)
-
-            self.event_publisher.publish_event(event_name, payload)
-
-        auth_state = self.session_manager.start_qr_authentication(
-            sender_id=sender_id,
-            on_event_callback=_auth_callback,
-            is_temp=is_temp,
-            on_resolve=_resolve,
-        )
-
-        display_name = temp_display_name
-        if not is_temp:
-            cb_sender = self.repo.get_by_id(sender_id)
-            display_name = cb_sender.display_name if cb_sender else temp_display_name
-
-        self.event_publisher.publish_event(
-            "SENDER_STATUS_CHANGED",
-            {
-                "sender_id": sender_id,
-                "channel": Channel.WHATSAPP.value,
-                "status": auth_state["status"],
-                "display_name": display_name,
-            },
-        )
-
-        return auth_state
-
-    def get_whatsapp_auth_status(self, sender_id: str) -> Dict[str, Any]:
-        """Get live authentication status and QR code if required.
-
-        Supports both live temp ids (brand-new, in-memory only) and persisted ``wa_<phone>``
-        senders. Raises ``ValueError`` (mapped to HTTP 404) for ids that are neither a known
-        temp auth flow nor a stored sender.
-        """
-        sender = self.repo.get_by_id(sender_id)
-        is_temp = self.session_manager.is_auth_known(sender_id)
-
-        if not sender and not is_temp:
-            raise NotFoundError(f"Sender '{sender_id}' not found")
-
-        auth_state = self.session_manager.get_auth_state(sender_id)
-        return {
-            "sender_id": sender_id,
-            "status": auth_state.get("status") or (sender.status.value if sender else None),
-            "channel": Channel.WHATSAPP.value,
-            "display_name": sender.display_name if sender else self._temp_display_names.get(sender_id, sender_id),
-            "identity": sender.identity if sender else "",
-            "qr_code": auth_state.get("qr_code"),
-            "last_checked": auth_state.get("last_checked"),
-            "error_message": auth_state.get("error_message"),
-        }
-
-    def check_whatsapp_session_health(self, sender_id: str, timeout_seconds: int = 20) -> Dict[str, Any]:
-        """Probe a persisted WhatsApp profile in a live browser and sync the DB status.
-
-        Unlike :meth:`get_whatsapp_auth_status` (cached in-memory state), this opens
-        the sender's browser profile and observes whether WhatsApp Web is actually
-        synced. Positive evidence of a dead login (QR shown or auth required)
-        downgrades the stored sender so the dashboard and scheduler stop treating
-        it as ready; inconclusive probes (errors/disconnects) are reported without
-        mutating the stored status.
-        """
-        sender = self.repo.get_by_id(sender_id)
-        if not sender or sender.channel != Channel.WHATSAPP:
-            raise NotFoundError(f"WhatsApp sender '{sender_id}' not found")
-
-        probe = self.session_manager.check_session_status(sender_id, timeout_seconds=timeout_seconds)
-        previous = sender.status
-        if probe == SenderStatus.ACTIVE:
-            sender.status = SenderStatus.ACTIVE
-        elif probe in (SenderStatus.QR_REQUIRED, SenderStatus.AUTH_REQUIRED):
-            sender.status = probe
-        if sender.status != previous:
-            self.repo.save(sender)
-            self.session.commit()
-            self.event_publisher.publish_event(
-                "SENDER_STATUS_CHANGED",
-                {"sender_id": sender.id, "channel": Channel.WHATSAPP.value, "status": sender.status.value},
-            )
-        return {
-            "sender_id": sender.id,
-            "channel": Channel.WHATSAPP.value,
-            "probe": probe.value,
-            "status": sender.status.value,
-            "status_changed": sender.status != previous,
-        }
-
-    def configure_email_sender(
-        self,
-        id: str,
-        identity: str,
-        display_name: str,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        verify_now: bool = True,
-    ) -> Dict[str, Any]:
-        """Create/register an Email sender and verify its SMTP connection in one step.
-
-        This is the single entry point for Email sessions (``/api/senders/email/add`` has
-        been removed). If SMTP verification fails, an exception is raised and NOTHING is
-        persisted ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â no dummy/placeholder row is ever created.
-        """
-
-        clean_id = id.strip()
-        clean_identity = identity.strip()
-        clean_display = display_name.strip()
-        clean_user = (user or clean_identity).strip()
-
-        if not clean_identity:
-            raise ValidationError("Email address (identity) is required.")
-
-        # Auto-index the sender id (EMAIL_SESSION_N) when not supplied.
-        if not clean_id:
-            clean_id = self._next_email_session_id()
-
-        provider = self.email_provider
-
-        # Verify credentials BEFORE persisting anything.
-        if verify_now and clean_user and password:
-            provider.set_sender_credentials(
-                sender_account_id=clean_id,
-                user=clean_user,
-                password=password or "",
-                host=host,
-                port=port,
-            )
-            success, err = provider.verify_credentials(clean_id)
-            if not success:
-                raise ValidationError(f"SMTP connection failed: {err or 'could not connect'}")
-        else:
-            if not clean_user or not password:
-                raise ValidationError("SMTP username and password are required.")
-            if verify_now and not host:
-                raise ValidationError("SMTP host is required to verify the connection.")
-
-        # Persist only after verification succeeded.
-        sender = self.repo.get_by_id(clean_id)
-        if not sender:
-            sender = SenderAccount(
-                id=clean_id,
-                channel=Channel.EMAIL,
-                provider="smtp",
-                identity=clean_identity,
-                display_name=clean_display,
-                status=SenderStatus.ACTIVE,
-                daily_limit=100,
-                hourly_limit=20,
-            )
-        else:
-            sender.identity = clean_identity
-            sender.display_name = clean_display
-            sender.status = SenderStatus.ACTIVE
-
-        provider.set_sender_credentials(
-            sender_account_id=clean_id,
-            user=clean_user,
-            password=password or "",
-            host=host,
-            port=port,
-        )
-
-        self.repo.save(sender)
-        self.session.commit()
-
-        self.event_publisher.publish_event(
-            "SENDER_STATUS_CHANGED",
-            {
-                "sender_id": sender.id,
-                "channel": "EMAIL",
-                "status": sender.status.value,
-                "display_name": sender.display_name,
-            },
-        )
-
-        return {
-            "id": sender.id,
-            "channel": "EMAIL",
-            "identity": sender.identity,
-            "display_name": sender.display_name,
-            "status": sender.status.value,
-            "verified": True,
-            "error_message": None,
-        }
-
-    def _next_email_session_id(self) -> str:
-        """Return the next available ``EMAIL_SESSION_N`` id."""
-        existing = self.repo.list_by_channel(Channel.EMAIL)
-        max_idx = 0
-        for s in existing:
-            m = re.match(r"(?:EMAIL_)?session_(\d+)", s.id, flags=re.IGNORECASE)
-            if m:
-                max_idx = max(max_idx, int(m.group(1)))
-        return f"EMAIL_SESSION_{max_idx + 1}"
-
-    def verify_email_sender(self, sender_id: str) -> Dict[str, Any]:
-        """Verify SMTP credentials for an existing email sender account."""
-        sender = self.repo.get_by_id(sender_id)
-        if not sender or sender.channel != Channel.EMAIL:
-            raise NotFoundError(f"Email sender '{sender_id}' not found")
-
-        provider = self.email_provider
-        success, err = provider.verify_credentials(sender_id)
-        if success:
-            sender.status = SenderStatus.ACTIVE
-            verification_error = None
-        else:
-            sender.status = SenderStatus.ERROR
-            verification_error = err
-
-        self.repo.save(sender)
-        self.session.commit()
-
-        self.event_publisher.publish_event(
-            "SENDER_STATUS_CHANGED",
-            {
-                "sender_id": sender.id,
-                "channel": "EMAIL",
-                "status": sender.status.value,
-                "display_name": sender.display_name,
-            },
-        )
-
-        return {
-            "id": sender.id,
-            "channel": "EMAIL",
-            "status": sender.status.value,
-            "verified": sender.status == SenderStatus.ACTIVE,
-            "error_message": verification_error,
-        }
-
     def get_senders_readiness(self) -> Dict[str, Any]:
         """Retrieve overall sender readiness metrics across channels."""
         wa_senders = self.repo.list_by_channel(Channel.WHATSAPP)
@@ -570,103 +274,8 @@ class SenderService:
             "overall_ready": len(active_wa) > 0 or len(active_em) > 0,
         }
 
-    def add_whatsapp_session(
-        self,
-        display_name: Optional[str] = None,
-        identity: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Begin a brand-new WhatsApp session purely in memory.
-
-        Returns a throwaway ``tmp_auth_<uuid>`` that is NOT persisted to the database.
-        The real ``wa_<phone>`` record is created only once the user scans the QR and the
-        worker confirms a unique phone number (see ``start_whatsapp_authentication``).
-        """
-        import uuid
-
-        temp_id = f"tmp_auth_{uuid.uuid4().hex[:12]}"
-        name = display_name.strip() if display_name else "Pending WhatsApp Session"
-        self._temp_display_names[temp_id] = name
-
-        self.session_manager.set_auth_state(temp_id, SenderStatus.AUTH_REQUIRED)
-
-        event_payload = {
-            "sender_id": temp_id,
-            "channel": Channel.WHATSAPP.value,
-            "status": SenderStatus.AUTH_REQUIRED.value,
-            "display_name": name,
-        }
-        self.event_publisher.publish_event("SENDER_STATUS_CHANGED", event_payload)
-
-        return {
-            "id": temp_id,
-            "channel": Channel.WHATSAPP.value,
-            "provider": "playwright_whatsapp",
-            "identity": "",
-            "display_name": name,
-            "status": SenderStatus.AUTH_REQUIRED.value,
-            "daily_limit": 50,
-            "hourly_limit": 10,
-        }
-
-    # ------------------------------------------------------------------ whatsapp helpers
-
-    @staticmethod
-    def _normalise_phone(phone: Optional[str]) -> str:
-        """Normalise a phone number to its bare digits for comparison/id building."""
-        return re.sub(r"\D", "", phone or "")
-
-    def _whatsapp_sender_id(self, phone: str) -> str:
-        """Build the stable sender id for a WhatsApp phone number (``wa_<digits>``)."""
-        digits = self._normalise_phone(phone)
-        if not digits:
-            raise ValidationError("Cannot derive sender id: extracted phone number is empty.")
-        return f"wa_{digits}"
-
-    def _phone_exists(self, final_id: str) -> bool:
-        """True if a WhatsApp sender with this id already exists in the database."""
-        existing = self.repo.get_by_id(final_id)
-        return existing is not None
-
-    def _persist_whatsapp_session(self, payload: Dict[str, Any], display_name: str) -> None:
-        """Create the complete, real SenderAccount for a freshly-authenticated session.
-
-        The temp folder has already been renamed to ``wa_<phone>`` by the worker by the
-        time this is called. Opens its own DB session so it is safe in the background
-        worker thread.
-        """
-        final_id = payload.get("sender_id")
-        phone = payload.get("phone")
-        temp_id = payload.get("temp_id")
-        if not final_id or not phone:
-            raise ValidationError("Cannot persist WhatsApp session: missing final id or phone.")
-
-        with self._session_factory() as db_sess:
-            repo = build_service_context(db_sess).sender_repo
-            new_sender = SenderAccount(
-                id=final_id,
-                channel=Channel.WHATSAPP,
-                provider="playwright_whatsapp",
-                identity=_normalise_full_phone(phone),
-                display_name=display_name,
-                status=SenderStatus.ACTIVE,
-                daily_limit=50,
-                hourly_limit=10,
-            )
-            repo.save(new_sender)
-            db_sess.commit()
-            db_sess.expire_all()
-
-        # Keep the temp display-name/no bookkeeping clean.
-        if temp_id:
-            self._temp_display_names.pop(temp_id, None)
-
-        self.event_publisher.publish_event(
-            "SENDER_STATUS_CHANGED",
-            {"sender_id": final_id, "channel": "WHATSAPP", "status": "ACTIVE", "display_name": display_name},
-        )
-
     def deactivate_sender(self, sender_id: str) -> Optional[Dict[str, Any]]:
-        """Deactivate a sender account so it exits future rotation without deleting history."""
+        """Deactivate a sender so it exits future rotation without deleting history."""
         return self.update_sender_status(sender_id, SenderStatus.INACTIVE.value)
 
     def reactivate_sender(
@@ -681,9 +290,8 @@ class SenderService:
         return self.update_sender_status(sender_id, status.value)
 
     def remove_sender(self, sender_id: str) -> bool:
-        """Controlled removal of sender from active routing (marks INACTIVE to preserve attempt FK integrity)."""
-        res = self.deactivate_sender(sender_id)
-        return res is not None
+        """Mark a sender INACTIVE (preserves attempt FK integrity)."""
+        return self.deactivate_sender(sender_id) is not None
 
     def create_sender(
         self,
