@@ -16,6 +16,7 @@ from app.domain.errors import NotFoundError, ValidationError
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.sender_account import SenderAccount
+from app.infrastructure.scheduler.pre_send_validator import PreSendValidator
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import Clock, DomainEvent, EventPublisher
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
@@ -143,10 +144,17 @@ class OutreachWorker:
                 elif channel == Channel.EMAIL:
                     effective_destination = contact.primary_email or ""
 
-            # 0. Sender-session guard: never dispatch from a non-ACTIVE sender, even
-            # when execute_attempt is called directly (the scheduler already filters,
-            # but the worker is a public entry point and must enforce the invariant).
-            if not sender_account.is_available():
+            # 0-2. Pre-send validation: sender-session, template variables, recipient.
+            failure = PreSendValidator.validate(
+                sender_account=sender_account,
+                template=template,
+                contact=contact,
+                company=company,
+                channel=channel,
+                destination=effective_destination or "",
+                custom_attachment_path=custom_attachment_path,
+            )
+            if failure is not None:
                 return self._record_pre_send_failure(
                     session,
                     outreach_repo,
@@ -157,68 +165,11 @@ class OutreachWorker:
                     campaign_id=campaign_id,
                     destination=effective_destination,
                     template=template,
-                    failure_code="ERR_SENDER_NOT_ACTIVE",
-                    failure_detail=(
-                        f"Sender '{sender_account.id}' is not ACTIVE "
-                        f"(status={sender_account.status.value}); authenticate/reactivate it before sending."
-                    ),
+                    failure_code=failure.code,
+                    failure_detail=failure.detail,
                     now=now,
-                    salt_prefix="sender_inactive",
-                )
-
-            # 1. Template variable validation before any dispatch
-            validation_errors = template.validate(contact=contact, company=company)
-            if validation_errors:
-                return self._record_pre_send_failure(
-                    session,
-                    outreach_repo,
-                    contact_id=contact.contact_id,
-                    sender_account_id=sender_account.id,
-                    channel=channel,
-                    attempt_type=attempt_type,
-                    campaign_id=campaign_id,
-                    destination=effective_destination,
-                    template=template,
-                    failure_code="ERR_TEMPLATE_VARIABLE_UNRESOLVED",
-                    failure_detail="; ".join(validation_errors),
-                    now=now,
-                    salt_prefix="val_err",
-                    attachment_ref=custom_attachment_path or template.attachment_ref,
-                )
-
-            # 2. Recipient handle validation
-            if channel == Channel.WHATSAPP and (not effective_destination or not effective_destination.strip()):
-                return self._record_pre_send_failure(
-                    session,
-                    outreach_repo,
-                    contact_id=contact.contact_id,
-                    sender_account_id=sender_account.id,
-                    channel=channel,
-                    attempt_type=attempt_type,
-                    campaign_id=campaign_id,
-                    destination=effective_destination,
-                    template=template,
-                    failure_code="ERR_PHONE_UNAVAILABLE",
-                    failure_detail="Target contact has no valid phone number for WhatsApp",
-                    now=now,
-                    salt_prefix="no_phone",
-                )
-
-            if channel == Channel.EMAIL and (not effective_destination or not effective_destination.strip()):
-                return self._record_pre_send_failure(
-                    session,
-                    outreach_repo,
-                    contact_id=contact.contact_id,
-                    sender_account_id=sender_account.id,
-                    channel=channel,
-                    attempt_type=attempt_type,
-                    campaign_id=campaign_id,
-                    destination=effective_destination,
-                    template=template,
-                    failure_code="ERR_EMAIL_UNAVAILABLE",
-                    failure_detail="Target contact has no valid email address",
-                    now=now,
-                    salt_prefix="no_email",
+                    salt_prefix=failure.salt_prefix,
+                    attachment_ref=failure.attachment_ref,
                 )
 
             # Render message template
