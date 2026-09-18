@@ -31,6 +31,7 @@ from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOut
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
+from app.ports.infrastructure import SystemClock
 from app.services.company_service import CompanyService
 from tests.doubles.builders import build_worker
 
@@ -268,6 +269,7 @@ def test_deterministic_dry_run_dispatch(dry_run_session_factory, capsys):
         worker=build_worker(SessionFactory),
         event_publisher=EventBus(),
         repository_factory=build_repositories,
+        clock=SystemClock(),
     )
     scheduler.start_campaign(camp_id)
     thread = scheduler._active_threads.get(camp_id)

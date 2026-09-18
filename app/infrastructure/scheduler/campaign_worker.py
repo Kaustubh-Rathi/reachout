@@ -6,7 +6,7 @@ validation, provider dispatch, error classification, quota accounting, and event
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 from app.config import DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
@@ -17,7 +17,7 @@ from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.ports.infrastructure import DomainEvent, EventPublisher
+from app.ports.infrastructure import Clock, DomainEvent, EventPublisher
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
 
 
@@ -32,6 +32,7 @@ class OutreachWorker:
         rate_limiter: RateLimiter,
         event_publisher: EventPublisher,
         repository_factory: Any,
+        clock: Clock,
     ) -> None:
         self.session_factory = session_factory
         self.whatsapp_provider = whatsapp_provider
@@ -39,6 +40,7 @@ class OutreachWorker:
         self.rate_limiter = rate_limiter
         self.event_publisher = event_publisher
         self.repository_factory = repository_factory
+        self.clock = clock
 
     def _record_pre_send_failure(
         self,
@@ -116,7 +118,7 @@ class OutreachWorker:
         destination: Optional[str] = None,
     ) -> OutreachAttempt:
         """Execute a single outreach attempt following the Pre-Send Transaction pattern."""
-        now = datetime.now(timezone.utc)
+        now = self.clock.now()
         channel = template.channel
         campaign_id = campaign.id if campaign else None
 
@@ -329,7 +331,7 @@ class OutreachWorker:
                     db_attempt.mark_failed(
                         failure_code="ERR_PACING_TIMEOUT",
                         failure_detail=f"Sender '{sender_account.id}' not ready within pacing timeout ({pacing_timeout}s)",
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=self.clock.now(),
                     )
                     outreach_repo.save(db_attempt)
                     session.commit()
@@ -348,7 +350,7 @@ class OutreachWorker:
                         "status": "FAILED",
                         "failure_code": "ERR_PACING_TIMEOUT",
                         "failure_detail": attempt.failure_detail,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": self.clock.now().isoformat(),
                     },
                 )
             )
@@ -363,7 +365,7 @@ class OutreachWorker:
                     db_attempt.mark_failed(
                         failure_code="ERR_SENDER_BUSY",
                         failure_detail=f"Sender '{sender_account.id}' locked by concurrent in-flight dispatch",
-                        timestamp=datetime.now(timezone.utc),
+                        timestamp=self.clock.now(),
                     )
                     outreach_repo.save(db_attempt)
                     session.commit()
@@ -395,7 +397,7 @@ class OutreachWorker:
                         "channel": channel.value,
                         "destination": attempt.destination,
                         "sender_account_id": sender_account.id,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "timestamp": self.clock.now().isoformat(),
                     },
                 )
             )
@@ -432,7 +434,7 @@ class OutreachWorker:
                 )
 
             # --- Phase 5: Post-Send State Resolution & Quota Accounting ---
-            post_now = datetime.now(timezone.utc)
+            post_now = self.clock.now()
             with self.session_factory() as session:
                 repos = self.repository_factory(session)
                 outreach_repo = repos.outreach

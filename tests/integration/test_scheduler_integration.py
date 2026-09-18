@@ -47,6 +47,7 @@ from app.infrastructure.scheduler.campaign_scheduler import (
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.infrastructure import SystemClock
 from app.services.campaign_service import CampaignService
 from tests.doubles.builders import build_worker
 from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
@@ -68,9 +69,14 @@ class TestSchedulerAndRateLimiterIntegration:
             email_provider=MockEmailProvider(),
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         scheduler = PersistentCampaignScheduler(
-            SessionFactory, worker=worker, event_publisher=EventBus(), repository_factory=build_repositories
+            SessionFactory,
+            worker=worker,
+            event_publisher=EventBus(),
+            repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         set_campaign_scheduler(scheduler)
 
@@ -140,6 +146,7 @@ class TestSchedulerAndRateLimiterIntegration:
             email_provider=MockEmailProvider(),
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         with SessionFactory() as session:
@@ -228,6 +235,7 @@ class TestCampaignFullLifecycle:
             worker=build_worker(SessionFactory),
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         set_campaign_scheduler(scheduler)
 
@@ -332,6 +340,7 @@ class TestStartupCrashRecovery:
             worker=build_worker(SessionFactory),
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         recovered_count = scheduler.run_crash_recovery_audit()
 

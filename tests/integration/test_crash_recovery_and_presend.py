@@ -25,6 +25,7 @@ from app.infrastructure.repositories import (
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.infrastructure import SystemClock
 from app.ports.providers import ProviderSendResult
 from tests.doubles.fake_providers import FakeEmailProvider
 
@@ -106,6 +107,7 @@ class TestCrashRecoveryAndPreSend:
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         with session_factory() as session:
@@ -138,12 +140,14 @@ class TestCrashRecoveryAndPreSend:
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
         scheduler = PersistentCampaignScheduler(
             session_factory=session_factory,
             worker=worker,
             event_publisher=event_bus,
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         # Simulate 2 orphaned attempts stuck in SENDING and QUEUED from a crashed process
@@ -213,6 +217,7 @@ class TestCrashRecoveryAndPreSend:
             rate_limiter=rate_limiter,
             event_publisher=event_bus,
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         with session_factory() as session:

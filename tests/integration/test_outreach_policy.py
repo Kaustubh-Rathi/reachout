@@ -48,6 +48,7 @@ from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOut
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.ports.infrastructure import SystemClock
 from app.services.outreach_service import OutreachService
 from app.services.template_service import TemplateService
 from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
@@ -128,6 +129,7 @@ class TestTemplates:
             rate_limiter=RateLimiter(default_channel_delay={"WHATSAPP": 0.001, "EMAIL": 0.001}),
             event_publisher=EventBus(),
             repository_factory=build_repositories,
+            clock=SystemClock(),
         )
 
         with outreach_db() as session:
