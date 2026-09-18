@@ -1,6 +1,5 @@
 """Reachout CRM Application Services Layer."""
 
-from app.infrastructure.events.event_bus import event_bus
 from app.services.campaign_service import CampaignService
 from app.services.company_service import CompanyService
 from app.services.contact_service import ContactService
@@ -19,5 +18,4 @@ __all__ = [
     "SenderService",
     "TemplateService",
     "SyncService",
-    "event_bus",
 ]
