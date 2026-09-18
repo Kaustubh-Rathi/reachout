@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -42,60 +42,42 @@ class UpdateNotesRequest(BaseModel):
 def update_status(payload: UpdateStatusRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Update contact CRM business status directly from CRM control plane."""
     svc = CrmService(session)
-    try:
-        return svc.update_status(payload.contact_id, payload.status)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.update_status(payload.contact_id, payload.status)
 
 
 @router.post("/interested")
 def mark_interested(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark contact as interested. Records interested_at and transitions interview to PENDING."""
     svc = CrmService(session)
-    try:
-        return svc.mark_interested(payload.contact_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.mark_interested(payload.contact_id)
 
 
 @router.post("/not-interested")
 def mark_not_interested(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark contact as not interested. Moves contact to bottom tier and clears reminders."""
     svc = CrmService(session)
-    try:
-        return svc.mark_not_interested(payload.contact_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.mark_not_interested(payload.contact_id)
 
 
 @router.post("/interview")
 def mark_interview(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark interview scheduled/progressing. Follow-up reminder is no longer due."""
     svc = CrmService(session)
-    try:
-        return svc.mark_interview(payload.contact_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.mark_interview(payload.contact_id)
 
 
 @router.post("/not-interview")
 def mark_not_interview(payload: ContactActionRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Mark not interviewing / rejected. Follow-up reminder is no longer due."""
     svc = CrmService(session)
-    try:
-        return svc.mark_not_interview(payload.contact_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.mark_not_interview(payload.contact_id)
 
 
 @router.post("/notes")
 def update_notes(payload: UpdateNotesRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Update conversation notes for contact."""
     svc = CrmService(session)
-    try:
-        return svc.update_notes(payload.contact_id, payload.notes)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.update_notes(payload.contact_id, payload.notes)
 
 
 @router.get("/reminders")

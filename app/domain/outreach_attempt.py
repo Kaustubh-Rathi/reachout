@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.domain.enums import AttemptType, Channel, OutreachStatus
+from app.domain.errors import ValidationError
 
 
 def generate_idempotency_key(
@@ -145,13 +146,13 @@ class OutreachAttempt:
     def mark_queued(self) -> None:
         """Mark attempt as queued in scheduler/pipeline."""
         if self.status != OutreachStatus.PREPARED:
-            raise ValueError(f"Cannot queue attempt from status '{self.status}'")
+            raise ValidationError(f"Cannot queue attempt from status '{self.status}'")
         self.status = OutreachStatus.QUEUED
 
     def mark_sending(self, timestamp: Optional[datetime] = None) -> None:
         """Mark attempt as actively executing with provider."""
         if self.status not in (OutreachStatus.PREPARED, OutreachStatus.QUEUED):
-            raise ValueError(f"Cannot begin sending from status '{self.status}'")
+            raise ValidationError(f"Cannot begin sending from status '{self.status}'")
         self.status = OutreachStatus.SENDING
         self.started_at = timestamp or datetime.now(timezone.utc)
 
@@ -213,9 +214,9 @@ class OutreachAttempt:
     ) -> None:
         """Resolve a recovery-required attempt following audit."""
         if self.status not in (OutreachStatus.UNKNOWN, OutreachStatus.RECOVERY_REQUIRED):
-            raise ValueError(f"Cannot resolve recovery for attempt with status '{self.status}'")
+            raise ValidationError(f"Cannot resolve recovery for attempt with status '{self.status}'")
         if resolved_status not in (OutreachStatus.SENT, OutreachStatus.FAILED):
-            raise ValueError(f"Resolved recovery status must be SENT or FAILED, got '{resolved_status}'")
+            raise ValidationError(f"Resolved recovery status must be SENT or FAILED, got '{resolved_status}'")
         now = timestamp or datetime.now(timezone.utc)
         self.status = resolved_status
         self.recovery_notes = notes

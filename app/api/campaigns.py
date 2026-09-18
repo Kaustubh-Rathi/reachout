@@ -8,17 +8,25 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db_session
 from app.config import DEFAULT_OUTREACH_LIMIT, MAX_OUTREACH_LIMIT
 from app.domain.enums import Channel
-from app.domain.errors import OutreachNotReadyError
+from app.domain.errors import OutreachNotReadyError, ValidationError
 from app.services.campaign_service import CampaignService
 
 router = APIRouter(prefix="/api/campaigns", tags=["Campaigns"])
+
+
+def _parse_channel(value: Optional[str]) -> Channel:
+    """Parse a channel string, raising a typed validation error when invalid."""
+    try:
+        return Channel((value or "WHATSAPP").upper())
+    except ValueError as exc:
+        raise ValidationError(f"Invalid channel '{value}'. Must be 'WHATSAPP' or 'EMAIL'.") from exc
 
 
 class CampaignCreateRequest(BaseModel):
@@ -50,12 +58,7 @@ def list_campaigns(session: Session = Depends(get_db_session)) -> List[Dict[str,
 def create_campaign(payload: CampaignCreateRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Create a new campaign entity."""
     svc = CampaignService(session)
-    try:
-        ch = Channel(payload.channel.upper())
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid channel '{payload.channel}'. Must be 'WHATSAPP' or 'EMAIL'."
-        ) from None
+    ch = _parse_channel(payload.channel)
 
     campaign = svc.create_campaign(
         name=payload.name,
@@ -75,10 +78,7 @@ def check_outreach_readiness(
 ) -> Dict[str, Any]:
     """Pre-flight validation check verifying all prerequisites before starting outreach."""
     svc = CampaignService(session)
-    try:
-        ch = Channel(channel.upper() if channel else "WHATSAPP")
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel '{channel}'") from None
+    ch = _parse_channel(channel)
     return svc.validate_outreach_readiness(channel=ch, campaign_id=campaign_id)
 
 
@@ -88,11 +88,7 @@ def quick_start_campaign(
 ) -> Dict[str, Any]:
     """Convenience endpoint to launch an outreach campaign immediately on eligible DB contacts."""
     svc = CampaignService(session)
-    channel_str = payload.channel or "WHATSAPP"
-    try:
-        ch = Channel(channel_str.upper())
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid channel '{channel_str}'") from None
+    ch = _parse_channel(payload.channel)
 
     # Upfront readiness check
     readiness = svc.validate_outreach_readiness(channel=ch)
@@ -111,10 +107,7 @@ def quick_start_campaign(
 def get_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Get campaign details and current progress."""
     svc = CampaignService(session)
-    try:
-        return svc.get_campaign_progress(campaign_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.get_campaign_progress(campaign_id)
 
 
 @router.post("/{campaign_id}/start")
@@ -130,10 +123,7 @@ def start_campaign(
 def pause_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Pause an active campaign."""
     svc = CampaignService(session)
-    try:
-        return svc.pause_campaign(campaign_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.pause_campaign(campaign_id)
 
 
 @router.post("/{campaign_id}/resume")
@@ -147,27 +137,18 @@ def resume_campaign(campaign_id: str, session: Session = Depends(get_db_session)
 def stop_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Stop/cancel a campaign."""
     svc = CampaignService(session)
-    try:
-        return svc.stop_campaign(campaign_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.stop_campaign(campaign_id)
 
 
 @router.get("/{campaign_id}/progress")
 def get_campaign_progress(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Inspect real-time progress metrics for a campaign."""
     svc = CampaignService(session)
-    try:
-        return svc.get_campaign_progress(campaign_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.get_campaign_progress(campaign_id)
 
 
 @router.get("/{campaign_id}/status")
 def get_campaign_status(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Alias for campaign progress / status inspection."""
     svc = CampaignService(session)
-    try:
-        return svc.get_campaign_progress(campaign_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.get_campaign_progress(campaign_id)

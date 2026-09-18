@@ -84,30 +84,21 @@ def configure_whatsapp_sessions(
 ) -> List[Dict[str, Any]]:
     """Configure N independent WhatsApp sessions."""
     svc = SenderService(session)
-    try:
-        return svc.configure_whatsapp_sessions(payload.count)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.configure_whatsapp_sessions(payload.count)
 
 
 @router.post("/whatsapp/{sender_id}/auth/start")
 def start_whatsapp_auth(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Start QR authentication process for a WhatsApp session."""
     svc = SenderService(session)
-    try:
-        return svc.start_whatsapp_authentication(sender_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.start_whatsapp_authentication(sender_id)
 
 
 @router.get("/whatsapp/{sender_id}/auth/status")
 def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Get live authentication status and QR code if required."""
     svc = SenderService(session)
-    try:
-        return svc.get_whatsapp_auth_status(sender_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.get_whatsapp_auth_status(sender_id)
 
 
 @router.post("/whatsapp/{sender_id}/auth/check")
@@ -121,10 +112,7 @@ def check_whatsapp_session_health(
     login; inconclusive probes are reported without changing stored status.
     """
     svc = SenderService(session)
-    try:
-        return svc.check_whatsapp_session_health(sender_id, timeout_seconds=timeout_seconds)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.check_whatsapp_session_health(sender_id, timeout_seconds=timeout_seconds)
 
 
 @router.post("/email/configure")
@@ -133,29 +121,23 @@ def configure_email_sender(
 ) -> Dict[str, Any]:
     """Configure or register an Email sender identity and optionally test credentials."""
     svc = SenderService(session)
-    try:
-        return svc.configure_email_sender(
-            id=payload.id,
-            identity=payload.identity,
-            display_name=payload.display_name,
-            host=payload.host,
-            port=payload.port,
-            user=payload.user,
-            password=payload.password,
-            verify_now=payload.verify_now if payload.verify_now is not None else True,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.configure_email_sender(
+        id=payload.id,
+        identity=payload.identity,
+        display_name=payload.display_name,
+        host=payload.host,
+        port=payload.port,
+        user=payload.user,
+        password=payload.password,
+        verify_now=payload.verify_now if payload.verify_now is not None else True,
+    )
 
 
 @router.post("/email/{sender_id}/verify")
 def verify_email_sender(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Verify SMTP credentials for an Email sender identity."""
     svc = SenderService(session)
-    try:
-        return svc.verify_email_sender(sender_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return svc.verify_email_sender(sender_id)
 
 
 @router.get("")
@@ -194,34 +176,28 @@ def update_sender_status(
 ) -> Dict[str, Any]:
     """Update sender operational status."""
     svc = SenderService(session)
-    try:
-        updated = svc.update_sender_status(sender_id, payload.status)
-        if not updated:
-            raise HTTPException(status_code=404, detail=f"Sender '{sender_id}' not found")
-        return updated
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    updated = svc.update_sender_status(sender_id, payload.status)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Sender '{sender_id}' not found")
+    return updated
 
 
 @router.post("")
 def create_sender(payload: CreateSenderRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Register a new sender identity."""
     svc = SenderService(session)
-    try:
-        ch = Channel(payload.channel.upper())
-        st = SenderStatus(payload.status.upper()) if payload.status else SenderStatus.ACTIVE
-        return svc.create_sender(
-            id=payload.id,
-            channel=ch,
-            provider=payload.provider,
-            identity=payload.identity,
-            display_name=payload.display_name,
-            status=st,
-            daily_limit=payload.daily_limit,
-            hourly_limit=payload.hourly_limit,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    ch = Channel(payload.channel.upper())
+    st = SenderStatus(payload.status.upper()) if payload.status else SenderStatus.ACTIVE
+    return svc.create_sender(
+        id=payload.id,
+        channel=ch,
+        provider=payload.provider,
+        identity=payload.identity,
+        display_name=payload.display_name,
+        status=st,
+        daily_limit=payload.daily_limit,
+        hourly_limit=payload.hourly_limit,
+    )
 
 
 @router.post("/{sender_id}/deactivate")

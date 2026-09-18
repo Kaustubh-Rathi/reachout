@@ -91,29 +91,26 @@ def get_template(template_id: str, session: Session = Depends(get_db_session)) -
 def create_template(payload: CreateTemplateRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Create a new message template."""
     svc = TemplateService(session)
-    try:
-        ch = Channel(payload.channel.upper())
-        t = svc.create_template(
-            id=payload.id,
-            name=payload.name,
-            channel=ch,
-            body=payload.body,
-            subject=payload.subject,
-            attachment_ref=payload.attachment_ref,
-            phone_number=payload.phone_number,
-            active=payload.active,
-        )
-        return {
-            "id": t.id,
-            "name": t.name,
-            "channel": t.channel.value,
-            "body": t.body,
-            "subject": t.subject,
-            "phone_number": t.phone_number,
-            "active": t.active,
-        }
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    ch = Channel(payload.channel.upper())
+    t = svc.create_template(
+        id=payload.id,
+        name=payload.name,
+        channel=ch,
+        body=payload.body,
+        subject=payload.subject,
+        attachment_ref=payload.attachment_ref,
+        phone_number=payload.phone_number,
+        active=payload.active,
+    )
+    return {
+        "id": t.id,
+        "name": t.name,
+        "channel": t.channel.value,
+        "body": t.body,
+        "subject": t.subject,
+        "phone_number": t.phone_number,
+        "active": t.active,
+    }
 
 
 @router.put("/{template_id}")

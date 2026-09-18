@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.contact import Contact
 from app.domain.enums import CRMOutcome, InterviewState, OutreachStatus, ReminderStatus
+from app.domain.errors import NotFoundError, ValidationError
 from app.domain.policies.reminder_policy import (
     DEFAULT_FOLLOW_UP_THRESHOLD_DAYS,
     check_contact_follow_up_eligibility,
@@ -100,7 +101,7 @@ class CrmService:
         """
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
-            raise ValueError(f"Contact not found: {contact_id}")
+            raise NotFoundError(f"Contact not found: {contact_id}")
 
         now = timestamp or self.clock.now()
         status_upper = status.strip().upper()
@@ -111,7 +112,7 @@ class CrmService:
         elif status_upper in CRMOutcome.__members__:
             contact.update_crm_outcome(CRMOutcome(status_upper), now)
         else:
-            raise ValueError(f"Invalid status: {status}")
+            raise ValidationError(f"Invalid status: {status}")
 
         self.contact_repo.save(contact)
         self.session.commit()
@@ -147,7 +148,7 @@ class CrmService:
         """Mark contact as interested, setting interested_at and resetting interview to PENDING."""
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
-            raise ValueError(f"Contact not found: {contact_id}")
+            raise NotFoundError(f"Contact not found: {contact_id}")
 
         now = timestamp or self.clock.now()
         contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
@@ -177,7 +178,7 @@ class CrmService:
         """Mark contact as not interested."""
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
-            raise ValueError(f"Contact not found: {contact_id}")
+            raise NotFoundError(f"Contact not found: {contact_id}")
 
         now = timestamp or self.clock.now()
         contact.update_crm_outcome(CRMOutcome.NOT_INTERESTED, now)
@@ -208,7 +209,7 @@ class CrmService:
         """Mark contact as interview scheduled/progressing. Clears 7-day follow-up reminder."""
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
-            raise ValueError(f"Contact not found: {contact_id}")
+            raise NotFoundError(f"Contact not found: {contact_id}")
 
         now = timestamp or self.clock.now()
         contact.update_interview_status(InterviewState.INTERVIEW, now)
@@ -239,7 +240,7 @@ class CrmService:
         """Mark contact as not interviewing / rejected. Clears 7-day follow-up reminder."""
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
-            raise ValueError(f"Contact not found: {contact_id}")
+            raise NotFoundError(f"Contact not found: {contact_id}")
 
         now = timestamp or self.clock.now()
         contact.update_interview_status(InterviewState.NOT_INTERVIEW, now)
@@ -270,7 +271,7 @@ class CrmService:
         """Update user conversation notes for contact."""
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
-            raise ValueError(f"Contact not found: {contact_id}")
+            raise NotFoundError(f"Contact not found: {contact_id}")
 
         contact.notes = notes
         contact.updated_at = self.clock.now()

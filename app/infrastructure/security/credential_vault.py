@@ -16,6 +16,8 @@ import threading
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from app.domain.errors import ConfigurationError
+
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_VAULT_PATH = ROOT_DIR / ".sessions" / "credentials" / "smtp_vault.enc"
 DEFAULT_KEY_PATH = ROOT_DIR / ".sessions" / ".vault_key"
@@ -53,7 +55,7 @@ def _encrypt_payload(data: bytes, master_key: bytes) -> bytes:
 def _decrypt_payload(blob: bytes, master_key: bytes) -> bytes:
     """Verify MAC and decrypt data."""
     if len(blob) < 16 + 16 + 32:
-        raise ValueError("Invalid encrypted payload: too short")
+        raise ConfigurationError("Invalid encrypted payload: too short")
     salt = blob[:16]
     iv = blob[16:32]
     tag = blob[-32:]
@@ -61,7 +63,7 @@ def _decrypt_payload(blob: bytes, master_key: bytes) -> bytes:
     enc_key, mac_key = _derive_keys(master_key, salt)
     expected_tag = hmac.new(mac_key, salt + iv + ciphertext, hashlib.sha256).digest()
     if not hmac.compare_digest(tag, expected_tag):
-        raise ValueError("Decryption error: MAC integrity verification failed")
+        raise ConfigurationError("Decryption error: MAC integrity verification failed")
     ks = _keystream(enc_key, iv, len(ciphertext))
     return bytes(a ^ b for a, b in zip(ciphertext, ks, strict=False))
 

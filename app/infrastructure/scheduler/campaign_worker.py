@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 from app.config import DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
 from app.domain.campaign import Campaign
 from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachStatus, SenderStatus
+from app.domain.errors import NotFoundError, ValidationError
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.sender_account import SenderAccount
@@ -130,7 +131,7 @@ class OutreachWorker:
 
             contact = contact_repo.get_by_id(contact_id)
             if not contact:
-                raise ValueError(f"Target contact '{contact_id}' not found")
+                raise NotFoundError(f"Target contact '{contact_id}' not found")
 
             company = company_repo.get_by_id(contact.company_id) if contact.company_id else None
 
@@ -385,7 +386,7 @@ class OutreachWorker:
                     elif db_attempt.status == OutreachStatus.SENDING:
                         attempt = db_attempt
                     else:
-                        raise ValueError(f"Cannot begin sending from status '{db_attempt.status.value}'")
+                        raise ValidationError(f"Cannot begin sending from status '{db_attempt.status.value}'")
 
             self.event_publisher.publish(
                 DomainEvent(

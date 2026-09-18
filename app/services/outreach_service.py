@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import SENDER_PROFILE
 from app.domain.contact import Contact
 from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachStatus, SenderStatus
+from app.domain.errors import AlreadySentError, ConflictError, NotFoundError, ValidationError
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.policies.resend_policy import prepare_manual_resend
@@ -57,7 +58,7 @@ class OutreachService:
     def _validate_sender_active(self, sender: SenderAccount) -> None:
         """B13: refuse to dispatch from a sender that is not ACTIVE."""
         if not sender.is_available():
-            raise ValueError(
+            raise ValidationError(
                 f"SENDER_NOT_ACTIVE: Sender '{sender.id}' is not ACTIVE (status={sender.status.value}). "
                 f"Authenticate/reactivate it before sending."
             )
@@ -65,14 +66,14 @@ class OutreachService:
     def _require_contact(self, contact_id: str) -> Contact:
         contact = self.contact_repo.get_by_id(contact_id)
         if not contact:
-            raise ValueError(f"Contact not found: {contact_id}")
+            raise NotFoundError(f"Contact not found: {contact_id}")
         return contact
 
     def _resolve_recipient(self, contact: Contact, channel: Channel, destination: Optional[str]) -> str:
         recipient = destination or recipient_for(contact, channel)
         if not recipient:
             what = "phone number" if channel == Channel.WHATSAPP else "email address"
-            raise ValueError(f"Contact {contact.name} has no valid {what}")
+            raise ValidationError(f"Contact {contact.name} has no valid {what}")
         return recipient
 
     def _resolve_sender(self, sender_id: Optional[str], channel: Channel, contact_id: str) -> SenderAccount:
@@ -80,13 +81,13 @@ class OutreachService:
         if sender_id:
             sender = self.sender_repo.get_by_id(sender_id)
             if not sender:
-                raise ValueError(f"Sender account not found: {sender_id}")
+                raise NotFoundError(f"Sender account not found: {sender_id}")
         if not sender:
             active_senders = self.sender_repo.list_active(channel)
             sender = active_senders[0] if active_senders else None
         if not sender:
             label = channel_label(channel)
-            raise ValueError(
+            raise ValidationError(
                 f"NO_ACTIVE_{label.upper()}_SESSION: No active {label} sender account available for {contact_id}"
             )
         # B13: never dispatch from a non-ACTIVE sender, even when explicitly selected.
@@ -155,7 +156,7 @@ class OutreachService:
             if existing.status == OutreachStatus.SENT:
                 raise AlreadySentError(existing.id)
             if existing.status in (OutreachStatus.QUEUED, OutreachStatus.SENDING):
-                raise ValueError("Outreach attempt already in-flight for this contact/channel/destination")
+                raise ConflictError("Outreach attempt already in-flight for this contact/channel/destination")
             # Previous attempt FAILED / UNKNOWN / RECOVERY: a genuine retry gets a distinct key.
             return generate_idempotency_key(
                 contact_id=contact_id,
@@ -622,7 +623,7 @@ class OutreachService:
         """Resolve a stuck recovery attempt: 'mark_sent', 'retry', or 'cancel'."""
         attempt = self.outreach_repo.get_by_id(attempt_id)
         if not attempt:
-            raise ValueError(f"Attempt not found: {attempt_id}")
+            raise NotFoundError(f"Attempt not found: {attempt_id}")
 
         now = self.clock.now()
         attempt.recovery_notes = recovery_notes or f"Resolved via operator action: {action}"
@@ -651,10 +652,4 @@ class OutreachService:
             "recovery_notes": attempt.recovery_notes,
         }
 
-
-class AlreadySentError(Exception):
-    """Raised when a dispatch would duplicate an already-SENT attempt."""
-
-    def __init__(self, attempt_id: str):
-        self.attempt_id = attempt_id
         super().__init__(f"Outreach already sent (attempt {attempt_id})")

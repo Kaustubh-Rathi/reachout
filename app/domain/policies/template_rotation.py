@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from app.domain.errors import ValidationError
 from app.domain.message_template import MessageTemplate
 
 
@@ -17,5 +18,5 @@ def select_template_round_robin(
 ) -> MessageTemplate:
     """Select template using round-robin indexing."""
     if not templates:
-        raise ValueError("Cannot select from empty template list")
+        raise ValidationError("Cannot select from empty template list")
     return templates[index % len(templates)]
