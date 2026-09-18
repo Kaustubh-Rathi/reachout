@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database import get_session
+from app.api.dependencies import get_db_session
 from app.services.contact_service import ContactService
 
 router = APIRouter(prefix="/api/contacts", tags=["Contacts"])
@@ -28,7 +28,7 @@ def list_contacts(
     priority_filter: Optional[str] = None,
     limit: Optional[int] = None,
     offset: int = 0,
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ):
     """Retrieve contacts with full search, filtering, and deterministic priority ordering."""
     svc = ContactService(session)
@@ -44,14 +44,14 @@ def list_contacts(
 
 
 @router.get("/discrepancies")
-def get_contact_discrepancies(session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_contact_discrepancies(session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """List cross-company data discrepancies (same phone/email owned by multiple contacts)."""
     svc = ContactService(session)
     return svc.get_discrepancies()
 
 
 @router.get("/{contact_id}")
-def get_contact(contact_id: str, session: Session = Depends(get_session)):
+def get_contact(contact_id: str, session: Session = Depends(get_db_session)):
     """Retrieve full detail for a single contact including attempt timeline and reminders."""
     svc = ContactService(session)
     detail = svc.get_contact_detail(contact_id)
@@ -61,7 +61,7 @@ def get_contact(contact_id: str, session: Session = Depends(get_session)):
 
 
 @router.delete("/{contact_id}")
-def archive_contact(contact_id: str, reason: str = "MANUAL_CRM_DELETION", session: Session = Depends(get_session)):
+def archive_contact(contact_id: str, reason: str = "MANUAL_CRM_DELETION", session: Session = Depends(get_db_session)):
     """Archive/delete a contact and record tombstone suppression."""
     svc = ContactService(session)
     success = svc.archive_contact(contact_id, reason=reason)
@@ -76,7 +76,7 @@ def export_contacts_csv(
     company: Optional[str] = None,
     crm_status: Optional[str] = None,
     priority_filter: Optional[str] = None,
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> StreamingResponse:
     """Export contacts to a CSV download backed by the live database."""
     svc = ContactService(session)

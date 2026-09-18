@@ -9,24 +9,25 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 
-from app.infrastructure.events.event_bus import event_bus
+from app.api.dependencies import get_event_stream
+from app.ports.infrastructure import EventStream
 
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
 
 @router.get("/stream")
 @router.get("")
-async def stream_events():
+async def stream_events(event_stream: EventStream = Depends(get_event_stream)):
     """Stream live domain events via Server-Sent Events (SSE)."""
 
     async def event_generator():
         # Yield an initial connected event
         yield f"event: connected\ndata: {json.dumps({'status': 'connected'})}\n\n"
 
-        async for event in event_bus.subscribe():
+        async for event in event_stream.subscribe_async():
             data_payload = {
                 "event_id": event.event_id,
                 "event_type": event.event_type,
@@ -47,12 +48,12 @@ async def stream_events():
 
 
 @router.websocket("/ws")
-async def websocket_events(websocket: WebSocket):
+async def websocket_events(websocket: WebSocket, event_stream: EventStream = Depends(get_event_stream)):
     """Stream live domain events over WebSocket."""
     await websocket.accept()
     await websocket.send_json({"type": "connected", "event_type": "connected", "payload": {"status": "connected"}})
     try:
-        async for event in event_bus.subscribe():
+        async for event in event_stream.subscribe_async():
             dot_type = event.event_type.lower().replace("_", ".")
             data_payload = {
                 "type": dot_type,
@@ -73,6 +74,8 @@ async def websocket_events(websocket: WebSocket):
 
 
 @router.get("/history")
-def get_event_history(limit: int = Query(50, ge=1, le=200)) -> List[Dict[str, Any]]:
+def get_event_history(
+    limit: int = Query(50, ge=1, le=200), event_stream: EventStream = Depends(get_event_stream)
+) -> List[Dict[str, Any]]:
     """Retrieve recent event history."""
-    return event_bus.get_history(limit=limit)
+    return event_stream.get_history(limit=limit)

@@ -10,14 +10,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.infrastructure.database import get_session
+from app.api.dependencies import get_db_session
 from app.services.company_service import CompanyService
 
 router = APIRouter(prefix="/api/companies", tags=["Companies"])
 
 
 @router.get("")
-def list_companies(session: Session = Depends(get_session)) -> List[Dict[str, Any]]:
+def list_companies(session: Session = Depends(get_db_session)) -> List[Dict[str, Any]]:
     """List all registered companies with status and contact counts."""
     svc = CompanyService(session)
     return svc.list_companies()
@@ -33,7 +33,7 @@ def list_company_hierarchies(
     ),
     company: Optional[str] = Query(None, description="Company id or name to filter by"),
     channel_status: Optional[str] = Query(None, description="SENT/NOT_SENT/WHATSAPP_SENT/EMAIL_SENT"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> List[Dict[str, Any]]:
     """List all companies with full HR and endpoint hierarchies."""
     svc = CompanyService(session)
@@ -48,7 +48,7 @@ def list_company_hierarchies(
 
 
 @router.get("/{company_id}")
-def get_company(company_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_company(company_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Retrieve company detail with list of associated contacts."""
     svc = CompanyService(session)
     comp = svc.get_company(company_id)
@@ -58,7 +58,7 @@ def get_company(company_id: str, session: Session = Depends(get_session)) -> Dic
 
 
 @router.get("/{company_id}/hierarchy")
-def get_company_hierarchy(company_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_company_hierarchy(company_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Retrieve full company hierarchy: Company -> HR Contacts -> Endpoints -> Attempts."""
     svc = CompanyService(session)
     h = svc.get_company_hierarchy(company_id)

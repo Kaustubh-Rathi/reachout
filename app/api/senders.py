@@ -12,8 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import get_db_session
 from app.domain.enums import Channel, SenderStatus
-from app.infrastructure.database import get_session
 from app.services.sender_service import SenderService
 
 router = APIRouter(prefix="/api/senders", tags=["Senders"])
@@ -62,7 +62,7 @@ class ConfigureEmailRequest(BaseModel):
 
 
 @router.get("/readiness")
-def get_senders_readiness(session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_senders_readiness(session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Retrieve multi-channel sender readiness and active session counts."""
     svc = SenderService(session)
     return svc.get_senders_readiness()
@@ -71,7 +71,7 @@ def get_senders_readiness(session: Session = Depends(get_session)) -> Dict[str, 
 @router.post("/whatsapp/add")
 def add_whatsapp_session(
     payload: AddSenderRequest = AddSenderRequest(),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> Dict[str, Any]:
     """Dynamically add a new independent WhatsApp session in AUTH_REQUIRED status."""
     svc = SenderService(session)
@@ -80,7 +80,7 @@ def add_whatsapp_session(
 
 @router.post("/whatsapp/configure")
 def configure_whatsapp_sessions(
-    payload: ConfigureWhatsAppRequest, session: Session = Depends(get_session)
+    payload: ConfigureWhatsAppRequest, session: Session = Depends(get_db_session)
 ) -> List[Dict[str, Any]]:
     """Configure N independent WhatsApp sessions."""
     svc = SenderService(session)
@@ -91,7 +91,7 @@ def configure_whatsapp_sessions(
 
 
 @router.post("/whatsapp/{sender_id}/auth/start")
-def start_whatsapp_auth(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def start_whatsapp_auth(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Start QR authentication process for a WhatsApp session."""
     svc = SenderService(session)
     try:
@@ -101,7 +101,7 @@ def start_whatsapp_auth(sender_id: str, session: Session = Depends(get_session))
 
 
 @router.get("/whatsapp/{sender_id}/auth/status")
-def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Get live authentication status and QR code if required."""
     svc = SenderService(session)
     try:
@@ -112,7 +112,7 @@ def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_sess
 
 @router.post("/whatsapp/{sender_id}/auth/check")
 def check_whatsapp_session_health(
-    sender_id: str, timeout_seconds: int = Query(20, ge=5, le=120), session: Session = Depends(get_session)
+    sender_id: str, timeout_seconds: int = Query(20, ge=5, le=120), session: Session = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """Probe the sender's browser profile and sync the stored status.
 
@@ -128,7 +128,9 @@ def check_whatsapp_session_health(
 
 
 @router.post("/email/configure")
-def configure_email_sender(payload: ConfigureEmailRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def configure_email_sender(
+    payload: ConfigureEmailRequest, session: Session = Depends(get_db_session)
+) -> Dict[str, Any]:
     """Configure or register an Email sender identity and optionally test credentials."""
     svc = SenderService(session)
     try:
@@ -147,7 +149,7 @@ def configure_email_sender(payload: ConfigureEmailRequest, session: Session = De
 
 
 @router.post("/email/{sender_id}/verify")
-def verify_email_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def verify_email_sender(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Verify SMTP credentials for an Email sender identity."""
     svc = SenderService(session)
     try:
@@ -159,7 +161,7 @@ def verify_email_sender(sender_id: str, session: Session = Depends(get_session))
 @router.get("")
 def list_senders(
     channel: Optional[str] = Query(None, description="Optional channel filter: WHATSAPP or EMAIL"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_db_session),
 ) -> List[Dict[str, Any]]:
     """List all sender accounts with operational status. Zero credential exposure."""
     svc = SenderService(session)
@@ -167,7 +169,7 @@ def list_senders(
 
 
 @router.get("/{sender_id}")
-def get_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def get_sender(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Retrieve sender account info."""
     svc = SenderService(session)
     sender = svc.get_sender(sender_id)
@@ -188,7 +190,7 @@ def get_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[
 
 @router.put("/{sender_id}/status")
 def update_sender_status(
-    sender_id: str, payload: UpdateSenderStatusRequest, session: Session = Depends(get_session)
+    sender_id: str, payload: UpdateSenderStatusRequest, session: Session = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """Update sender operational status."""
     svc = SenderService(session)
@@ -202,7 +204,7 @@ def update_sender_status(
 
 
 @router.post("")
-def create_sender(payload: CreateSenderRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def create_sender(payload: CreateSenderRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Register a new sender identity."""
     svc = SenderService(session)
     try:
@@ -223,7 +225,7 @@ def create_sender(payload: CreateSenderRequest, session: Session = Depends(get_s
 
 
 @router.post("/{sender_id}/deactivate")
-def deactivate_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def deactivate_sender(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Deactivate a sender account so it exits future rotation without deleting history."""
     svc = SenderService(session)
     res = svc.deactivate_sender(sender_id)
@@ -233,7 +235,7 @@ def deactivate_sender(sender_id: str, session: Session = Depends(get_session)) -
 
 
 @router.post("/{sender_id}/reactivate")
-def reactivate_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def reactivate_sender(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Reactivate a deactivated sender account."""
     svc = SenderService(session)
     res = svc.reactivate_sender(sender_id)
@@ -243,7 +245,7 @@ def reactivate_sender(sender_id: str, session: Session = Depends(get_session)) -
 
 
 @router.delete("/{sender_id}")
-def delete_sender(sender_id: str, session: Session = Depends(get_session)) -> Dict[str, Any]:
+def delete_sender(sender_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Controlled deletion/deactivation of sender (preserves historical attempts)."""
     svc = SenderService(session)
     success = svc.remove_sender(sender_id)
