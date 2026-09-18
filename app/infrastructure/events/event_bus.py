@@ -11,7 +11,7 @@ import asyncio
 import threading
 from collections import deque
 from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Callable, Deque, Dict, List, Optional, Set
+from typing import Any, AsyncGenerator, Callable, Deque, Dict, List, Optional
 
 from app.ports.infrastructure import DomainEvent
 
@@ -25,7 +25,10 @@ class EventBus:
         self._lock = threading.RLock()
         self._listeners: List[EventListener] = []
         self._typed_listeners: Dict[str, List[EventListener]] = {}
-        self._async_subscribers: Set[asyncio.Queue[DomainEvent]] = set()
+        # Map each subscriber queue to the event loop that owns it. ``asyncio.Queue``
+        # is not thread-safe, so publishers running on worker/threadpool threads must
+        # hand events to the owning loop via ``call_soon_threadsafe``.
+        self._async_subscribers: Dict[asyncio.Queue[DomainEvent], asyncio.AbstractEventLoop] = {}
         self._recent_events: Deque[DomainEvent] = deque(maxlen=max_buffer_size)
 
     def subscribe(self, listener: Optional[EventListener] = None, event_type: Optional[str] = None):
@@ -51,16 +54,34 @@ class EventBus:
 
     async def subscribe_async(self) -> AsyncGenerator[DomainEvent, None]:
         """Subscribe to real-time events as an async generator for WebSocket/SSE."""
+        loop = asyncio.get_running_loop()
         queue: asyncio.Queue[DomainEvent] = asyncio.Queue(maxsize=200)
         with self._lock:
-            self._async_subscribers.add(queue)
+            self._async_subscribers[queue] = loop
         try:
             while True:
                 event = await queue.get()
                 yield event
         finally:
             with self._lock:
-                self._async_subscribers.discard(queue)
+                self._async_subscribers.pop(queue, None)
+
+    @staticmethod
+    def _deliver(queue: asyncio.Queue[DomainEvent], event: DomainEvent) -> None:
+        """Run on the subscriber's event loop; never touches shared bus state."""
+        try:
+            queue.put_nowait(event)
+        except asyncio.QueueFull:
+            # Slow consumer: drop the oldest buffered event and keep the stream
+            # alive rather than silently disconnecting the subscriber.
+            try:
+                queue.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+            try:
+                queue.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
 
     def publish(self, event: DomainEvent) -> None:
         """Publish a single domain event to all synchronous listeners and async subscriber queues."""
@@ -70,15 +91,20 @@ class EventBus:
             if event.event_type in self._typed_listeners:
                 all_target_listeners.extend(self._typed_listeners[event.event_type])
 
-            # Dispatch to async subscriber queues
+            # Dispatch to async subscriber queues. Publishers may run on worker or
+            # threadpool threads, so hop onto each subscriber's owning loop instead
+            # of mutating its asyncio.Queue from the wrong thread.
             dead_queues = []
-            for queue in list(self._async_subscribers):
+            for queue, loop in list(self._async_subscribers.items()):
+                if loop.is_closed():
+                    dead_queues.append(queue)
+                    continue
                 try:
-                    queue.put_nowait(event)
-                except Exception:
+                    loop.call_soon_threadsafe(self._deliver, queue, event)
+                except RuntimeError:
                     dead_queues.append(queue)
             for dead in dead_queues:
-                self._async_subscribers.discard(dead)
+                self._async_subscribers.pop(dead, None)
 
         # Invoke synchronous callbacks outside lock to avoid deadlocks
         for listener in all_target_listeners:
