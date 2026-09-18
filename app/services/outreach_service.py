@@ -11,17 +11,17 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.config import SENDER_PROFILE
 from app.domain.contact import Contact
 from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachStatus, SenderStatus
 from app.domain.errors import AlreadySentError, ConflictError, NotFoundError, ValidationError
-from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.policies.resend_policy import prepare_manual_resend
 from app.domain.sender_account import SenderAccount
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
-from app.services.channel_defaults import channel_label, default_body, default_subject, recipient_for
+from app.services.channel_defaults import channel_label
 from app.services.context import ServiceContext, build_service_context
+from app.services.outreach_message_composer import MessageComposer
+from app.services.outreach_recovery_service import OutreachRecoveryService
 
 
 class OutreachService:
@@ -51,6 +51,13 @@ class OutreachService:
         # Event publishing is injectable so the service is unit-testable with a fake bus.
         self.event_publisher = event_publisher if event_publisher is not None else ctx.event_publisher
         self.clock = ctx.clock
+        self.composer = MessageComposer(template_repo=self.template_repo)
+        self.recovery = OutreachRecoveryService(
+            session=session,
+            outreach_repo=self.outreach_repo,
+            contact_repo=self.contact_repo,
+            clock=self.clock,
+        )
 
     # ------------------------------------------------------------------
     # Resolution helpers
@@ -69,13 +76,6 @@ class OutreachService:
             raise NotFoundError(f"Contact not found: {contact_id}")
         return contact
 
-    def _resolve_recipient(self, contact: Contact, channel: Channel, destination: Optional[str]) -> str:
-        recipient = destination or recipient_for(contact, channel)
-        if not recipient:
-            what = "phone number" if channel == Channel.WHATSAPP else "email address"
-            raise ValidationError(f"Contact {contact.name} has no valid {what}")
-        return recipient
-
     def _resolve_sender(self, sender_id: Optional[str], channel: Channel, contact_id: str) -> SenderAccount:
         sender = None
         if sender_id:
@@ -93,38 +93,6 @@ class OutreachService:
         # B13: never dispatch from a non-ACTIVE sender, even when explicitly selected.
         self._validate_sender_active(sender)
         return sender
-
-    def _resolve_message(
-        self,
-        contact: Contact,
-        channel: Channel,
-        template_id: Optional[str],
-        custom_body: Optional[str],
-        subject: Optional[str],
-        attachment_ref: Optional[str],
-        *,
-        is_resend: bool,
-    ) -> tuple[str, str, Optional[str], Optional[MessageTemplate]]:
-        """Resolve the outgoing body/subject/attachment, applying channel defaults."""
-        body = custom_body or ""
-        subj = subject or ""
-        template = None
-        if template_id:
-            template = self.template_repo.get_by_id(template_id)
-            if template:
-                rendered = template.render(contact, sender_profile=SENDER_PROFILE)
-                body = rendered.body
-                if channel == Channel.EMAIL:
-                    subj = rendered.subject or default_subject(contact, is_resend=is_resend)
-                # Use the rendered attachment so the SENDER_RESUME default applies to
-                # manual sends exactly as it does for campaign sends.
-                attachment_ref = attachment_ref or rendered.attachment_ref
-
-        if not body:
-            body = default_body(contact, channel, is_resend=is_resend)
-        if channel == Channel.EMAIL and not subj:
-            subj = default_subject(contact, is_resend=is_resend)
-        return body, subj, attachment_ref, template
 
     # ------------------------------------------------------------------
     # Idempotency
@@ -396,9 +364,9 @@ class OutreachService:
         destination: Optional[str],
     ) -> Dict[str, Any]:
         contact = self._require_contact(contact_id)
-        recipient = self._resolve_recipient(contact, channel, destination)
+        recipient = self.composer.resolve_recipient(contact, channel, destination)
         sender = self._resolve_sender(sender_id, channel, contact_id)
-        body, subj, attachment_ref, template = self._resolve_message(
+        body, subj, attachment_ref, template = self.composer.resolve_message(
             contact, channel, template_id, custom_body, subject, attachment_ref, is_resend=False
         )
 
@@ -495,9 +463,9 @@ class OutreachService:
         destination: Optional[str],
     ) -> Dict[str, Any]:
         contact = self._require_contact(contact_id)
-        recipient = self._resolve_recipient(contact, channel, destination)
+        recipient = self.composer.resolve_recipient(contact, channel, destination)
         sender = self._resolve_sender(sender_id, channel, contact_id)
-        body, subj, attachment_ref, template = self._resolve_message(
+        body, subj, attachment_ref, template = self.composer.resolve_message(
             contact, channel, template_id, custom_body, subject, attachment_ref, is_resend=True
         )
 
@@ -570,86 +538,12 @@ class OutreachService:
 
     def get_history(self, contact_id: str) -> List[Dict[str, Any]]:
         """Retrieve complete historical attempts for a contact."""
-        attempts = self.outreach_repo.list_by_contact(contact_id)
-        return [
-            {
-                "id": a.id,
-                "channel": a.channel.value,
-                "attempt_type": a.attempt_type.value,
-                "status": a.status.value,
-                "destination": a.destination,
-                "sender_account_id": a.sender_account_id,
-                "template_id": a.template_id,
-                "subject": a.subject_snapshot,
-                "message_body": a.message_body_snapshot,
-                "attachment": a.attachment_snapshot,
-                "prepared_at": a.prepared_at.isoformat() if a.prepared_at else None,
-                "completed_at": a.completed_at.isoformat() if a.completed_at else None,
-                "failure_code": a.failure_code,
-                "failure_detail": a.failure_detail,
-                "provider_reference": a.provider_reference,
-                "recovery_notes": a.recovery_notes,
-            }
-            for a in attempts
-        ]
+        return self.recovery.get_history(contact_id)
 
     def get_recovery_queue(self) -> List[Dict[str, Any]]:
         """Retrieve all outreach attempts stuck in RECOVERY_REQUIRED or UNKNOWN."""
-        rec = self.outreach_repo.list_by_status(OutreachStatus.RECOVERY_REQUIRED)
-        unk = self.outreach_repo.list_by_status(OutreachStatus.UNKNOWN)
-        combined = rec + unk
-
-        results = []
-        for a in combined:
-            cnt = self.contact_repo.get_by_id(a.contact_id)
-            results.append(
-                {
-                    "id": a.id,
-                    "contact_id": a.contact_id,
-                    "contact_name": cnt.name if cnt else "Unknown",
-                    "company": cnt.company_id if cnt else "Unknown",
-                    "channel": a.channel.value,
-                    "destination": a.destination,
-                    "status": a.status.value,
-                    "failure_code": a.failure_code,
-                    "failure_detail": a.failure_detail,
-                    "prepared_at": a.prepared_at.isoformat() if a.prepared_at else None,
-                    "recovery_notes": a.recovery_notes,
-                }
-            )
-        return results
+        return self.recovery.get_recovery_queue()
 
     def resolve_recovery(self, attempt_id: str, action: str, recovery_notes: Optional[str] = None) -> Dict[str, Any]:
         """Resolve a stuck recovery attempt: 'mark_sent', 'retry', or 'cancel'."""
-        attempt = self.outreach_repo.get_by_id(attempt_id)
-        if not attempt:
-            raise NotFoundError(f"Attempt not found: {attempt_id}")
-
-        now = self.clock.now()
-        attempt.recovery_notes = recovery_notes or f"Resolved via operator action: {action}"
-
-        if action == "mark_sent":
-            attempt.status = OutreachStatus.SENT
-            attempt.completed_at = now
-            cnt = self.contact_repo.get_by_id(attempt.contact_id)
-            if cnt:
-                cnt.record_outreach_success(attempt.channel, now)
-                self.contact_repo.save(cnt)
-        elif action == "cancel":
-            attempt.status = OutreachStatus.FAILED
-            attempt.failure_code = "OPERATOR_CANCELLED"
-            attempt.failure_detail = "Operator cancelled in recovery queue"
-            attempt.completed_at = now
-        elif action == "retry":
-            attempt.status = OutreachStatus.PREPARED
-
-        self.outreach_repo.save(attempt)
-        self.session.commit()
-
-        return {
-            "attempt_id": attempt.id,
-            "status": attempt.status.value,
-            "recovery_notes": attempt.recovery_notes,
-        }
-
-        super().__init__(f"Outreach already sent (attempt {attempt_id})")
+        return self.recovery.resolve_recovery(attempt_id, action, recovery_notes)
