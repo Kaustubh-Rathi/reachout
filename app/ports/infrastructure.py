@@ -156,6 +156,10 @@ class SessionManager(Protocol):
         """Probe a persisted profile in a live browser and return the observed status."""
         ...
 
+    def extract_phone(self, page: Any) -> Optional[str]:
+        """Extract the authenticated phone number from a live WhatsApp Web page."""
+        ...
+
     def start_qr_authentication(
         self,
         sender_id: str,
