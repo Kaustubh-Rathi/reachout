@@ -12,7 +12,6 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
 
-from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.ports.source import SyncSummary
 from app.services.context import ServiceContext, build_service_context
 
@@ -34,7 +33,7 @@ class SyncService:
         self.session = session
         ctx = context or build_service_context(session)
         self.event_publisher = ctx.event_publisher
-        self.synchronizer = synchronizer or DatabaseSourceSynchronizer(session)
+        self.synchronizer = synchronizer or ctx.source_synchronizer
 
     def sync_source(
         self,

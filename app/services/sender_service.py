@@ -14,14 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel, SenderStatus
 from app.domain.sender_account import SenderAccount
-from app.infrastructure.database import SessionFactory
-from app.infrastructure.providers.factory import (
-    get_email_provider,
-)
-from app.infrastructure.providers.session_manager import (
-    WhatsAppSessionManager,
-    default_session_manager,
-)
+from app.ports.infrastructure import SessionManager
 from app.services.context import ServiceContext, build_service_context
 
 
@@ -36,7 +29,7 @@ class SenderService:
     def __init__(
         self,
         session: Session,
-        session_manager: Optional[WhatsAppSessionManager] = None,
+        session_manager: Optional[SessionManager] = None,
         context: Optional[ServiceContext] = None,
         session_factory=None,
     ) -> None:
@@ -44,9 +37,11 @@ class SenderService:
         ctx = context or build_service_context(session)
         self.repo = ctx.sender_repo
         self.event_publisher = ctx.event_publisher
-        self.session_manager = session_manager or default_session_manager
+        self.session_manager = session_manager or ctx.session_manager
+        self.credential_vault = ctx.credential_vault
+        self.email_provider = ctx.email_provider
         # Background auth callbacks open their own DB session; injectable for tests.
-        self._session_factory = session_factory or SessionFactory
+        self._session_factory = session_factory or ctx.session_factory
         # Display names for in-memory temp WhatsApp ids (never persisted to the DB).
         self._temp_display_names: Dict[str, str] = {}
 
@@ -86,14 +81,12 @@ class SenderService:
 
         # F3/B4: Materialize vault-only email credentials into sender_accounts rows so no
         # stored credential is stranded as a "phantom session" without a DB record.
-        from app.infrastructure.security.credential_vault import default_credential_vault
-
         existing_em_ids = {s.id for s in em_senders}
         existing_em_identities = {(s.identity or "").strip().casefold() for s in em_senders}
-        vault_ids = default_credential_vault.list_senders_with_credentials()
+        vault_ids = self.credential_vault.list_senders_with_credentials()
         for vid in vault_ids:
             if vid not in existing_em_ids:
-                creds = default_credential_vault.get_credentials(vid) or {}
+                creds = self.credential_vault.get_credentials(vid) or {}
                 user = (creds.get("user") or "").strip()
                 candidate_identity = user or vid
                 normalized_identity = candidate_identity.strip().casefold()
@@ -126,7 +119,7 @@ class SenderService:
 
         # Refresh after materialization so the loop below sees newly-created rows.
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
-        email_provider = get_email_provider()
+        email_provider = self.email_provider
         for s in em_senders:
             has_creds = False
             if hasattr(email_provider, "get_sender_credentials"):
@@ -429,7 +422,7 @@ class SenderService:
 
         This is the single entry point for Email sessions (``/api/senders/email/add`` has
         been removed). If SMTP verification fails, an exception is raised and NOTHING is
-        persisted ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no dummy/placeholder row is ever created.
+        persisted ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â no dummy/placeholder row is ever created.
         """
 
         clean_id = id.strip()
@@ -444,7 +437,7 @@ class SenderService:
         if not clean_id:
             clean_id = self._next_email_session_id()
 
-        provider = get_email_provider()
+        provider = self.email_provider
 
         # Verify credentials BEFORE persisting anything.
         if verify_now and clean_user and password:
@@ -535,7 +528,7 @@ class SenderService:
         if not sender or sender.channel != Channel.EMAIL:
             raise ValueError(f"Email sender '{sender_id}' not found")
 
-        provider = get_email_provider()
+        provider = self.email_provider
         if hasattr(provider, "verify_credentials"):
             success, err = provider.verify_credentials(sender_id)
             if success:

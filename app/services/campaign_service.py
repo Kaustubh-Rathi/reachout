@@ -15,7 +15,6 @@ from app.domain.campaign import Campaign
 from app.domain.enums import CampaignStatus, Channel, OutreachStatus, SenderStatus
 from app.domain.policies.endpoint_coverage_policy import is_contact_fully_covered
 from app.domain.policies.prioritization import calculate_company_round_state
-from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
 from app.ports.infrastructure import CampaignScheduler
 from app.services.context import ServiceContext, build_service_context
 
@@ -38,7 +37,7 @@ class CampaignService:
         self.template_repo = ctx.template_repo
         self.suppression_repo = ctx.suppression_repo
         self.event_publisher = ctx.event_publisher
-        self.scheduler = scheduler or get_campaign_scheduler()
+        self.scheduler = scheduler or ctx.scheduler
 
     def create_campaign(
         self,

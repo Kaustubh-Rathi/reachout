@@ -9,7 +9,9 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
+
+from app.domain.enums import SenderStatus
 
 
 @runtime_checkable
@@ -66,6 +68,104 @@ class EventPublisher(Protocol):
 
     def publish_event(self, event_type: str, payload: Dict[str, Any]) -> DomainEvent:
         """Construct and publish a single domain event from a name and payload."""
+        ...
+
+
+@runtime_checkable
+class RateLimiter(Protocol):
+    """Port for sender-level pacing, concurrency locks, and quota accounting."""
+
+    default_channel_delay: Dict[str, float]
+
+    def wait_for_ready(
+        self,
+        sender_id: str,
+        channel: str,
+        daily_limit: Optional[int] = None,
+        hourly_limit: Optional[int] = None,
+        timeout_seconds: float = 60.0,
+        min_delay_override: Optional[float] = None,
+    ) -> bool:
+        """Block until the sender is ready to dispatch or the timeout expires."""
+        ...
+
+    def acquire_sender(self, sender_id: str) -> bool:
+        """Reserve a sender identity for exclusive use by an attempt."""
+        ...
+
+    def release_sender(self, sender_id: str) -> None:
+        """Release a sender lock."""
+        ...
+
+    def record_dispatch_success(self, sender_id: str) -> None:
+        """Record a successful dispatch completion."""
+        ...
+
+    def record_dispatch_failure(self, sender_id: str, is_rate_limit: bool = False) -> float:
+        """Record a provider error and return the computed backoff duration."""
+        ...
+
+    def reset(self) -> None:
+        """Clear all pacing, backoff, and concurrency state."""
+        ...
+
+
+@runtime_checkable
+class SessionManager(Protocol):
+    """Port for managing WhatsApp authentication state and persisted profiles."""
+
+    def has_persisted_session(self, sender_id: str) -> bool:
+        """Return whether an authenticated on-disk profile exists for the sender."""
+        ...
+
+    def is_auth_known(self, sender_id: str) -> bool:
+        """Return whether the manager holds an in-memory auth state for the sender."""
+        ...
+
+    def get_auth_state(self, sender_id: str) -> Dict[str, Any]:
+        """Return the current in-memory auth state snapshot."""
+        ...
+
+    def set_auth_state(
+        self,
+        sender_id: str,
+        status: SenderStatus,
+        qr_code: Optional[str] = None,
+        error_message: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Update the in-memory auth state for the sender."""
+        ...
+
+    def check_session_status(self, sender_id: str, timeout_seconds: int = 15) -> SenderStatus:
+        """Probe a persisted profile in a live browser and return the observed status."""
+        ...
+
+    def start_qr_authentication(
+        self,
+        sender_id: str,
+        on_event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+        timeout_seconds: int = 120,
+        is_temp: bool = False,
+        on_resolve: Optional[Callable[[str, str], Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """Begin a QR authentication flow for the sender."""
+        ...
+
+
+@runtime_checkable
+class CredentialVault(Protocol):
+    """Port for encrypted credential storage keyed by sender account id."""
+
+    def get_credentials(self, sender_account_id: str) -> Optional[Dict[str, str]]:
+        """Return stored credentials for a sender, or ``None`` when absent."""
+        ...
+
+    def list_senders_with_credentials(self) -> List[str]:
+        """List sender account ids that have stored credentials."""
+        ...
+
+    def save_credentials(self, sender_account_id: str, creds: Dict[str, str]) -> None:
+        """Persist credentials for a sender."""
         ...
 
 

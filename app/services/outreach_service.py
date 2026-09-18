@@ -18,11 +18,6 @@ from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.policies.resend_policy import prepare_manual_resend
 from app.domain.sender_account import SenderAccount
-from app.infrastructure.providers.factory import (
-    get_email_provider,
-    get_whatsapp_provider,
-)
-from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
 from app.services.context import ServiceContext, build_service_context
 
@@ -70,11 +65,11 @@ class OutreachService:
         self.sender_repo = ctx.sender_repo
         self.template_repo = ctx.template_repo
 
-        # Resolve providers from injection or the explicit provider factory.
-        self.whatsapp_provider = whatsapp_provider if whatsapp_provider is not None else get_whatsapp_provider()
-        self.email_provider = email_provider if email_provider is not None else get_email_provider()
+        # Resolve providers from explicit injection or the composed context.
+        self.whatsapp_provider = whatsapp_provider if whatsapp_provider is not None else ctx.whatsapp_provider
+        self.email_provider = email_provider if email_provider is not None else ctx.email_provider
         # N1: manual sends share the app-wide rate limiter used by campaigns.
-        self.rate_limiter = rate_limiter if rate_limiter is not None else default_rate_limiter
+        self.rate_limiter = rate_limiter if rate_limiter is not None else ctx.rate_limiter
         # Event publishing is injectable so the service is unit-testable with a fake bus.
         self.event_publisher = event_publisher if event_publisher is not None else ctx.event_publisher
         self.clock = ctx.clock
