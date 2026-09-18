@@ -394,6 +394,25 @@
       padding: 0.35rem 0.65rem;
     }
 
+    /* Visible keyboard focus for every interactive control */
+    :focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+      border-radius: var(--radius-xs);
+    }
+
+    .btn:active:not(:disabled),
+    .pill-btn:active,
+    .theme-toggle button:active,
+    .menu-item:active {
+      transform: translateY(1px);
+    }
+
+    /* Larger touch targets for compact controls (>=36px) */
+    .btn-icon { min-width: 2.25rem; min-height: 2.25rem; }
+    .btn-xs { min-height: 2.25rem; }
+    .pill-btn { min-height: 2.25rem; }
+
     /* ------------------------------------------------------------------
        Theme toggle (segmented: system / light / dark)
        ------------------------------------------------------------------ */
@@ -1118,6 +1137,8 @@
       font-size: 1rem;
       font-weight: 700;
       color: var(--text-primary);
+      overflow-wrap: anywhere;
+      min-width: 0;
     }
 
     .company-status-badge {
@@ -1199,11 +1220,14 @@
       font-weight: 700;
       color: var(--text-primary);
       font-size: 0.9rem;
+      overflow-wrap: anywhere;
+      min-width: 0;
     }
 
     .hr-designation-text {
       font-size: 0.775rem;
       color: var(--text-secondary);
+      overflow-wrap: anywhere;
     }
 
     .endpoints-container {
@@ -1245,6 +1269,8 @@
       font-family: 'JetBrains Mono', monospace;
       color: var(--text-primary);
       font-size: 0.8rem;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     /* Skeleton shimmer for hierarchy loading state */
@@ -3539,6 +3565,17 @@
       const container = document.getElementById('templates-list-container');
       container.innerHTML = '';
 
+      if (!state.templates || state.templates.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;" aria-hidden="true">📝</div>
+            <div style="font-weight: 600; color: var(--text-primary);">No templates yet</div>
+            <div style="font-size: 0.8rem; margin-top: 0.25rem;">Add your first message template to start outreach.</div>
+          </div>`;
+        document.getElementById('templates-modal').classList.add('open');
+        return;
+      }
+
       state.templates.forEach(t => {
         const card = document.createElement('div');
         card.className = 'kpi-card';
@@ -3831,6 +3868,32 @@
       };
     }
 
+    // Coalesce bursts of live events into a single refetch so a running
+    // campaign does not trigger a refetch storm.
+    const pendingRefresh = { kpis: false, hierarchies: false, campaigns: false, companies: false };
+    let liveRefreshTimer = null;
+
+    function scheduleLiveRefresh(flags) {
+      Object.keys(flags).forEach((key) => {
+        if (flags[key]) pendingRefresh[key] = true;
+      });
+      if (liveRefreshTimer) return;
+      liveRefreshTimer = setTimeout(() => {
+        liveRefreshTimer = null;
+        const work = { ...pendingRefresh };
+        pendingRefresh.kpis = false;
+        pendingRefresh.hierarchies = false;
+        pendingRefresh.campaigns = false;
+        pendingRefresh.companies = false;
+        const tasks = [];
+        if (work.kpis) tasks.push(fetchKpis());
+        if (work.hierarchies) tasks.push(fetchHierarchies());
+        if (work.campaigns) tasks.push(fetchCampaigns());
+        if (work.companies) tasks.push(fetchCompanies());
+        Promise.allSettled(tasks);
+      }, 400);
+    }
+
     async function handleLiveEvent(ev) {
       if (!ev) return;
       // The WebSocket transport sets `type` to the dot-notation name
@@ -3855,28 +3918,20 @@
         const dest = p.destination || p.recipient || 'recipient';
         const ch = p.channel || 'Outreach';
         showToast(`Sent ${ch} to ${dest}`, 'success');
-        await fetchKpis();
-        await fetchHierarchies();
-        if (state.activeCampaign) await fetchCampaigns();
+        scheduleLiveRefresh({ kpis: true, hierarchies: true, campaigns: true });
       } else if (type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') {
         showToast(`Message failed: ${p.failure_detail || p.failure_code || 'Error'}`, 'error');
-        await fetchKpis();
-        await fetchHierarchies();
+        scheduleLiveRefresh({ kpis: true, hierarchies: true });
       } else if (type === 'OUTREACH_RECOVERY_REQUIRED') {
         showToast(`⚠️ Outreach recovery required for ${p.destination || 'contact'}`, 'error');
-        await fetchKpis();
-        await fetchHierarchies();
+        scheduleLiveRefresh({ kpis: true, hierarchies: true });
       } else if (type.startsWith('CAMPAIGN_')) {
-        await fetchCampaigns();
-        await fetchKpis();
+        scheduleLiveRefresh({ campaigns: true, kpis: true });
       } else if (type === 'CRM_STATUS_CHANGED' || type === 'CRM_OUTCOME_UPDATED' || type === 'CONTACT_UPDATED') {
-        await fetchKpis();
-        await fetchHierarchies();
+        scheduleLiveRefresh({ kpis: true, hierarchies: true });
       } else if (type === 'EXCEL_SYNC_COMPLETED' || type === 'SYNC_COMPLETED') {
         showToast('Source synchronization completed!', 'success');
-        await fetchKpis();
-        await fetchCompanies();
-        await fetchHierarchies();
+        scheduleLiveRefresh({ kpis: true, companies: true, hierarchies: true });
       }
     }
 
