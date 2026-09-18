@@ -25,10 +25,6 @@ from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
-from app.domain.message_template import (
-    OFFICIAL_EMAIL_TEMPLATES,
-    OFFICIAL_WHATSAPP_TEMPLATES,
-)
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
 from app.domain.policies.fallback_policy import ChannelFallbackPolicy
@@ -39,6 +35,10 @@ from app.domain.policies.prioritization import (
 from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.policies.template_rotation import select_template_round_robin
 from app.domain.sender_account import SenderAccount
+from app.domain.template_catalog import (
+    OFFICIAL_EMAIL_TEMPLATES,
+    OFFICIAL_WHATSAPP_TEMPLATES,
+)
 from app.infrastructure.database import Base
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
