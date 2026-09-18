@@ -26,6 +26,7 @@ from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignSc
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.providers import ProviderSendResult
+from tests.doubles.fake_providers import FakeEmailProvider
 
 
 class MockFastWhatsAppProvider:
@@ -63,6 +64,7 @@ def scheduler_env(tmp_path):
     worker = OutreachWorker(
         session_factory=SessionFactory,
         whatsapp_provider=mock_provider,
+        email_provider=FakeEmailProvider(),
         rate_limiter=rate_limiter,
         event_publisher=event_bus,
     )

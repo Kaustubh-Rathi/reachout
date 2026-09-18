@@ -27,6 +27,7 @@ from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
+from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.models import (
     CompanyModel,
 )
@@ -103,8 +104,11 @@ class TestPauseModifyResumeLifecycle:
             whatsapp_provider=wa_provider,
             email_provider=em_provider,
             rate_limiter=rate_limiter,
+            event_publisher=EventBus(),
         )
-        scheduler = PersistentCampaignScheduler(session_factory=test_db_setup, worker=worker)
+        scheduler = PersistentCampaignScheduler(
+            session_factory=test_db_setup, worker=worker, event_publisher=EventBus()
+        )
 
         # Seed initial database state
         with test_db_setup() as session:
@@ -416,8 +420,11 @@ class TestPauseResumeMatrixAndRestart:
             whatsapp_provider=wa_provider,
             email_provider=em_provider,
             rate_limiter=rate_limiter,
+            event_publisher=EventBus(),
         )
-        scheduler1 = PersistentCampaignScheduler(session_factory=test_db_setup, worker=worker1)
+        scheduler1 = PersistentCampaignScheduler(
+            session_factory=test_db_setup, worker=worker1, event_publisher=EventBus()
+        )
 
         # Setup and start campaign
         with test_db_setup() as session:
@@ -465,8 +472,11 @@ class TestPauseResumeMatrixAndRestart:
             whatsapp_provider=wa_provider,
             email_provider=em_provider,
             rate_limiter=rate_limiter,
+            event_publisher=EventBus(),
         )
-        scheduler2 = PersistentCampaignScheduler(session_factory=test_db_setup, worker=worker2)
+        scheduler2 = PersistentCampaignScheduler(
+            session_factory=test_db_setup, worker=worker2, event_publisher=EventBus()
+        )
 
         # Run startup crash recovery audit
         scheduler2.run_crash_recovery_audit()

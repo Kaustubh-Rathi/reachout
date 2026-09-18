@@ -39,6 +39,7 @@ from app.domain.policies.prioritization import (
 from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base, SessionFactory
+from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager
 from app.infrastructure.repositories import (
     SqliteCompanyRepository,
@@ -54,7 +55,7 @@ from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.ports.source import SourceRow
 from app.services.crm_service import CrmService
 from app.services.sender_service import SenderService
-from tests.doubles.fake_providers import MockWhatsAppProvider
+from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
 
 # ==============================================================================
@@ -214,7 +215,9 @@ class TestPacingAndSenderRotation:
         worker = OutreachWorker(
             session_factory=SessionFactory,
             whatsapp_provider=mock_wa_provider,
+            email_provider=MockEmailProvider(),
             rate_limiter=rl,
+            event_publisher=EventBus(),
         )
 
         with SessionFactory() as session:

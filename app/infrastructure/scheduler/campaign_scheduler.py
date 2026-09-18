@@ -29,6 +29,7 @@ from app.domain.policies.template_rotation import select_template_round_robin
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.events.event_bus import default_event_bus
+from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
@@ -36,7 +37,7 @@ from app.infrastructure.repositories.sqlite_sender_repository import SqliteSende
 from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
-from app.infrastructure.scheduler.rate_limiter import RateLimiter
+from app.infrastructure.scheduler.rate_limiter import RateLimiter, default_rate_limiter
 from app.ports.infrastructure import CampaignScheduler, DomainEvent, EventPublisher
 
 
@@ -45,13 +46,13 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
     def __init__(
         self,
-        session_factory: Any = None,
-        worker: Optional[OutreachWorker] = None,
-        event_publisher: Optional[EventPublisher] = None,
+        session_factory: Any,
+        worker: OutreachWorker,
+        event_publisher: EventPublisher,
     ) -> None:
-        self.session_factory = session_factory or SessionFactory
-        self.worker = worker or OutreachWorker(session_factory=self.session_factory)
-        self.event_publisher = event_publisher or default_event_bus
+        self.session_factory = session_factory
+        self.worker = worker
+        self.event_publisher = event_publisher
         self._lock = threading.RLock()
         self._active_threads: Dict[str, threading.Thread] = {}
         self._pause_flags: Dict[str, threading.Event] = {}
@@ -571,15 +572,19 @@ def get_campaign_scheduler(
     global _campaign_scheduler_instance
     if _campaign_scheduler_instance is None:
         sf = session_factory or SessionFactory
+        bus = event_publisher or default_event_bus
+        limiter = rate_limiter or default_rate_limiter
         w = worker or OutreachWorker(
             session_factory=sf,
-            rate_limiter=rate_limiter,
-            event_publisher=event_publisher,
+            whatsapp_provider=get_whatsapp_provider(),
+            email_provider=get_email_provider(),
+            rate_limiter=limiter,
+            event_publisher=bus,
         )
         _campaign_scheduler_instance = PersistentCampaignScheduler(
             session_factory=sf,
             worker=w,
-            event_publisher=event_publisher,
+            event_publisher=bus,
         )
     return _campaign_scheduler_instance
 
