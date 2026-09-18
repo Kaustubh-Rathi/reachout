@@ -162,17 +162,37 @@ class TestArchitecturalBoundaries:
         for impl, port in pairs:
             assert issubclass(impl, port), f"{impl.__name__} must implement port {port.__name__}"
 
-    def test_services_use_injected_event_publisher_not_global_singleton(self):
-        """Services must not import the global event_bus singleton directly."""
+    def test_services_do_not_import_concrete_infrastructure(self):
+        """Application services must depend on ports; only context.py wires adapters."""
         services_dir = APP_DIR / "services"
         violations = []
         for file_path in services_dir.rglob("*.py"):
-            if file_path.name in {"__init__.py", "context.py"}:
-                continue
-            content = file_path.read_text(encoding="utf-8")
-            if "event_bus import event_bus" in content:
-                violations.append(f"VIOLATION in {file_path.name}: imports global event_bus singleton")
+            if file_path.name == "context.py":
+                continue  # the single composition root
+            imported_modules = extract_imported_modules(file_path)
+            for mod in imported_modules:
+                if mod.startswith("app.infrastructure"):
+                    violations.append(f"VIOLATION in {file_path.name}: service imports concrete infrastructure '{mod}'")
         assert not violations, "\n".join(violations)
+
+    def test_api_does_not_import_concrete_infrastructure(self):
+        """API routers must use app.api.dependencies adapters, not infrastructure directly."""
+        api_dir = APP_DIR / "api"
+        violations = []
+        for file_path in api_dir.rglob("*.py"):
+            if file_path.name == "dependencies.py":
+                continue  # the single HTTP-to-infrastructure adapter
+            imported_modules = extract_imported_modules(file_path)
+            for mod in imported_modules:
+                if mod.startswith("app.infrastructure"):
+                    violations.append(f"VIOLATION in {file_path.name}: API imports concrete infrastructure '{mod}'")
+        assert not violations, "\n".join(violations)
+
+    def test_services_do_not_re_export_the_global_event_bus(self):
+        """The services package must not re-export the global event bus singleton."""
+        init_file = APP_DIR / "services" / "__init__.py"
+        content = init_file.read_text(encoding="utf-8")
+        assert "event_bus" not in content, "services/__init__.py must not re-export the global event_bus"
 
     def test_domain_policies_are_pure_functions(self):
         """Domain policy modules must not perform I/O, open files, or access sockets."""
