@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.campaign import Campaign
 from app.domain.enums import CampaignStatus, Channel, OutreachStatus, SenderStatus
+from app.domain.errors import NotFoundError, OutreachNotReadyError, ValidationError
 from app.domain.policies.endpoint_coverage_policy import is_contact_fully_covered
 from app.domain.policies.prioritization import calculate_company_round_state
 from app.ports.infrastructure import CampaignScheduler
@@ -76,7 +77,7 @@ class CampaignService:
         """Aggregate real-time campaign statistics, round metrics, and quotas from database state."""
         campaign = self.campaign_repo.get_by_id(campaign_id)
         if not campaign:
-            raise ValueError(f"Campaign not found: {campaign_id}")
+            raise NotFoundError(f"Campaign not found: {campaign_id}")
 
         attempts = self.outreach_repo.list_by_campaign(campaign_id)
         total = len(attempts)
@@ -238,12 +239,12 @@ class CampaignService:
         """Start campaign execution via canonical PersistentCampaignScheduler with strict readiness gate."""
         campaign = self.campaign_repo.get_by_id(campaign_id)
         if not campaign:
-            raise ValueError(f"Campaign not found: {campaign_id}")
+            raise NotFoundError(f"Campaign not found: {campaign_id}")
 
         # Strict Readiness Check before starting
         readiness = self.validate_outreach_readiness(campaign.channel, campaign_id=campaign_id)
         if not readiness["ready"]:
-            raise ValueError(f"OUTREACH_NOT_READY: {readiness['reason']} - {readiness['detail']}")
+            raise OutreachNotReadyError(readiness["reason"], readiness["detail"])
 
         # Delegate execution directly to the canonical scheduler
         self.scheduler.start_campaign(campaign_id=campaign_id, max_count=max_count)
@@ -253,7 +254,7 @@ class CampaignService:
         """Pause a running campaign via canonical PersistentCampaignScheduler."""
         campaign = self.campaign_repo.get_by_id(campaign_id)
         if not campaign:
-            raise ValueError(f"Campaign not found: {campaign_id}")
+            raise NotFoundError(f"Campaign not found: {campaign_id}")
 
         self.scheduler.pause_campaign(campaign_id)
         return self.get_campaign_progress(campaign_id)
@@ -262,15 +263,15 @@ class CampaignService:
         """Resume a paused campaign via canonical PersistentCampaignScheduler with strict readiness gate."""
         campaign = self.campaign_repo.get_by_id(campaign_id)
         if not campaign:
-            raise ValueError(f"Campaign not found: {campaign_id}")
+            raise NotFoundError(f"Campaign not found: {campaign_id}")
 
         if campaign.status != CampaignStatus.PAUSED:
-            raise ValueError(f"Cannot resume campaign in status '{campaign.status.value}'. Must be PAUSED.")
+            raise ValidationError(f"Cannot resume campaign in status '{campaign.status.value}'. Must be PAUSED.")
 
         # Strict readiness gate check before resuming
         readiness = self.validate_outreach_readiness(campaign.channel, campaign_id=campaign_id, is_resuming=True)
         if not readiness["ready"]:
-            raise ValueError(f"OUTREACH_NOT_READY: {readiness['reason']} - {readiness['detail']}")
+            raise OutreachNotReadyError(readiness["reason"], readiness["detail"])
 
         self.scheduler.resume_campaign(campaign_id)
         return self.get_campaign_progress(campaign_id)
@@ -279,7 +280,7 @@ class CampaignService:
         """Stop/cancel a campaign permanently via canonical PersistentCampaignScheduler."""
         campaign = self.campaign_repo.get_by_id(campaign_id)
         if not campaign:
-            raise ValueError(f"Campaign not found: {campaign_id}")
+            raise NotFoundError(f"Campaign not found: {campaign_id}")
 
         self.scheduler.stop_campaign(campaign_id)
         return self.get_campaign_progress(campaign_id)

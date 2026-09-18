@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_db_session
 from app.config import DEFAULT_OUTREACH_LIMIT, MAX_OUTREACH_LIMIT
 from app.domain.enums import Channel
+from app.domain.errors import OutreachNotReadyError
 from app.services.campaign_service import CampaignService
 
 router = APIRouter(prefix="/api/campaigns", tags=["Campaigns"])
@@ -96,31 +97,14 @@ def quick_start_campaign(
     # Upfront readiness check
     readiness = svc.validate_outreach_readiness(channel=ch)
     if not readiness["ready"]:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "OUTREACH_NOT_READY",
-                "reason": readiness["reason"],
-                "message": readiness["detail"],
-            },
-        )
+        raise OutreachNotReadyError(readiness["reason"], readiness["detail"])
 
     name = payload.name or f"{ch.value.title()} Outreach Run"
     campaign = svc.create_campaign(
         name=name,
         channel=ch,
     )
-    try:
-        return svc.start_campaign(campaign.id, max_count=payload.max_count)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "OUTREACH_NOT_READY",
-                "reason": "VALIDATION_FAILED",
-                "message": str(exc),
-            },
-        ) from exc
+    return svc.start_campaign(campaign.id, max_count=payload.max_count)
 
 
 @router.get("/{campaign_id}")
@@ -139,22 +123,7 @@ def start_campaign(
 ) -> Dict[str, Any]:
     """Start campaign. Computes eligible contacts dynamically from current DB state."""
     svc = CampaignService(session)
-    try:
-        return svc.start_campaign(campaign_id, max_count=max_count)
-    except ValueError as exc:
-        msg = str(exc)
-        if "OUTREACH_NOT_READY" in msg:
-            parts = msg.split(":", 1)
-            reason_detail = parts[1].strip() if len(parts) > 1 else msg
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "error": "OUTREACH_NOT_READY",
-                    "reason": reason_detail.split(" - ")[0] if " - " in reason_detail else "VALIDATION_FAILED",
-                    "message": reason_detail,
-                },
-            ) from exc
-        raise HTTPException(status_code=400, detail=msg) from exc
+    return svc.start_campaign(campaign_id, max_count=max_count)
 
 
 @router.post("/{campaign_id}/pause")
@@ -171,24 +140,7 @@ def pause_campaign(campaign_id: str, session: Session = Depends(get_db_session))
 def resume_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Resume a paused campaign with readiness check."""
     svc = CampaignService(session)
-    try:
-        return svc.resume_campaign(campaign_id)
-    except ValueError as exc:
-        msg = str(exc)
-        if "not found" in msg.lower():
-            raise HTTPException(status_code=404, detail=msg) from exc
-        if "OUTREACH_NOT_READY" in msg:
-            parts = msg.split(":", 1)
-            reason_detail = parts[1].strip() if len(parts) > 1 else msg
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "error": "OUTREACH_NOT_READY",
-                    "reason": reason_detail.split(" - ")[0] if " - " in reason_detail else "VALIDATION_FAILED",
-                    "message": reason_detail,
-                },
-            ) from exc
-        raise HTTPException(status_code=400, detail=msg) from exc
+    return svc.resume_campaign(campaign_id)
 
 
 @router.post("/{campaign_id}/stop")

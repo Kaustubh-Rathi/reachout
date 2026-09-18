@@ -181,20 +181,12 @@ class SenderService:
             self.session_manager.set_auth_state(sender_id, status_enum)
 
         self.event_publisher.publish_event(
-            "sender.status_changed",
-            {
-                "sender_id": sender.id,
-                "channel": sender.channel.value,
-                "status": sender.status.value,
-                "display_name": sender.display_name,
-            },
-        )
-        self.event_publisher.publish_event(
             "SENDER_STATUS_CHANGED",
             {
                 "sender_id": sender.id,
                 "channel": sender.channel.value,
                 "status": sender.status.value,
+                "display_name": sender.display_name,
             },
         )
 
@@ -320,8 +312,6 @@ class SenderService:
                     traceback.print_exc()
 
             self.event_publisher.publish_event(event_name, payload)
-            alias_name = event_name.upper().replace(".", "_")
-            self.event_publisher.publish_event(alias_name, payload)
 
         auth_state = self.session_manager.start_qr_authentication(
             sender_id=sender_id,
@@ -336,7 +326,7 @@ class SenderService:
             display_name = cb_sender.display_name if cb_sender else temp_display_name
 
         self.event_publisher.publish_event(
-            "sender.status_changed",
+            "SENDER_STATUS_CHANGED",
             {
                 "sender_id": sender_id,
                 "channel": Channel.WHATSAPP.value,
@@ -396,7 +386,7 @@ class SenderService:
             self.repo.save(sender)
             self.session.commit()
             self.event_publisher.publish_event(
-                "sender.status_changed",
+                "SENDER_STATUS_CHANGED",
                 {"sender_id": sender.id, "channel": Channel.WHATSAPP.value, "status": sender.status.value},
             )
         return {
@@ -493,7 +483,7 @@ class SenderService:
         self.session.commit()
 
         self.event_publisher.publish_event(
-            "sender.status_changed",
+            "SENDER_STATUS_CHANGED",
             {
                 "sender_id": sender.id,
                 "channel": "EMAIL",
@@ -545,7 +535,7 @@ class SenderService:
         self.session.commit()
 
         self.event_publisher.publish_event(
-            "sender.status_changed",
+            "SENDER_STATUS_CHANGED",
             {
                 "sender_id": sender.id,
                 "channel": "EMAIL",
@@ -617,7 +607,6 @@ class SenderService:
             "status": SenderStatus.AUTH_REQUIRED.value,
             "display_name": name,
         }
-        self.event_publisher.publish_event("sender.status_changed", event_payload)
         self.event_publisher.publish_event("SENDER_STATUS_CHANGED", event_payload)
 
         return {
@@ -684,11 +673,8 @@ class SenderService:
             self._temp_display_names.pop(temp_id, None)
 
         self.event_publisher.publish_event(
-            "sender.status_changed",
+            "SENDER_STATUS_CHANGED",
             {"sender_id": final_id, "channel": "WHATSAPP", "status": "ACTIVE", "display_name": display_name},
-        )
-        self.event_publisher.publish_event(
-            "SENDER_STATUS_CHANGED", {"sender_id": final_id, "channel": "WHATSAPP", "status": "ACTIVE"}
         )
 
     def deactivate_sender(self, sender_id: str) -> Optional[Dict[str, Any]]:

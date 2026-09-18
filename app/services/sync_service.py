@@ -87,7 +87,6 @@ class SyncService:
             }
 
             self.event_publisher.publish_event("EXCEL_SYNC_COMPLETED", payload)
-            self.event_publisher.publish_event("SYNC_COMPLETED", payload)
 
             return payload
         except Exception as exc:

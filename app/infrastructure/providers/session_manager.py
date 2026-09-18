@@ -380,7 +380,7 @@ class WhatsAppSessionManager:
                                 _auth_log(f"[auth] sender={sender_id} REUSED phone={phone}")
                                 if callback:
                                     callback(
-                                        "sender.status_changed",
+                                        "SENDER_STATUS_CHANGED",
                                         {
                                             "sender_id": sender_id,
                                             "channel": "WHATSAPP",
@@ -399,7 +399,7 @@ class WhatsAppSessionManager:
                         self.set_auth_state(sender_id, SenderStatus.ACTIVE)
                         if callback:
                             callback(
-                                "sender.status_changed",
+                                "SENDER_STATUS_CHANGED",
                                 {"sender_id": sender_id, "channel": "WHATSAPP", "status": "ACTIVE", "phone": phone},
                             )
                         return
@@ -424,7 +424,7 @@ class WhatsAppSessionManager:
                                     },
                                 )
                                 callback(
-                                    "sender.status_changed",
+                                    "SENDER_STATUS_CHANGED",
                                     {"sender_id": sender_id, "channel": "WHATSAPP", "status": "QR_REQUIRED"},
                                 )
                         except Exception:
@@ -439,7 +439,7 @@ class WhatsAppSessionManager:
                     self.set_auth_state(sender_id, SenderStatus.AUTH_REQUIRED, error_message=timeout_msg)
                     if callback:
                         callback(
-                            "sender.status_changed",
+                            "SENDER_STATUS_CHANGED",
                             {
                                 "sender_id": sender_id,
                                 "channel": "WHATSAPP",
@@ -466,7 +466,7 @@ class WhatsAppSessionManager:
             _auth_log(f"[auth] sender={sender_id} PERSISTED final_id={final_id} phone={phone}")
             if callback:
                 callback(
-                    "sender.status_changed",
+                    "SENDER_STATUS_CHANGED",
                     {
                         "sender_id": final_id,
                         "channel": "WHATSAPP",
@@ -503,7 +503,7 @@ class WhatsAppSessionManager:
         self.set_auth_state(sender_id, SenderStatus.ERROR, error_message=message)
         if callback:
             callback(
-                "sender.status_changed",
+                "SENDER_STATUS_CHANGED",
                 {"sender_id": sender_id, "channel": "WHATSAPP", "status": "ERROR", "error": code, "message": message},
             )
         if is_temp:
