@@ -49,7 +49,7 @@ class SqliteReminderRepository(ReminderRepository):
         if existing:
             existing.due_at = reminder.due_at
             existing.reason = reminder.reason
-            existing.status = reminder.status.value if hasattr(reminder.status, "value") else str(reminder.status)
+            existing.status = reminder.status.value
             existing.completed_at = reminder.completed_at
         else:
             model = FollowUpReminderModel.from_domain(reminder)

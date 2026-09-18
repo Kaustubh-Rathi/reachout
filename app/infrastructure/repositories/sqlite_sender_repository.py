@@ -24,7 +24,7 @@ class SqliteSenderRepository(SenderRepository):
         return model.to_domain() if model else None
 
     def list_by_channel(self, channel: Channel) -> List[SenderAccount]:
-        channel_val = channel.value if hasattr(channel, "value") else str(channel)
+        channel_val = channel.value
         stmt = (
             select(SenderAccountModel).where(SenderAccountModel.channel == channel_val).order_by(SenderAccountModel.id)
         )
@@ -34,7 +34,7 @@ class SqliteSenderRepository(SenderRepository):
     def list_active(self, channel: Optional[Channel] = None) -> List[SenderAccount]:
         stmt = select(SenderAccountModel).where(SenderAccountModel.status == "ACTIVE")
         if channel:
-            channel_val = channel.value if hasattr(channel, "value") else str(channel)
+            channel_val = channel.value
             stmt = stmt.where(SenderAccountModel.channel == channel_val)
         stmt = stmt.order_by(SenderAccountModel.id)
         models = self.session.scalars(stmt).all()
@@ -43,11 +43,11 @@ class SqliteSenderRepository(SenderRepository):
     def save(self, sender: SenderAccount) -> SenderAccount:
         existing = self.session.get(SenderAccountModel, sender.id)
         if existing:
-            existing.channel = sender.channel.value if hasattr(sender.channel, "value") else str(sender.channel)
+            existing.channel = sender.channel.value
             existing.provider = sender.provider
             existing.identity = sender.identity
             existing.display_name = sender.display_name
-            existing.status = sender.status.value if hasattr(sender.status, "value") else str(sender.status)
+            existing.status = sender.status.value
             existing.credential_ref = sender.credential_ref
             existing.session_ref = sender.session_ref
             existing.last_used_at = sender.last_used_at

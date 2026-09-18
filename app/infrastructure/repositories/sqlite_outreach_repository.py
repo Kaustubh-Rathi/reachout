@@ -52,7 +52,7 @@ class SqliteOutreachRepository(OutreachRepository):
         return [m.to_domain() for m in models]
 
     def list_by_status(self, status: OutreachStatus) -> List[OutreachAttempt]:
-        status_val = status.value if hasattr(status, "value") else str(status)
+        status_val = status.value
         stmt = (
             select(OutreachAttemptModel)
             .where(OutreachAttemptModel.status == status_val)
@@ -64,7 +64,7 @@ class SqliteOutreachRepository(OutreachRepository):
     def save(self, attempt: OutreachAttempt) -> OutreachAttempt:
         existing = self.session.get(OutreachAttemptModel, attempt.id)
         if existing:
-            existing.status = attempt.status.value if hasattr(attempt.status, "value") else str(attempt.status)
+            existing.status = attempt.status.value
             existing.destination = attempt.destination
             existing.started_at = attempt.started_at
             existing.completed_at = attempt.completed_at

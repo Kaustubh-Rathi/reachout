@@ -79,14 +79,8 @@ class SqliteContactRepository(ContactRepository):
             existing.last_whatsapp_at = contact.last_whatsapp_at
             existing.last_email_at = contact.last_email_at
             existing.last_activity_at = contact.last_activity_at
-            existing.crm_outcome = (
-                contact.crm_outcome.value if hasattr(contact.crm_outcome, "value") else str(contact.crm_outcome)
-            )
-            existing.interview_status = (
-                contact.interview_status.value
-                if hasattr(contact.interview_status, "value")
-                else str(contact.interview_status)
-            )
+            existing.crm_outcome = contact.crm_outcome.value
+            existing.interview_status = contact.interview_status.value
             existing.interested_at = contact.interested_at
             existing.interview_status_changed_at = contact.interview_status_changed_at
             existing.notes = contact.notes or ""

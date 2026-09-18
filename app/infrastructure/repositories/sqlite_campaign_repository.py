@@ -32,8 +32,8 @@ class SqliteCampaignRepository(CampaignRepository):
         existing = self.session.get(CampaignModel, campaign.id)
         if existing:
             existing.name = campaign.name
-            existing.channel = campaign.channel.value if hasattr(campaign.channel, "value") else str(campaign.channel)
-            existing.status = campaign.status.value if hasattr(campaign.status, "value") else str(campaign.status)
+            existing.channel = campaign.channel.value
+            existing.status = campaign.status.value
             existing.template_ids_json = json.dumps(campaign.template_ids or [])
             existing.sender_account_ids_json = json.dumps(campaign.sender_account_ids or [])
             existing.started_at = campaign.started_at
@@ -102,7 +102,7 @@ class SqliteCampaignRepository(CampaignRepository):
             update(CampaignModel)
             .where(CampaignModel.id == campaign_id)
             .values(
-                status=status.value if hasattr(status, "value") else str(status),
+                status=status.value,
                 ended_at=ended_at,
             )
         )

@@ -138,13 +138,9 @@ class OutreachWorker:
             effective_destination = destination
             if not effective_destination:
                 if channel == Channel.WHATSAPP:
-                    effective_destination = (
-                        contact.primary_phone if hasattr(contact, "primary_phone") else (contact.phone or "")
-                    )
+                    effective_destination = contact.primary_phone or ""
                 elif channel == Channel.EMAIL:
-                    effective_destination = (
-                        contact.primary_email if hasattr(contact, "primary_email") else (contact.email or "")
-                    )
+                    effective_destination = contact.primary_email or ""
 
             # 0. Sender-session guard: never dispatch from a non-ACTIVE sender, even
             # when execute_attempt is called directly (the scheduler already filters,
@@ -314,9 +310,7 @@ class OutreachWorker:
             )
 
         # --- Phase 2: Rate Limiter & Concurrency Acquisition ---
-        min_channel_delay = self.rate_limiter.default_channel_delay.get(
-            channel.name if hasattr(channel, "name") else str(channel).upper(), 2.0
-        )
+        min_channel_delay = self.rate_limiter.default_channel_delay.get(channel.name, 2.0)
         pacing_timeout = max(float(min_channel_delay) + 10.0, 10.0)
 
         is_ready = self.rate_limiter.wait_for_ready(
@@ -413,11 +407,7 @@ class OutreachWorker:
                 if channel == Channel.WHATSAPP:
                     if not self.whatsapp_provider:
                         raise RuntimeError("WhatsAppProvider is not configured on OutreachWorker")
-                    phone_target = (
-                        attempt.destination
-                        or (contact.primary_phone if hasattr(contact, "primary_phone") else contact.phone)
-                        or ""
-                    )
+                    phone_target = attempt.destination or contact.primary_phone or ""
                     provider_result = self.whatsapp_provider.send_message(
                         attempt=attempt,
                         recipient_phone=phone_target,
@@ -425,13 +415,7 @@ class OutreachWorker:
                         attachment_path=attempt.attachment_snapshot,
                     )
                 elif channel == Channel.EMAIL:
-                    if not self.email_provider:
-                        raise RuntimeError("EmailProvider is not configured on OutreachWorker")
-                    email_target = (
-                        attempt.destination
-                        or (contact.primary_email if hasattr(contact, "primary_email") else contact.email)
-                        or ""
-                    )
+                    email_target = attempt.destination or contact.primary_email or ""
                     provider_result = self.email_provider.send_email(
                         attempt=attempt,
                         recipient_email=email_target,

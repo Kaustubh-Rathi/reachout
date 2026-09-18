@@ -17,9 +17,6 @@ from typing import Container, Optional, Sequence
 from app.domain.contact import Contact
 from app.domain.endpoint import (
     CommunicationEndpoint,
-    extract_endpoints_from_raw,
-    normalize_email_addresses,
-    normalize_phone_numbers,
 )
 from app.domain.enums import Channel, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
@@ -55,13 +52,13 @@ def evaluate_automatic_eligibility(
     if channel == Channel.WHATSAPP:
         if not contact.phone or not contact.phone.strip():
             return EligibilityResult(is_eligible=False, reason="MISSING_PHONE_NUMBER")
-        phones = contact.phones if hasattr(contact, "phones") else normalize_phone_numbers(contact.phone)
+        phones = contact.phones
         if not phones:
             return EligibilityResult(is_eligible=False, reason="INVALID_PHONE_NUMBER")
     elif channel == Channel.EMAIL:
         if not contact.email or not contact.email.strip():
             return EligibilityResult(is_eligible=False, reason="MISSING_EMAIL_ADDRESS")
-        emails = contact.emails if hasattr(contact, "emails") else normalize_email_addresses(contact.email)
+        emails = contact.emails
         if not emails:
             return EligibilityResult(is_eligible=False, reason="INVALID_EMAIL_ADDRESS")
 
@@ -70,11 +67,11 @@ def evaluate_automatic_eligibility(
         identifiers_to_check = [contact.contact_id]
         if contact.phone:
             identifiers_to_check.append(contact.phone.strip())
-            for p in contact.phones if hasattr(contact, "phones") else normalize_phone_numbers(contact.phone):
+            for p in contact.phones:
                 identifiers_to_check.append(p)
         if contact.email:
             identifiers_to_check.append(contact.email.strip().lower())
-            for e in contact.emails if hasattr(contact, "emails") else normalize_email_addresses(contact.email):
+            for e in contact.emails:
                 identifiers_to_check.append(e)
 
         for ident in identifiers_to_check:
@@ -107,15 +104,7 @@ def evaluate_automatic_eligibility(
                 )
 
     # 4. Check coverage / already sent
-    endpoints = [
-        ep
-        for ep in (
-            contact.endpoints
-            if hasattr(contact, "endpoints")
-            else extract_endpoints_from_raw(contact.phone, contact.email)
-        )
-        if ep.channel == channel
-    ]
+    endpoints = [ep for ep in contact.endpoints if ep.channel == channel]
 
     if destination:
         # Check specific destination
@@ -130,7 +119,7 @@ def evaluate_automatic_eligibility(
                     and attempt.channel == channel
                     and attempt.status == OutreachStatus.SENT
                 ):
-                    att_dest = getattr(attempt, "destination", None)
+                    att_dest = attempt.destination
                     if att_dest and target_ep.matches(channel, att_dest):
                         return EligibilityResult(
                             is_eligible=False, reason=f"ALREADY_SENT_{channel.value}", blocking_attempt_id=attempt.id
@@ -163,7 +152,7 @@ def evaluate_automatic_eligibility(
             and attempt.status == OutreachStatus.SENT
         ):
             blocking_id = attempt.id
-            att_dest = getattr(attempt, "destination", None)
+            att_dest = attempt.destination
             if att_dest:
                 covered_keys.add(att_dest.strip().lower())
                 covered_keys.add(re.sub(r"\D", "", att_dest))
