@@ -1,7 +1,10 @@
 """Infrastructure and utility port interfaces.
 
-Includes time abstraction (Clock), job scheduling (Scheduler), and event
-broadcasting (EventPublisher) to ensure complete testability and inversion of control.
+Includes time abstraction (Clock), event broadcasting (EventPublisher), live
+event streaming (EventStream), background campaign scheduling
+(CampaignScheduler), pacing (RateLimiter), WhatsApp session management
+(SessionManager), and credential storage (CredentialVault) to ensure complete
+testability and inversion of control.
 """
 
 from __future__ import annotations

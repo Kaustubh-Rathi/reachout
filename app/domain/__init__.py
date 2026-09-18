@@ -52,6 +52,7 @@ from app.domain.policies import (
 from app.domain.reminder import FollowUpReminder
 from app.domain.sender_account import SenderAccount
 from app.domain.source_record import SourceRecord, compute_source_fingerprint
+from app.domain.suppression import SuppressionRecord
 
 __all__ = [
     # Enums
@@ -81,6 +82,7 @@ __all__ = [
     "FollowUpReminder",
     "SourceRecord",
     "compute_source_fingerprint",
+    "SuppressionRecord",
     # Policies
     "prioritize_company_first",
     "calculate_company_round_state",
