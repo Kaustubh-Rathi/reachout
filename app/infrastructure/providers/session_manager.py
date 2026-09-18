@@ -202,7 +202,8 @@ class WhatsAppSessionManager:
 
         session_dir = self.get_session_dir(sender_id)
         session_dir.mkdir(parents=True, exist_ok=True)
-        with open(session_dir / "user.js", "a") as f:
+        # Overwrite (not append): append mode accumulated duplicate prefs.
+        with open(session_dir / "user.js", "w") as f:
             f.write('user_pref("privacy.trackingprotection.enabled", false);\n')
             f.write('user_pref("privacy.trackingprotection.pbmode.enabled", false);\n')
             f.write('user_pref("privacy.partition.network_state", false);\n')
@@ -314,7 +315,8 @@ class WhatsAppSessionManager:
 
         session_dir = self.get_session_dir(sender_id)
         session_dir.mkdir(parents=True, exist_ok=True)
-        with open(session_dir / "user.js", "a") as f:
+        # Overwrite (not append): append mode accumulated duplicate prefs.
+        with open(session_dir / "user.js", "w") as f:
             f.write('user_pref("privacy.trackingprotection.enabled", false);\n')
             f.write('user_pref("privacy.trackingprotection.pbmode.enabled", false);\n')
             f.write('user_pref("privacy.partition.network_state", false);\n')

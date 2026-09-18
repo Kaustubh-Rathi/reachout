@@ -110,6 +110,23 @@ def get_whatsapp_auth_status(sender_id: str, session: Session = Depends(get_sess
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.post("/whatsapp/{sender_id}/auth/check")
+def check_whatsapp_session_health(
+    sender_id: str, timeout_seconds: int = Query(20, ge=5, le=120), session: Session = Depends(get_session)
+) -> Dict[str, Any]:
+    """Probe the sender's browser profile and sync the stored status.
+
+    Opens the persisted profile in a live browser (may take up to
+    ``timeout_seconds``). Downgrades the sender on positive evidence of a dead
+    login; inconclusive probes are reported without changing stored status.
+    """
+    svc = SenderService(session)
+    try:
+        return svc.check_whatsapp_session_health(sender_id, timeout_seconds=timeout_seconds)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.post("/email/configure")
 def configure_email_sender(payload: ConfigureEmailRequest, session: Session = Depends(get_session)) -> Dict[str, Any]:
     """Configure or register an Email sender identity and optionally test credentials."""

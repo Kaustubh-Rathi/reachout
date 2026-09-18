@@ -42,10 +42,12 @@ class PlaywrightWhatsAppProvider:
         session_manager: Optional[WhatsAppSessionManager] = None,
         headless: bool = False,
         timeout_seconds: int = 60,
+        expected_identity: Optional[str] = None,
     ) -> None:
         self.session_manager = session_manager or default_session_manager
         self.headless = False
         self.timeout_seconds = timeout_seconds
+        self.expected_identity = expected_identity
 
     def send_message(
         self,
@@ -89,7 +91,9 @@ class PlaywrightWhatsAppProvider:
         timeout_ms = self.timeout_seconds * 1000
 
         session_dir.mkdir(parents=True, exist_ok=True)
-        with open(session_dir / "user.js", "a") as f:
+        # Overwrite (not append): append mode accumulated hundreds of duplicate
+        # prefs across runs and risks Playwright clobbering on launch.
+        with open(session_dir / "user.js", "w") as f:
             f.write('user_pref("privacy.trackingprotection.enabled", false);\n')
             f.write('user_pref("privacy.trackingprotection.pbmode.enabled", false);\n')
             f.write('user_pref("privacy.partition.network_state", false);\n')
@@ -152,6 +156,13 @@ class PlaywrightWhatsAppProvider:
                         failure_code="ERR_SYNC_TIMEOUT",
                         failure_detail="WhatsApp Web failed to sync chats within timeout",
                     )
+                if self.expected_identity is not None:
+                    actual_identity = self.session_manager._extract_phone(page)
+                    if actual_identity != re.sub(r"\D", "", self.expected_identity):
+                        return ProviderSendResult.failed(
+                            failure_code="ERR_SENDER_IDENTITY_MISMATCH",
+                            failure_detail="Browser account does not match the selected sender; nothing sent",
+                        )
                 # Step 2: Navigate to chat url now that app is fully bootstrapped
                 # The UI Search method fails for unsaved numbers. We use JS location assignment
                 # to trigger the SPA deep link directly.
