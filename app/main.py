@@ -71,7 +71,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # Explicit localhost allowlist (wildcard + credentials is rejected by browsers
+    # and unsafe). Matches the dashboard on any local port.
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
