@@ -31,6 +31,7 @@ from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
+from app.infrastructure.scheduler.crash_recovery import CrashRecoveryService
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import CampaignScheduler, Clock, DomainEvent, EventPublisher
 
@@ -53,6 +54,12 @@ class PersistentCampaignScheduler(CampaignScheduler):
         self.event_publisher = event_publisher
         self.repository_factory = repository_factory
         self.clock = clock
+        self.crash_recovery = CrashRecoveryService(
+            session_factory=session_factory,
+            repository_factory=repository_factory,
+            event_publisher=event_publisher,
+            clock=clock,
+        )
         self._lock = threading.RLock()
         self._active_threads: Dict[str, threading.Thread] = {}
         self._pause_flags: Dict[str, threading.Event] = {}
@@ -65,48 +72,8 @@ class PersistentCampaignScheduler(CampaignScheduler):
             return t is not None and t.is_alive()
 
     def run_crash_recovery_audit(self) -> int:
-        """Scan database for orphaned in-flight attempts following process restart and mark as RECOVERY_REQUIRED."""
-        recovered_count = 0
-        now = self.clock.now()
-        with self.session_factory() as session:
-            repos = self.repository_factory(session)
-            outreach_repo = repos.outreach
-            campaign_repo = repos.campaign
-
-            in_flight_statuses = [OutreachStatus.SENDING, OutreachStatus.QUEUED]
-            for st in in_flight_statuses:
-                stalled_attempts = outreach_repo.list_by_status(st)
-                for attempt in stalled_attempts:
-                    attempt.mark_recovery_required(
-                        reason="Process crash recovery: attempt was in-flight when server restarted",
-                        timestamp=now,
-                    )
-                    attempt.recovery_notes = f"Auto-flagged by crash recovery audit at {now.isoformat()}"
-                    outreach_repo.save(attempt)
-                    recovered_count += 1
-                    self.event_publisher.publish(
-                        DomainEvent(
-                            event_type="AttemptRecoveryRequired",
-                            payload={"attempt_id": attempt.id, "reason": attempt.failure_detail},
-                        )
-                    )
-
-            # Check campaigns in RUNNING/STARTING state and transition to PAUSED
-            all_campaigns = campaign_repo.list_all()
-            for cmp in all_campaigns:
-                if cmp.status in (CampaignStatus.RUNNING, CampaignStatus.STARTING):
-                    cmp.pause()
-                    campaign_repo.save(cmp)
-                    self.event_publisher.publish(
-                        DomainEvent(
-                            event_type="CampaignPaused",
-                            payload={"campaign_id": cmp.id, "reason": "Crash recovery auto-pause"},
-                        )
-                    )
-
-            session.commit()
-
-        return recovered_count
+        """Scan for orphaned in-flight attempts after a restart and recover them."""
+        return self.crash_recovery.run()
 
     def start_campaign(self, campaign_id: str, max_count: Optional[int] = None) -> None:
         """Start execution of a campaign in the background."""
