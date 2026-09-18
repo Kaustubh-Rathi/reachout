@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reachout CRM Control Plane</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230284c7'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>R</text></svg>">
+  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -401,11 +404,12 @@
       border-radius: var(--radius-xs);
     }
 
+    /* Pressed feedback that does not shift layout (keeps hit-testing stable). */
     .btn:active:not(:disabled),
     .pill-btn:active,
     .theme-toggle button:active,
     .menu-item:active {
-      transform: translateY(1px);
+      filter: brightness(0.94);
     }
 
     /* Larger touch targets for compact controls (>=36px) */
@@ -2058,6 +2062,23 @@
     </div>
   </div>
 
+  <!-- Styled confirmation dialog (replaces native confirm()) -->
+  <div class="modal-overlay" id="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="confirm-modal-title">Confirm action</h3>
+        <button class="modal-close-btn" aria-label="Close dialog" onclick="resolveConfirm(false)">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-modal-message" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="resolveConfirm(false)">Cancel</button>
+        <button class="btn btn-rose" id="confirm-modal-ok" onclick="resolveConfirm(true)">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
@@ -2534,7 +2555,7 @@
     }
 
     async function archiveContact(contactId) {
-      if (!confirm('Are you sure you want to archive this contact? This marks suppression so synchronizer will not recreate it.')) {
+      if (!(await appConfirm('Are you sure you want to archive this contact? This marks suppression so synchronizer will not recreate it.', { title: 'Archive contact', confirmLabel: 'Archive' }))) {
         return;
       }
       try {
@@ -2718,7 +2739,7 @@
 
     async function stopCampaign() {
       if (!state.activeCampaign) return;
-      if (!confirm('Are you sure you want to permanently stop the campaign?')) return;
+      if (!(await appConfirm('Are you sure you want to permanently stop the campaign?', { title: 'Stop campaign', confirmLabel: 'Stop' }))) return;
       try {
         const res = await apiFetch(`/api/campaigns/${state.activeCampaign.id}/stop`, { method: 'POST' });
         if (res.ok) {
@@ -2885,7 +2906,7 @@
       const attachmentRef = document.getElementById('modal-attachment-input').value.trim() || null;
 
       if (isResend) {
-        if (!confirm(`This endpoint (${destination || 'contact'}) was already contacted. Are you sure you want to proceed with a manual resend?`)) {
+        if (!(await appConfirm(`This endpoint (${destination || 'contact'}) was already contacted. Are you sure you want to proceed with a manual resend?`, { title: 'Manual resend', confirmLabel: 'Resend', danger: false }))) {
           return;
         }
       }
@@ -4013,6 +4034,30 @@
         toast.style.transition = 'opacity 0.3s ease';
         setTimeout(() => toast.remove(), 300);
       }, 4000);
+    }
+
+    // Promise-based styled confirmation, replacing blocking native confirm().
+    let confirmResolver = null;
+
+    function appConfirm(message, opts = {}) {
+      document.getElementById('confirm-modal-message').textContent = message;
+      document.getElementById('confirm-modal-title').textContent = opts.title || 'Confirm action';
+      const okBtn = document.getElementById('confirm-modal-ok');
+      okBtn.textContent = opts.confirmLabel || 'Confirm';
+      okBtn.className = 'btn ' + (opts.danger === false ? 'btn-primary' : 'btn-rose');
+      document.getElementById('confirm-modal').classList.add('open');
+      return new Promise((resolve) => {
+        confirmResolver = resolve;
+      });
+    }
+
+    function resolveConfirm(result) {
+      document.getElementById('confirm-modal').classList.remove('open');
+      if (confirmResolver) {
+        const resolve = confirmResolver;
+        confirmResolver = null;
+        resolve(result);
+      }
     }
   
     // Global Escape-to-close: dismiss the topmost open dialog.
