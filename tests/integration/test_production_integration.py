@@ -15,7 +15,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.composition import build_repositories
+from app.composition import build_repositories, get_credential_vault, get_session_manager
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -33,7 +33,6 @@ from app.infrastructure.providers.factory import (
     set_whatsapp_provider,
 )
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
-from app.infrastructure.providers.session_manager import default_session_manager
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
@@ -304,8 +303,8 @@ class TestProviderConfigurationAndFactory:
     """Test production provider resolution and programmatic test dependency injection."""
 
     def test_production_factory_resolves_playwright_and_smtp(self):
-        wa_provider = create_whatsapp_provider(session_manager=default_session_manager)
-        em_provider = create_email_provider()
+        wa_provider = create_whatsapp_provider(session_manager=get_session_manager())
+        em_provider = create_email_provider(credential_vault=get_credential_vault())
         assert isinstance(wa_provider, PlaywrightWhatsAppProvider)
         assert isinstance(em_provider, SmtpEmailProvider)
 

@@ -31,7 +31,7 @@ from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
-from app.infrastructure.scheduler.rate_limiter import RateLimiter, default_rate_limiter
+from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import CampaignScheduler, Clock, DomainEvent, EventPublisher
 
 logger = logging.getLogger(__name__)
@@ -571,12 +571,12 @@ def get_campaign_scheduler(
     """Get or create the canonical PersistentCampaignScheduler instance."""
     global _campaign_scheduler_instance
     if _campaign_scheduler_instance is None:
-        from app.composition import build_repositories, get_event_bus
+        from app.composition import build_repositories, get_event_bus, get_rate_limiter
         from app.ports.infrastructure import SystemClock
 
         sf = session_factory or SessionFactory
         bus = event_publisher or get_event_bus()
-        limiter = rate_limiter or default_rate_limiter
+        limiter = rate_limiter or get_rate_limiter()
         clock = SystemClock()
         w = worker or OutreachWorker(
             session_factory=sf,

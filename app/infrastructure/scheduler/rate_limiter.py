@@ -180,7 +180,3 @@ class RateLimiter:
             self._backoff_until.clear()
             self._dispatch_history.clear()
             self._target_delay.clear()
-
-
-# Canonical app-wide rate limiter shared between campaign scheduler and manual sends.
-default_rate_limiter = RateLimiter()

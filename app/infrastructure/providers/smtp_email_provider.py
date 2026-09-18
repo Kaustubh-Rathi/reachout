@@ -16,7 +16,7 @@ from typing import Dict, Optional
 
 from app.domain.outreach_attempt import OutreachAttempt
 from app.infrastructure.providers.attachments import resolve_attachment_path
-from app.infrastructure.security.credential_vault import default_credential_vault
+from app.infrastructure.security.credential_vault import CredentialVault
 from app.ports.providers import ProviderSendResult
 
 
@@ -25,11 +25,13 @@ class SmtpEmailProvider:
 
     def __init__(
         self,
+        credential_vault: CredentialVault,
         default_smtp_host: str = "smtp.gmail.com",
         default_smtp_port: int = 587,
         credential_store: Optional[Dict[str, Dict[str, str]]] = None,
         test_redirect_to: Optional[str] = None,
     ) -> None:
+        self.credential_vault = credential_vault
         self.default_smtp_host = default_smtp_host
         self.default_smtp_port = default_smtp_port
         self.credential_store = credential_store or {}
@@ -41,7 +43,7 @@ class SmtpEmailProvider:
             return self.credential_store[sender_account_id]
 
         # Check persistent credential vault
-        vault_creds = default_credential_vault.get_credentials(sender_account_id)
+        vault_creds = self.credential_vault.get_credentials(sender_account_id)
         if vault_creds and vault_creds.get("user") and vault_creds.get("password"):
             self.credential_store[sender_account_id] = vault_creds
             return vault_creds
@@ -78,7 +80,7 @@ class SmtpEmailProvider:
             "from_address": user.strip(),
         }
         self.credential_store[sender_account_id] = creds
-        default_credential_vault.save_credentials(sender_account_id, creds)
+        self.credential_vault.save_credentials(sender_account_id, creds)
 
     def verify_credentials(self, sender_account_id: str) -> tuple[bool, Optional[str]]:
         """Probe SMTP host and authenticate user/password to verify credentials."""

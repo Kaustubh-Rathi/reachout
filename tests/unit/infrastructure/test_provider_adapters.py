@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from app.composition import get_credential_vault
 from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
@@ -39,6 +40,7 @@ class TestProviderAdapters:
         attachment_file.write_bytes(b"%PDF-1.4 dummy pdf content")
 
         provider = SmtpEmailProvider(
+            credential_vault=get_credential_vault(),
             credential_store={
                 "snd_email_test": {
                     "user": "tester@example.com",
@@ -47,7 +49,7 @@ class TestProviderAdapters:
                     "port": "587",
                     "from_address": "tester@example.com",
                 }
-            }
+            },
         )
         assert isinstance(provider, EmailProvider)
 

@@ -19,6 +19,7 @@ Comprehensive verification for:
 
 from __future__ import annotations
 
+from app.composition import get_credential_vault, get_session_manager
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import (
@@ -39,7 +40,6 @@ from app.infrastructure.providers.factory import (
     set_whatsapp_provider,
 )
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
-from app.infrastructure.providers.session_manager import default_session_manager
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
@@ -239,10 +239,10 @@ class TestManualSendAndResendRegression:
 
 class TestProviderModesAndConfiguration:
     def test_production_factory_resolves_concrete_providers(self):
-        wa = create_whatsapp_provider(session_manager=default_session_manager)
+        wa = create_whatsapp_provider(session_manager=get_session_manager())
         assert isinstance(wa, PlaywrightWhatsAppProvider)
 
-        em = create_email_provider()
+        em = create_email_provider(credential_vault=get_credential_vault())
         assert isinstance(em, SmtpEmailProvider)
 
     def test_dependency_injection_provider_overrides(self):

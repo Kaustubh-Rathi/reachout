@@ -76,13 +76,18 @@ def build_service_context(
     All concrete infrastructure imports live here (and only here) in the
     application layer, so services remain free of adapter dependencies.
     """
-    from app.composition import build_repositories, get_event_bus, get_sync_summary_store
+    from app.composition import (
+        build_repositories,
+        get_credential_vault,
+        get_event_bus,
+        get_rate_limiter,
+        get_session_manager,
+        get_sync_summary_store,
+        get_whatsapp_provider,
+    )
     from app.infrastructure.database import SessionFactory
-    from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
-    from app.infrastructure.providers.session_manager import default_session_manager
+    from app.infrastructure.providers.factory import get_email_provider
     from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
-    from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
-    from app.infrastructure.security.credential_vault import default_credential_vault
     from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 
     repos = build_repositories(session)
@@ -99,9 +104,9 @@ def build_service_context(
         clock=clock or SystemClock(),
         whatsapp_provider=get_whatsapp_provider(),
         email_provider=get_email_provider(),
-        rate_limiter=default_rate_limiter,
-        session_manager=default_session_manager,
-        credential_vault=default_credential_vault,
+        rate_limiter=get_rate_limiter(),
+        session_manager=get_session_manager(),
+        credential_vault=get_credential_vault(),
         source_synchronizer=DatabaseSourceSynchronizer(session, repository_factory=build_repositories),
         scheduler=get_campaign_scheduler(),
         summary_store=get_sync_summary_store(),

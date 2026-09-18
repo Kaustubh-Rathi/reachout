@@ -13,7 +13,7 @@ import os
 
 import pytest
 
-from app.infrastructure.providers.session_manager import default_session_manager
+from app.composition import get_credential_vault, get_session_manager
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from tests.e2e.live.live_accounts import LiveAccountError, discover_accounts, normalize_identity, select_pair
 
@@ -42,7 +42,7 @@ def live_whatsapp_pair():
     def ready(account):
         from camoufox.sync_api import Camoufox
 
-        manager = default_session_manager
+        manager = get_session_manager()
         if not manager.has_persisted_session(account.id):
             return False
         with Camoufox(
@@ -69,7 +69,7 @@ def live_whatsapp_pair():
 
 @pytest.fixture
 def live_email_pair():
-    provider = SmtpEmailProvider()
+    provider = SmtpEmailProvider(credential_vault=get_credential_vault())
 
     def ready(account):
         credentials = provider.get_sender_credentials(account.id)

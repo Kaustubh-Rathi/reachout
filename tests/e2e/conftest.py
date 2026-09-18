@@ -36,37 +36,39 @@ def e2e_server_storage(tmp_path_factory):
     using the isolated test database. Live provider tests use their own
     no-server fixture and are unaffected.
     """
+    from app.composition import get_credential_vault, get_session_manager
     from app.infrastructure.providers import session_manager as session_manager_module
-    from app.infrastructure.providers.session_manager import default_session_manager
-    from app.infrastructure.security.credential_vault import default_credential_vault
+
+    credential_vault = get_credential_vault()
+    session_manager = get_session_manager()
 
     storage_root = tmp_path_factory.mktemp("e2e-server-storage")
     sessions_root = storage_root / "sessions"
     sessions_root.mkdir(parents=True, exist_ok=True)
 
-    old_vault_path = default_credential_vault.vault_path
-    old_key_path = default_credential_vault.key_path
-    old_cache = default_credential_vault._cache
+    old_vault_path = credential_vault.vault_path
+    old_key_path = credential_vault.key_path
+    old_cache = credential_vault._cache
     old_default_sessions_root = session_manager_module.DEFAULT_SESSIONS_ROOT
-    old_manager_sessions_root = default_session_manager.sessions_root
-    old_auth_state = default_session_manager._auth_state
+    old_manager_sessions_root = session_manager.sessions_root
+    old_auth_state = session_manager._auth_state
 
-    default_credential_vault.vault_path = storage_root / "smtp_vault.enc"
-    default_credential_vault.key_path = storage_root / "vault_key"
-    default_credential_vault._cache = {}
+    credential_vault.vault_path = storage_root / "smtp_vault.enc"
+    credential_vault.key_path = storage_root / "vault_key"
+    credential_vault._cache = {}
     session_manager_module.DEFAULT_SESSIONS_ROOT = sessions_root
-    default_session_manager.sessions_root = sessions_root
-    default_session_manager._auth_state = {}
+    session_manager.sessions_root = sessions_root
+    session_manager._auth_state = {}
 
     try:
         yield storage_root
     finally:
-        default_credential_vault.vault_path = old_vault_path
-        default_credential_vault.key_path = old_key_path
-        default_credential_vault._cache = old_cache
+        credential_vault.vault_path = old_vault_path
+        credential_vault.key_path = old_key_path
+        credential_vault._cache = old_cache
         session_manager_module.DEFAULT_SESSIONS_ROOT = old_default_sessions_root
-        default_session_manager.sessions_root = old_manager_sessions_root
-        default_session_manager._auth_state = old_auth_state
+        session_manager.sessions_root = old_manager_sessions_root
+        session_manager._auth_state = old_auth_state
 
 
 @pytest.fixture(scope="session", autouse=True)

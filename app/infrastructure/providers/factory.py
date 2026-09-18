@@ -4,6 +4,9 @@ Provides production resolution and test injection for outbound messaging provide
 Production canonical providers:
   WhatsApp -> PlaywrightWhatsAppProvider
   Email    -> SmtpEmailProvider
+
+The canonical provider singletons and test overrides are owned by the composition
+root; these functions are the provider-facing facade over it.
 """
 
 from __future__ import annotations
@@ -11,39 +14,31 @@ from __future__ import annotations
 from typing import Dict, Optional
 
 from app.infrastructure.providers.playwright_whatsapp_provider import PlaywrightWhatsAppProvider
-from app.infrastructure.providers.session_manager import (
-    WhatsAppSessionManager,
-    default_session_manager,
-)
+from app.infrastructure.providers.session_manager import WhatsAppSessionManager
 from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
+from app.infrastructure.security.credential_vault import CredentialVault
 from app.ports.providers import EmailProvider, WhatsAppProvider
-
-# Module-level test dependency injection overrides
-_whatsapp_provider_override: Optional[WhatsAppProvider] = None
-_email_provider_override: Optional[EmailProvider] = None
-
-# Canonical production singletons (B2/B3) — created once, reused across requests.
-_whatsapp_singleton: Optional[WhatsAppProvider] = None
-_email_singleton: Optional[EmailProvider] = None
 
 
 def set_whatsapp_provider(provider: Optional[WhatsAppProvider]) -> None:
     """Override WhatsApp provider instance for dependency injection in tests."""
-    global _whatsapp_provider_override
-    _whatsapp_provider_override = provider
+    from app.composition import set_whatsapp_provider as _set
+
+    _set(provider)
 
 
 def set_email_provider(provider: Optional[EmailProvider]) -> None:
     """Override Email provider instance for dependency injection in tests."""
-    global _email_provider_override
-    _email_provider_override = provider
+    from app.composition import set_email_provider as _set
+
+    _set(provider)
 
 
 def reset_provider_overrides() -> None:
     """Clear all runtime overrides."""
-    global _whatsapp_provider_override, _email_provider_override
-    _whatsapp_provider_override = None
-    _email_provider_override = None
+    from app.composition import reset_provider_overrides as _reset
+
+    _reset()
 
 
 def create_whatsapp_provider(
@@ -60,31 +55,27 @@ def create_whatsapp_provider(
 
 
 def create_email_provider(
+    credential_vault: CredentialVault,
     credential_store: Optional[Dict[str, Dict[str, str]]] = None,
     test_redirect_to: Optional[str] = None,
 ) -> EmailProvider:
     """Factory creating canonical production Email provider."""
     return SmtpEmailProvider(
+        credential_vault=credential_vault,
         credential_store=credential_store,
         test_redirect_to=test_redirect_to,
     )
 
 
 def get_whatsapp_provider() -> WhatsAppProvider:
-    """Resolve active WhatsApp provider (cached singleton) respecting DI overrides."""
-    global _whatsapp_singleton
-    if _whatsapp_provider_override is not None:
-        return _whatsapp_provider_override
-    if _whatsapp_singleton is None:
-        _whatsapp_singleton = create_whatsapp_provider(session_manager=default_session_manager)
-    return _whatsapp_singleton
+    """Resolve the active WhatsApp provider (canonical singleton or test override)."""
+    from app.composition import get_whatsapp_provider as _get
+
+    return _get()
 
 
 def get_email_provider() -> EmailProvider:
-    """Resolve active Email provider (cached singleton) respecting DI overrides."""
-    global _email_singleton
-    if _email_provider_override is not None:
-        return _email_provider_override
-    if _email_singleton is None:
-        _email_singleton = create_email_provider()
-    return _email_singleton
+    """Resolve the active Email provider (canonical singleton or test override)."""
+    from app.composition import get_email_provider as _get
+
+    return _get()
