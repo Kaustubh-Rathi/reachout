@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import build_repositories
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import Channel, OutreachStatus, SenderStatus
@@ -83,6 +84,7 @@ def test_worker_refuses_non_active_sender(session_factory):
         email_provider=FakeEmailProvider(),
         rate_limiter=RateLimiter(default_channel_delay={"WHATSAPP": 0.01, "EMAIL": 0.01}),
         event_publisher=EventBus(),
+        repository_factory=build_repositories,
     )
     with session_factory() as session:
         template = SqliteTemplateRepository(session).get_by_id("tmpl_guard")

@@ -20,6 +20,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.composition import build_repositories
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
@@ -218,6 +219,7 @@ class TestPacingAndSenderRotation:
             email_provider=MockEmailProvider(),
             rate_limiter=rl,
             event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
 
         with SessionFactory() as session:

@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import build_repositories
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -121,7 +122,10 @@ def test_multi_endpoint_round_robin_dispatch(isolated_session_factory):
 
     # Launch Campaign via PersistentCampaignScheduler in mock mode
     scheduler = PersistentCampaignScheduler(
-        session_factory=SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+        session_factory=SessionFactory,
+        worker=build_worker(SessionFactory),
+        event_publisher=EventBus(),
+        repository_factory=build_repositories,
     )
 
     scheduler.start_campaign(camp_id)

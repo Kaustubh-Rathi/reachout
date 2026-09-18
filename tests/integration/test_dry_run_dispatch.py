@@ -15,6 +15,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import build_repositories
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -263,7 +264,10 @@ def test_deterministic_dry_run_dispatch(dry_run_session_factory, capsys):
         camp_id = campaign.id
 
     scheduler = PersistentCampaignScheduler(
-        session_factory=SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+        session_factory=SessionFactory,
+        worker=build_worker(SessionFactory),
+        event_publisher=EventBus(),
+        repository_factory=build_repositories,
     )
     scheduler.start_campaign(camp_id)
     thread = scheduler._active_threads.get(camp_id)

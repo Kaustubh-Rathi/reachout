@@ -18,6 +18,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.composition import build_repositories
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -105,9 +106,13 @@ class TestPauseModifyResumeLifecycle:
             email_provider=em_provider,
             rate_limiter=rate_limiter,
             event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
         scheduler = PersistentCampaignScheduler(
-            session_factory=test_db_setup, worker=worker, event_publisher=EventBus()
+            session_factory=test_db_setup,
+            worker=worker,
+            event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
 
         # Seed initial database state
@@ -421,9 +426,13 @@ class TestPauseResumeMatrixAndRestart:
             email_provider=em_provider,
             rate_limiter=rate_limiter,
             event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
         scheduler1 = PersistentCampaignScheduler(
-            session_factory=test_db_setup, worker=worker1, event_publisher=EventBus()
+            session_factory=test_db_setup,
+            worker=worker1,
+            event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
 
         # Setup and start campaign
@@ -473,9 +482,13 @@ class TestPauseResumeMatrixAndRestart:
             email_provider=em_provider,
             rate_limiter=rate_limiter,
             event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
         scheduler2 = PersistentCampaignScheduler(
-            session_factory=test_db_setup, worker=worker2, event_publisher=EventBus()
+            session_factory=test_db_setup,
+            worker=worker2,
+            event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
 
         # Run startup crash recovery audit

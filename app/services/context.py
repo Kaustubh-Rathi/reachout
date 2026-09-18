@@ -75,32 +75,25 @@ def build_service_context(
     All concrete infrastructure imports live here (and only here) in the
     application layer, so services remain free of adapter dependencies.
     """
-    from app.composition import get_event_bus
+    from app.composition import build_repositories, get_event_bus
     from app.infrastructure.database import SessionFactory
     from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
     from app.infrastructure.providers.session_manager import default_session_manager
-    from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
-    from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
-    from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-    from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-    from app.infrastructure.repositories.sqlite_reminder_repository import SqliteReminderRepository
-    from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
-    from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
-    from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
     from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
     from app.infrastructure.scheduler.rate_limiter import default_rate_limiter
     from app.infrastructure.security.credential_vault import default_credential_vault
     from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 
+    repos = build_repositories(session)
     return ServiceContext(
-        contact_repo=SqliteContactRepository(session),
-        company_repo=SqliteCompanyRepository(session),
-        campaign_repo=SqliteCampaignRepository(session),
-        outreach_repo=SqliteOutreachRepository(session),
-        sender_repo=SqliteSenderRepository(session),
-        template_repo=SqliteTemplateRepository(session),
-        reminder_repo=SqliteReminderRepository(session),
-        suppression_repo=SqliteSuppressionRepository(session),
+        contact_repo=repos.contact,
+        company_repo=repos.company,
+        campaign_repo=repos.campaign,
+        outreach_repo=repos.outreach,
+        sender_repo=repos.sender,
+        template_repo=repos.template,
+        reminder_repo=repos.reminder,
+        suppression_repo=repos.suppression,
         event_publisher=event_publisher or get_event_bus(),
         clock=clock or SystemClock(),
         whatsapp_provider=get_whatsapp_provider(),

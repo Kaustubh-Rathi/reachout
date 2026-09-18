@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from app.composition import build_repositories
 from app.infrastructure.events.event_bus import EventBus
 from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
@@ -35,6 +36,7 @@ def build_worker(
         email_provider=email_provider or FakeEmailProvider(),
         rate_limiter=rate_limiter or fast_rate_limiter(),
         event_publisher=event_publisher or EventBus(),
+        repository_factory=build_repositories,
     )
 
 
@@ -49,4 +51,5 @@ def build_scheduler(
         session_factory=session_factory,
         worker=worker or build_worker(session_factory),
         event_publisher=event_publisher or EventBus(),
+        repository_factory=build_repositories,
     )

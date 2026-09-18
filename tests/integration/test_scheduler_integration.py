@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import time
 
+from app.composition import build_repositories
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
@@ -66,8 +67,11 @@ class TestSchedulerAndRateLimiterIntegration:
             whatsapp_provider=mock_wa,
             email_provider=MockEmailProvider(),
             event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
-        scheduler = PersistentCampaignScheduler(SessionFactory, worker=worker, event_publisher=EventBus())
+        scheduler = PersistentCampaignScheduler(
+            SessionFactory, worker=worker, event_publisher=EventBus(), repository_factory=build_repositories
+        )
         set_campaign_scheduler(scheduler)
 
         # Seed test data
@@ -135,6 +139,7 @@ class TestSchedulerAndRateLimiterIntegration:
             whatsapp_provider=mock_wa,
             email_provider=MockEmailProvider(),
             event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
 
         with SessionFactory() as session:
@@ -219,7 +224,10 @@ class TestCampaignFullLifecycle:
             session.commit()
 
         scheduler = PersistentCampaignScheduler(
-            SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+            SessionFactory,
+            worker=build_worker(SessionFactory),
+            event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
         set_campaign_scheduler(scheduler)
 
@@ -320,7 +328,10 @@ class TestStartupCrashRecovery:
 
         # Execute Startup Crash Recovery Audit
         scheduler = PersistentCampaignScheduler(
-            SessionFactory, worker=build_worker(SessionFactory), event_publisher=EventBus()
+            SessionFactory,
+            worker=build_worker(SessionFactory),
+            event_publisher=EventBus(),
+            repository_factory=build_repositories,
         )
         recovered_count = scheduler.run_crash_recovery_audit()
 

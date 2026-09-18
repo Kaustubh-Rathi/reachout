@@ -16,11 +16,6 @@ from app.domain.errors import NotFoundError, ValidationError
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.sender_account import SenderAccount
-from app.infrastructure.repositories.sqlite_campaign_repository import SqliteCampaignRepository
-from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import DomainEvent, EventPublisher
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
@@ -36,12 +31,14 @@ class OutreachWorker:
         email_provider: EmailProvider,
         rate_limiter: RateLimiter,
         event_publisher: EventPublisher,
+        repository_factory: Any,
     ) -> None:
         self.session_factory = session_factory
         self.whatsapp_provider = whatsapp_provider
         self.email_provider = email_provider
         self.rate_limiter = rate_limiter
         self.event_publisher = event_publisher
+        self.repository_factory = repository_factory
 
     def _record_pre_send_failure(
         self,
@@ -125,9 +122,10 @@ class OutreachWorker:
 
         # --- Phase 1: Pre-Send Transaction & Variable Validation (Database Reservation) ---
         with self.session_factory() as session:
-            contact_repo = SqliteContactRepository(session)
-            company_repo = SqliteCompanyRepository(session)
-            outreach_repo = SqliteOutreachRepository(session)
+            repos = self.repository_factory(session)
+            contact_repo = repos.contact
+            company_repo = repos.company
+            outreach_repo = repos.outreach
 
             contact = contact_repo.get_by_id(contact_id)
             if not contact:
@@ -325,7 +323,7 @@ class OutreachWorker:
         if not is_ready:
             # Pacing timeout! Do NOT call provider.send(), do NOT mark attempt SENT, do NOT advance coverage
             with self.session_factory() as session:
-                outreach_repo = SqliteOutreachRepository(session)
+                outreach_repo = self.repository_factory(session).outreach
                 db_attempt = outreach_repo.get_by_id(attempt.id)
                 if db_attempt:
                     db_attempt.mark_failed(
@@ -359,7 +357,7 @@ class OutreachWorker:
         acquired = self.rate_limiter.acquire_sender(sender_account.id)
         if not acquired:
             with self.session_factory() as session:
-                outreach_repo = SqliteOutreachRepository(session)
+                outreach_repo = self.repository_factory(session).outreach
                 db_attempt = outreach_repo.get_by_id(attempt.id)
                 if db_attempt:
                     db_attempt.mark_failed(
@@ -375,7 +373,7 @@ class OutreachWorker:
         try:
             # --- Phase 3: Transition to SENDING ---
             with self.session_factory() as session:
-                outreach_repo = SqliteOutreachRepository(session)
+                outreach_repo = self.repository_factory(session).outreach
                 db_attempt = outreach_repo.get_by_id(attempt.id)
                 if db_attempt:
                     if db_attempt.status in (OutreachStatus.PREPARED, OutreachStatus.QUEUED):
@@ -436,10 +434,11 @@ class OutreachWorker:
             # --- Phase 5: Post-Send State Resolution & Quota Accounting ---
             post_now = datetime.now(timezone.utc)
             with self.session_factory() as session:
-                outreach_repo = SqliteOutreachRepository(session)
-                contact_repo = SqliteContactRepository(session)
-                sender_repo = SqliteSenderRepository(session)
-                campaign_repo = SqliteCampaignRepository(session)
+                repos = self.repository_factory(session)
+                outreach_repo = repos.outreach
+                contact_repo = repos.contact
+                sender_repo = repos.sender
+                campaign_repo = repos.campaign
 
                 db_attempt = outreach_repo.get_by_id(attempt.id) or attempt
                 db_contact = contact_repo.get_by_id(attempt.contact_id)
