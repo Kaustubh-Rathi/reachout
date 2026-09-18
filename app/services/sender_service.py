@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel, SenderStatus
@@ -88,22 +89,40 @@ class SenderService:
         from app.infrastructure.security.credential_vault import default_credential_vault
 
         existing_em_ids = {s.id for s in em_senders}
+        existing_em_identities = {(s.identity or "").strip().casefold() for s in em_senders}
         vault_ids = default_credential_vault.list_senders_with_credentials()
         for vid in vault_ids:
             if vid not in existing_em_ids:
                 creds = default_credential_vault.get_credentials(vid) or {}
                 user = (creds.get("user") or "").strip()
+                candidate_identity = user or vid
+                normalized_identity = candidate_identity.strip().casefold()
+                if normalized_identity in existing_em_identities:
+                    # Two vault IDs can resolve to the same email address. The
+                    # database allows only one sender per channel identity, so
+                    # keep the existing registration instead of crashing startup.
+                    print(f"[SenderService] Skipping vault sender {vid!r}: duplicate EMAIL identity already registered")
+                    continue
                 new_sender = SenderAccount(
                     id=vid,
                     channel=Channel.EMAIL,
                     provider="smtp",
-                    identity=user or vid,
-                    display_name=user or vid,
+                    identity=candidate_identity,
+                    display_name=candidate_identity,
                     status=SenderStatus.ACTIVE if user and creds.get("password") else SenderStatus.AUTH_REQUIRED,
                     daily_limit=100,
                     hourly_limit=20,
                 )
-                self.repo.save(new_sender)
+                try:
+                    with self.session.begin_nested():
+                        self.repo.save(new_sender)
+                except IntegrityError:
+                    # Preserve startup when another row claims the same identity
+                    # through a route not covered by the pre-check above.
+                    print(f"[SenderService] Skipping vault sender {vid!r}: duplicate EMAIL identity already registered")
+                    continue
+                existing_em_ids.add(vid)
+                existing_em_identities.add(normalized_identity)
 
         # Refresh after materialization so the loop below sees newly-created rows.
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
@@ -358,6 +377,41 @@ class SenderService:
             "qr_code": auth_state.get("qr_code"),
             "last_checked": auth_state.get("last_checked"),
             "error_message": auth_state.get("error_message"),
+        }
+
+    def check_whatsapp_session_health(self, sender_id: str, timeout_seconds: int = 20) -> Dict[str, Any]:
+        """Probe a persisted WhatsApp profile in a live browser and sync the DB status.
+
+        Unlike :meth:`get_whatsapp_auth_status` (cached in-memory state), this opens
+        the sender's browser profile and observes whether WhatsApp Web is actually
+        synced. Positive evidence of a dead login (QR shown or auth required)
+        downgrades the stored sender so the dashboard and scheduler stop treating
+        it as ready; inconclusive probes (errors/disconnects) are reported without
+        mutating the stored status.
+        """
+        sender = self.repo.get_by_id(sender_id)
+        if not sender or sender.channel != Channel.WHATSAPP:
+            raise ValueError(f"WhatsApp sender '{sender_id}' not found")
+
+        probe = self.session_manager.check_session_status(sender_id, timeout_seconds=timeout_seconds)
+        previous = sender.status
+        if probe == SenderStatus.ACTIVE:
+            sender.status = SenderStatus.ACTIVE
+        elif probe in (SenderStatus.QR_REQUIRED, SenderStatus.AUTH_REQUIRED):
+            sender.status = probe
+        if sender.status != previous:
+            self.repo.save(sender)
+            self.session.commit()
+            self.event_publisher.publish_event(
+                "sender.status_changed",
+                {"sender_id": sender.id, "channel": Channel.WHATSAPP.value, "status": sender.status.value},
+            )
+        return {
+            "sender_id": sender.id,
+            "channel": Channel.WHATSAPP.value,
+            "probe": probe.value,
+            "status": sender.status.value,
+            "status_changed": sender.status != previous,
         }
 
     def configure_email_sender(
