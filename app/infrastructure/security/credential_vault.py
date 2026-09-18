@@ -10,13 +10,16 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 import secrets
 import threading
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from app.domain.errors import ConfigurationError
+from app.domain.errors import ConfigurationError, DataIntegrityError
+
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_VAULT_PATH = ROOT_DIR / ".sessions" / "credentials" / "smtp_vault.enc"
@@ -105,9 +108,9 @@ class CredentialVault:
         if hasattr(os, "chmod"):
             try:
                 os.chmod(self.key_path, 0o600)
-            except Exception as exc:
+            except OSError as exc:
                 # Permissions are best-effort on some platforms; not data-loss critical.
-                print(f"[CredentialVault] WARN: could not chmod key file {self.key_path}: {exc}")
+                logger.warning("Could not chmod key file %s: %s", self.key_path, exc)
         return new_key
 
     def _load_vault(self) -> Dict[str, Dict[str, str]]:
@@ -119,11 +122,15 @@ class CredentialVault:
             master_key = self._get_master_key()
             decrypted = _decrypt_payload(raw_blob, master_key)
             return json.loads(decrypted.decode("utf-8"))
-        except Exception as exc:
+        except (ConfigurationError, DataIntegrityError):
+            raise
+        except (OSError, ValueError, UnicodeDecodeError) as exc:
             # A corrupt/undecryptable vault is an integrity violation, NOT "no
-            # credentials". Return {} silently would let a subsequent save overwrite the
-            # vault with an empty cache (data loss). Surface it instead.
-            raise RuntimeError(f"Credential vault is corrupt or undecryptable at {self.vault_path}: {exc}") from exc
+            # credentials". Returning {} silently would let a subsequent save overwrite
+            # the vault with an empty cache (data loss). Surface it instead.
+            raise DataIntegrityError(
+                f"Credential vault is corrupt or undecryptable at {self.vault_path}: {exc}"
+            ) from exc
 
     def _save_vault(self, data: Dict[str, Dict[str, str]]) -> None:
         """Encrypt and persist vault contents to disk atomically."""

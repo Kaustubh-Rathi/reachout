@@ -20,6 +20,7 @@ Lifecycle (matching the no-fake-row refactor):
 from __future__ import annotations
 
 import base64
+import logging
 import shutil
 import threading
 import time
@@ -28,6 +29,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from app.domain.enums import SenderStatus
+
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_SESSIONS_ROOT = ROOT_DIR / ".sessions" / "whatsapp"
@@ -40,8 +43,8 @@ def _auth_log(message: str) -> None:
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(LOG_PATH, "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now(timezone.utc).isoformat()}] {message}\n")
-    except Exception:
-        pass
+    except OSError:
+        logger.warning("Unable to write WhatsApp auth log at %s", LOG_PATH, exc_info=True)
 
 
 class WhatsAppSessionManager:
@@ -486,8 +489,8 @@ class WhatsAppSessionManager:
             if wid and ":" in wid:
                 return wid.split(":")[0].replace('"', "").replace("'", "")
             return None
-        except Exception as exc:
-            print(f"[WhatsAppSessionManager] Error extracting phone number: {exc}")
+        except Exception:
+            logger.exception("Error extracting phone number from WhatsApp page")
             return None
 
     def _fail_auth(

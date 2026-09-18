@@ -6,6 +6,7 @@ per sender account with realistic anti-detection, humanized typing, and delivery
 
 from __future__ import annotations
 
+import logging
 import random
 import re
 import time
@@ -19,6 +20,8 @@ from app.infrastructure.providers.attachments import resolve_attachment_path
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager
 from app.ports.providers import ProviderSendResult, ProviderStatusResult
 
+logger = logging.getLogger(__name__)
+
 SEND_LOG = Path(__file__).resolve().parent.parent.parent.parent / "logs" / "whatsapp_send.log"
 
 
@@ -27,8 +30,8 @@ def _dbg(message: str) -> None:
         SEND_LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(SEND_LOG, "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now(timezone.utc).isoformat()}] {message}\n")
-    except Exception:
-        pass
+    except OSError:
+        logger.debug("Unable to write WhatsApp send log at %s", SEND_LOG, exc_info=True)
 
 
 class PlaywrightWhatsAppProvider:

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -28,10 +28,7 @@ class SyncRequest(BaseModel):
 def sync_contacts(payload: SyncRequest = SyncRequest(), session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Trigger non-destructive synchronization from external Excel/CSV."""
     svc = SyncService(session)
-    try:
-        return svc.sync_source(source_path=payload.source_path, sheet_name=payload.sheet_name)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
+    return svc.sync_source(source_path=payload.source_path, sheet_name=payload.sheet_name)
 
 
 @router.get("/summary")

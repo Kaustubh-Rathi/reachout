@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -60,6 +60,16 @@ def _coerce_enum(enum_cls, raw, field: str):
         return enum_cls(raw)
     except (ValueError, KeyError) as exc:
         raise DataIntegrityError(f"Invalid persisted {field}: {raw!r}") from exc
+
+
+def _load_json(raw: Optional[str], field: str, default: Any) -> Any:
+    """Parse a persisted JSON column, raising on corruption instead of defaulting."""
+    if raw is None:
+        return default
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError) as exc:
+        raise DataIntegrityError(f"Invalid persisted JSON in {field}: {raw!r}") from exc
 
 
 class CompanyModel(Base):
@@ -158,12 +168,7 @@ class ContactModel(Base):
     )
 
     def to_domain(self) -> Contact:
-        tags: List[str] = []
-        if self.tags_json:
-            try:
-                tags = json.loads(self.tags_json)
-            except Exception:
-                tags = []
+        tags: List[str] = _load_json(self.tags_json, "contact.tags_json", [])
 
         primary_source: Optional[SourceRecord] = None
         if self.source_records:
@@ -357,18 +362,9 @@ class CampaignModel(Base):
     )
 
     def to_domain(self) -> Campaign:
-        try:
-            t_ids = json.loads(self.template_ids_json)
-        except Exception:
-            t_ids = []
-        try:
-            s_ids = json.loads(self.sender_account_ids_json)
-        except Exception:
-            s_ids = []
-        try:
-            meta = json.loads(self.metadata_json)
-        except Exception:
-            meta = {}
+        t_ids = _load_json(self.template_ids_json, "campaign.template_ids_json", [])
+        s_ids = _load_json(self.sender_account_ids_json, "campaign.sender_account_ids_json", [])
+        meta = _load_json(self.metadata_json, "campaign.metadata_json", {})
 
         return Campaign(
             id=self.id,

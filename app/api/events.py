@@ -7,6 +7,7 @@ Message failed, Sender expired, Follow-up due) via Server-Sent Events (SSE).
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
@@ -14,6 +15,8 @@ from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import get_event_stream
 from app.ports.infrastructure import EventStream
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
@@ -65,12 +68,9 @@ async def websocket_events(websocket: WebSocket, event_stream: EventStream = Dep
             await websocket.send_json(data_payload)
     except WebSocketDisconnect:
         pass
-    except Exception as exc:
+    except Exception:
         # Surface a failing event-stream subscriber instead of silently killing the socket.
-        import traceback
-
-        traceback.print_exc()
-        print(f"[Events] WebSocket event-stream error: {exc}")
+        logger.exception("WebSocket event-stream error")
 
 
 @router.get("/history")

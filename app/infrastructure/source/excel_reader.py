@@ -43,7 +43,7 @@ class TabularSourceReader(SourceReader):
     def read_source(self, source_path: str, sheet_name: Optional[str] = None) -> List[SourceRow]:
         path = Path(source_path).resolve()
         if not path.exists():
-            raise FileNotFoundError(f"Source file not found: {path}")
+            raise SourceError(f"Source file not found: {path}")
 
         file_ext = path.suffix.lower()
         if file_ext == ".csv":
