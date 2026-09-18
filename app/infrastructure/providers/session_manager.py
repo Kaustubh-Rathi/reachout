@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import base64
 import logging
-import shutil
 import threading
 import time
 from datetime import datetime, timezone
@@ -29,11 +28,12 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from app.domain.enums import SenderStatus
+from app.infrastructure.providers.auth_state_registry import AuthStateRegistry
+from app.infrastructure.providers.session_store import SessionStore
 
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
-DEFAULT_SESSIONS_ROOT = ROOT_DIR / ".sessions" / "whatsapp"
 LOG_PATH = ROOT_DIR / "logs" / "whatsapp_auth.log"
 
 
@@ -51,118 +51,66 @@ class WhatsAppSessionManager:
     """Manages persistent browser directories and contexts for N WhatsApp senders."""
 
     def __init__(self, sessions_root: Optional[Path] = None) -> None:
-        self.sessions_root = sessions_root or DEFAULT_SESSIONS_ROOT
-        self.sessions_root.mkdir(parents=True, exist_ok=True)
+        self._store = SessionStore(sessions_root)
+        self._auth = AuthStateRegistry()
         self._lock = threading.RLock()
-        self._auth_state: Dict[str, Dict[str, Any]] = {}
-        self._active_auth_threads: Dict[str, threading.Thread] = {}
+
+    # Backwards-compatible accessors for tests and callers that mutate the
+    # underlying store/registry directly.
+    @property
+    def sessions_root(self) -> Path:
+        return self._store.sessions_root
+
+    @sessions_root.setter
+    def sessions_root(self, value: Path) -> None:
+        self._store.sessions_root = value
+
+    @property
+    def _auth_state(self) -> Dict[str, Dict[str, Any]]:
+        return self._auth.states
+
+    @_auth_state.setter
+    def _auth_state(self, value: Dict[str, Dict[str, Any]]) -> None:
+        self._auth.states = value
 
     # ------------------------------------------------------------------ paths
 
-    def _normalise_id(self, sender_id: str) -> str:
-        """Return a filesystem-safe identifier for a sender id (no mkdir)."""
-        clean_id = "".join(c for c in sender_id if c.isalnum() or c in ("-", "_")).lower()
-        return clean_id if clean_id else "default_sender"
-
     def session_dir_path(self, sender_id: str) -> Path:
-        """Compute the isolated session storage path WITHOUT creating it.
-
-        Used by the rename/cleanup logic when the exact on-disk location matters
-        and a spurious mkdir would interfere with renames.
-        """
-        return self.sessions_root / self._normalise_id(sender_id)
+        """Compute the isolated session storage path WITHOUT creating it."""
+        return self._store.session_dir_path(sender_id)
 
     def get_session_dir(self, sender_id: str) -> Path:
-        """Return the isolated session storage path for a given sender ID (created if absent)."""
-        s_dir = self.session_dir_path(sender_id)
-        s_dir.mkdir(parents=True, exist_ok=True)
-        return s_dir
+        """Return the isolated session storage path for a sender (created if absent)."""
+        return self._store.get_session_dir(sender_id)
 
     def rename_session_dir(self, from_id: str, to_id: str) -> Path:
-        """Rename a session folder from one id to another, returning the target path.
-
-        Retries on Windows lock errors because the Firefox profile may still be briefly
-        held open right after the browser context closes.
-        """
-        src = self.session_dir_path(from_id)
-        dst = self.session_dir_path(to_id)
-        if not src.exists():
-            # Nothing on disk yet (e.g. brand-new temp that never wrote a profile).
-            return dst
-        if dst.exists():
-            # Target already present and src differs: merge by copying contents over.
-            for item in src.iterdir():
-                dest_item = dst / item.name
-                if item.is_dir():
-                    shutil.copytree(item, dest_item, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(item, dest_item)
-            try:
-                shutil.rmtree(src)
-            except Exception as exc:
-                # Surface a leftover temp dir instead of silently ignoring it.
-                _auth_log(f"[auth] WARN: failed to remove leftover temp session dir {src}: {exc!r}")
-        else:
-            last_err: Optional[Exception] = None
-            for attempt in range(10):
-                try:
-                    src.rename(dst)
-                    return dst
-                except OSError as exc:
-                    last_err = exc
-                    _auth_log(f"[auth] rename retry {attempt + 1} for {from_id} -> {to_id}: {exc!r}")
-                    time.sleep(1.0)
-            raise last_err if last_err else OSError("Rename failed")
-        return dst
+        """Rename a session folder from one id to another, returning the target path."""
+        return self._store.rename_session_dir(from_id, to_id)
 
     def remove_session_dir(self, sender_id: str) -> None:
-        """Remove the on-disk session folder for an id (used for abandoned temp sessions)."""
-        s_dir = self.session_dir_path(sender_id)
-        if s_dir.exists():
-            try:
-                shutil.rmtree(s_dir)
-            except Exception as exc:
-                # Surface the leftover dir instead of silently ignoring it.
-                _auth_log(f"[auth] WARN: failed to remove session dir {s_dir}: {exc!r}")
+        """Remove the on-disk session folder for an id (abandoned temp sessions)."""
+        self._store.remove_session_dir(sender_id)
 
     def is_temp_id(self, sender_id: str) -> bool:
-        return sender_id.startswith("tmp_auth_")
+        return self._store.is_temp_id(sender_id)
 
     def has_persisted_session(self, sender_id: str) -> bool:
-        """True if an on-disk browser profile with cookies exists for this sender.
-
-        Used at startup to avoid trusting a stale ACTIVE status for a WhatsApp
-        sender whose authenticated profile is gone.
-        """
-        s_dir = self.session_dir_path(sender_id)
-        return s_dir.is_dir() and (s_dir / "cookies.sqlite").exists()
+        """True if an on-disk browser profile with cookies exists for this sender."""
+        return self._store.has_persisted_session(sender_id)
 
     # ----------------------------------------------------------- auth state
 
     def get_auth_state(self, sender_id: str) -> Dict[str, Any]:
         """Retrieve the in-memory authentication state for a sender."""
-        with self._lock:
-            if sender_id not in self._auth_state:
-                self._auth_state[sender_id] = {
-                    "sender_id": sender_id,
-                    "status": SenderStatus.NOT_CONFIGURED.value,
-                    "qr_code": None,
-                    "last_checked": None,
-                    "error_message": None,
-                }
-            return dict(self._auth_state[sender_id])
+        return self._auth.get(sender_id)
 
     def is_auth_known(self, sender_id: str) -> bool:
         """True if this id has real, non-default in-memory auth state (e.g. a live temp)."""
-        with self._lock:
-            state = self._auth_state.get(sender_id)
-            return bool(state) and state.get("status") != SenderStatus.NOT_CONFIGURED.value
+        return self._auth.is_known(sender_id)
 
     def has_active_auth_thread(self, sender_id: str) -> bool:
         """True if a QR auth thread is currently running for this id."""
-        with self._lock:
-            t = self._active_auth_threads.get(sender_id)
-            return bool(t and t.is_alive())
+        return self._auth.has_active_thread(sender_id)
 
     def set_auth_state(
         self,
@@ -172,27 +120,11 @@ class WhatsAppSessionManager:
         error_message: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Update and record authentication state."""
-        with self._lock:
-            now_iso = datetime.now(timezone.utc).isoformat()
-            state = {
-                "sender_id": sender_id,
-                "status": status.value,
-                "qr_code": qr_code,
-                "last_checked": now_iso,
-                "error_message": error_message,
-            }
-            self._auth_state[sender_id] = state
-            return dict(state)
+        return self._auth.set(sender_id, status, qr_code=qr_code, error_message=error_message)
 
     def drop_auth_state(self, sender_id: str) -> None:
-        """Remove in-memory auth state and any tracked auth thread for an id.
-
-        After this, ``get_auth_state`` reports the default NOT_CONFIGURED and a caller
-        that keeps a strict ``is known`` check can treat the id as unknown -> 404.
-        """
-        with self._lock:
-            self._auth_state.pop(sender_id, None)
-            self._active_auth_threads.pop(sender_id, None)
+        """Remove in-memory auth state and any tracked auth thread for an id."""
+        self._auth.drop(sender_id)
 
     # ------------------------------------------------------------- probing
 
@@ -272,8 +204,7 @@ class WhatsAppSessionManager:
               * ``{"status": "reject", "error": "<reason>"}``
         """
         with self._lock:
-            existing_thread = self._active_auth_threads.get(sender_id)
-            if existing_thread and existing_thread.is_alive():
+            if self._auth.has_active_thread(sender_id):
                 return self.get_auth_state(sender_id)
 
             self.set_auth_state(sender_id, SenderStatus.AUTHENTICATING)
@@ -294,7 +225,7 @@ class WhatsAppSessionManager:
                 daemon=True,
                 name=f"wa-auth-{sender_id}",
             )
-            self._active_auth_threads[sender_id] = t
+            self._auth.register_thread(sender_id, t)
             t.start()
 
             return self.get_auth_state(sender_id)

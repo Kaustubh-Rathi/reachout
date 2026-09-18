@@ -97,13 +97,13 @@ def isolate_provider_storage(request, monkeypatch, tmp_path):
     if request.node.get_closest_marker("live_e2e"):
         return
     from app.composition import get_credential_vault, get_session_manager
-    from app.infrastructure.providers import session_manager
+    from app.infrastructure.providers import session_store
 
     credential_vault = get_credential_vault()
     monkeypatch.setattr(credential_vault, "vault_path", tmp_path / "smtp_vault.enc")
     monkeypatch.setattr(credential_vault, "key_path", tmp_path / "vault_key")
     monkeypatch.setattr(credential_vault, "_cache", None)
-    monkeypatch.setattr(session_manager, "DEFAULT_SESSIONS_ROOT", tmp_path / "sessions")
+    monkeypatch.setattr(session_store, "DEFAULT_SESSIONS_ROOT", tmp_path / "sessions")
     monkeypatch.setattr(get_session_manager(), "sessions_root", tmp_path / "sessions")
 
 
