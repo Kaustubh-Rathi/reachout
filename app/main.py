@@ -14,6 +14,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.api.error_handlers import register_exception_handlers
@@ -86,6 +87,9 @@ app.add_middleware(
 )
 
 register_exception_handlers(app)
+
+# Serve the dashboard's external CSS/JS assets.
+app.mount("/ui", StaticFiles(directory=UI_DIR), name="ui")
 
 # Mount all /api endpoints
 app.include_router(api_router)
