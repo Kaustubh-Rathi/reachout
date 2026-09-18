@@ -7,7 +7,7 @@ Defined using typing.Protocol to decouple domain logic from persistence mechanis
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, List, Optional, Protocol, runtime_checkable
+from typing import List, Optional, Protocol, runtime_checkable
 
 from app.domain.campaign import Campaign
 from app.domain.company import Company
@@ -17,6 +17,7 @@ from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.reminder import FollowUpReminder
 from app.domain.sender_account import SenderAccount
+from app.domain.suppression import SuppressionRecord
 
 
 @runtime_checkable
@@ -201,10 +202,10 @@ class SuppressionRepository(Protocol):
         identifier: str,
         reason: str = "MANUAL_CRM_DELETION",
         timestamp: Optional[datetime] = None,
-    ) -> Any:
+    ) -> SuppressionRecord:
         """Record a tombstone suppression for an identifier."""
         ...
 
-    def list_all(self) -> List[Any]:
+    def list_all(self) -> List[SuppressionRecord]:
         """Return all suppression records."""
         ...

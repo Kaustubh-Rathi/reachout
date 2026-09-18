@@ -9,6 +9,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.domain.suppression import SuppressionRecord
 from app.infrastructure.models import SuppressionRecordModel
 from app.ports.repositories import SuppressionRepository
 
@@ -46,7 +47,7 @@ class SqliteSuppressionRepository(SuppressionRepository):
         identifier: str,
         reason: str = "MANUAL_CRM_DELETION",
         timestamp: Optional[datetime] = None,
-    ) -> SuppressionRecordModel:
+    ) -> SuppressionRecord:
         """Record a tombstone suppression."""
         clean_id = identifier.strip()
         if suppression_type in ("EMAIL", "CANONICAL_KEY"):
@@ -62,7 +63,7 @@ class SqliteSuppressionRepository(SuppressionRepository):
         )
         existing = self.session.scalars(stmt).first()
         if existing:
-            return existing
+            return self._to_domain(existing)
 
         now = timestamp or datetime.now(timezone.utc)
         record = SuppressionRecordModel(
@@ -74,8 +75,18 @@ class SqliteSuppressionRepository(SuppressionRepository):
         )
         self.session.add(record)
         self.session.flush()
-        return record
+        return self._to_domain(record)
 
-    def list_all(self) -> List[SuppressionRecordModel]:
+    def list_all(self) -> List[SuppressionRecord]:
         stmt = select(SuppressionRecordModel).order_by(SuppressionRecordModel.created_at.desc())
-        return list(self.session.scalars(stmt).all())
+        return [self._to_domain(model) for model in self.session.scalars(stmt).all()]
+
+    @staticmethod
+    def _to_domain(model: SuppressionRecordModel) -> SuppressionRecord:
+        return SuppressionRecord(
+            id=model.id,
+            suppression_type=model.suppression_type,
+            identifier=model.identifier,
+            reason=model.reason,
+            created_at=model.created_at,
+        )
