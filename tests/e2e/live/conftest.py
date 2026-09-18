@@ -59,7 +59,7 @@ def live_whatsapp_pair():
                 page.locator('#side, [data-testid="chat-list"]').first.wait_for(state="visible", timeout=180000)
             except Exception:
                 return False
-            actual = manager._extract_phone(page)
+            actual = manager.extract_phone(page)
             if actual != account.identity:
                 raise LiveAccountError(f"Browser identity mismatch for {account.id}; no message sent")
             return True

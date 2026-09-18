@@ -45,7 +45,7 @@ class PlaywrightWhatsAppProvider:
         expected_identity: Optional[str] = None,
     ) -> None:
         self.session_manager = session_manager or default_session_manager
-        self.headless = False
+        self.headless = headless
         self.timeout_seconds = timeout_seconds
         self.expected_identity = expected_identity
 
@@ -104,7 +104,7 @@ class PlaywrightWhatsAppProvider:
             with Camoufox(
                 persistent_context=True,
                 user_data_dir=str(session_dir),
-                headless=False,
+                headless=self.headless,
                 humanize=True,
                 os="windows",
                 window=(1280, 900),
@@ -157,7 +157,7 @@ class PlaywrightWhatsAppProvider:
                         failure_detail="WhatsApp Web failed to sync chats within timeout",
                     )
                 if self.expected_identity is not None:
-                    actual_identity = self.session_manager._extract_phone(page)
+                    actual_identity = self.session_manager.extract_phone(page)
                     if actual_identity != re.sub(r"\D", "", self.expected_identity):
                         return ProviderSendResult.failed(
                             failure_code="ERR_SENDER_IDENTITY_MISMATCH",
@@ -324,8 +324,13 @@ class PlaywrightWhatsAppProvider:
             return ProviderSendResult.unknown(reason=f"Camoufox automation encountered unexpected exception: {exc}")
 
     def check_status(self, provider_reference: str) -> ProviderStatusResult:
-        """Check delivery status."""
+        """Report delivery status.
+
+        WhatsApp Web exposes no read receipt for arbitrary references, so this
+        adapter cannot confirm delivery. It reports ``UNKNOWN`` rather than
+        falsely claiming success.
+        """
         return ProviderStatusResult(
-            status=OutreachStatus.SENT,
-            detail="Confirmed delivered via WhatsApp Web",
+            status=OutreachStatus.UNKNOWN,
+            detail="WhatsApp Web does not expose delivery confirmation for this reference",
         )

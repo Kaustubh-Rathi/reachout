@@ -48,7 +48,7 @@ def reset_provider_overrides() -> None:
 
 def create_whatsapp_provider(
     session_manager: Optional[WhatsAppSessionManager] = None,
-    headless: bool = True,
+    headless: bool = False,
     timeout_seconds: int = 60,
 ) -> WhatsAppProvider:
     """Factory creating canonical production WhatsApp provider."""

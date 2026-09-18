@@ -348,7 +348,7 @@ class WhatsAppSessionManager:
                     # Check if already authenticated
                     if main_ui.count() > 0 and main_ui.first.is_visible():
                         _auth_log(f"[auth] sender={sender_id} LOGIN_DETECTED main_ui_visible=True")
-                        phone = self._extract_phone(page)
+                        phone = self.extract_phone(page)
                         _auth_log(f"[auth] sender={sender_id} extracted_phone={phone!r}")
                         if phone is None:
                             self._fail_auth(
@@ -479,7 +479,7 @@ class WhatsAppSessionManager:
     # --------------------------------------------------------------- helpers
 
     @staticmethod
-    def _extract_phone(page: Any) -> Optional[str]:
+    def extract_phone(page: Any) -> Optional[str]:
         """Extract the WhatsApp phone number from localStorage immediately at login."""
         try:
             wid = page.evaluate('window.localStorage.getItem("last-wid-md")')

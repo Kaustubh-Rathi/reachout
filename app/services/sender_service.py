@@ -121,10 +121,8 @@ class SenderService:
         em_senders = self.repo.list_by_channel(Channel.EMAIL)
         email_provider = self.email_provider
         for s in em_senders:
-            has_creds = False
-            if hasattr(email_provider, "get_sender_credentials"):
-                c = email_provider.get_sender_credentials(s.id)
-                has_creds = bool(c.get("user") and c.get("password"))
+            creds = email_provider.get_sender_credentials(s.id)
+            has_creds = bool(creds.get("user") and creds.get("password"))
 
             if s.status == SenderStatus.ACTIVE and not has_creds:
                 s.status = SenderStatus.AUTH_REQUIRED
@@ -431,21 +429,16 @@ class SenderService:
 
         # Verify credentials BEFORE persisting anything.
         if verify_now and clean_user and password:
-            if hasattr(provider, "set_sender_credentials"):
-                provider.set_sender_credentials(
-                    sender_account_id=clean_id,
-                    user=clean_user,
-                    password=password or "",
-                    host=host,
-                    port=port,
-                )
-            if hasattr(provider, "verify_credentials"):
-                success, err = provider.verify_credentials(clean_id)
-                if not success:
-                    raise ValueError(f"SMTP connection failed: {err or 'could not connect'}")
-            # No dedicated verifier: fall back to a documented connection check.
-            elif not host:
-                raise ValueError("SMTP host is required to verify the connection.")
+            provider.set_sender_credentials(
+                sender_account_id=clean_id,
+                user=clean_user,
+                password=password or "",
+                host=host,
+                port=port,
+            )
+            success, err = provider.verify_credentials(clean_id)
+            if not success:
+                raise ValueError(f"SMTP connection failed: {err or 'could not connect'}")
         else:
             if not clean_user or not password:
                 raise ValueError("SMTP username and password are required.")
@@ -470,14 +463,13 @@ class SenderService:
             sender.display_name = clean_display
             sender.status = SenderStatus.ACTIVE
 
-        if hasattr(provider, "set_sender_credentials"):
-            provider.set_sender_credentials(
-                sender_account_id=clean_id,
-                user=clean_user,
-                password=password or "",
-                host=host,
-                port=port,
-            )
+        provider.set_sender_credentials(
+            sender_account_id=clean_id,
+            user=clean_user,
+            password=password or "",
+            host=host,
+            port=port,
+        )
 
         self.repo.save(sender)
         self.session.commit()
@@ -519,17 +511,13 @@ class SenderService:
             raise ValueError(f"Email sender '{sender_id}' not found")
 
         provider = self.email_provider
-        if hasattr(provider, "verify_credentials"):
-            success, err = provider.verify_credentials(sender_id)
-            if success:
-                sender.status = SenderStatus.ACTIVE
-                verification_error = None
-            else:
-                sender.status = SenderStatus.ERROR
-                verification_error = err
-        else:
+        success, err = provider.verify_credentials(sender_id)
+        if success:
             sender.status = SenderStatus.ACTIVE
             verification_error = None
+        else:
+            sender.status = SenderStatus.ERROR
+            verification_error = err
 
         self.repo.save(sender)
         self.session.commit()
