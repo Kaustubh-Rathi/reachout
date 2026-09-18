@@ -38,6 +38,7 @@ from app.domain.enums import (
     ReminderStatus,
     SenderStatus,
 )
+from app.domain.errors import DataIntegrityError
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.reminder import FollowUpReminder
@@ -58,7 +59,7 @@ def _coerce_enum(enum_cls, raw, field: str):
     try:
         return enum_cls(raw)
     except (ValueError, KeyError) as exc:
-        raise ValueError(f"Invalid persisted {field}: {raw!r}") from exc
+        raise DataIntegrityError(f"Invalid persisted {field}: {raw!r}") from exc
 
 
 class CompanyModel(Base):

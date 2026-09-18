@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus
+from app.domain.errors import NotFoundError, ValidationError
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.channel_rotation_policy import (
     ChannelRotationPolicy,
@@ -114,7 +115,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 campaign_repo = SqliteCampaignRepository(session)
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if not campaign:
-                    raise ValueError(f"Campaign '{campaign_id}' not found")
+                    raise NotFoundError(f"Campaign '{campaign_id}' not found")
 
                 if self.is_running(campaign_id):
                     return
@@ -124,7 +125,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     return
 
                 if campaign.status not in (CampaignStatus.IDLE, CampaignStatus.STARTING, CampaignStatus.RUNNING):
-                    raise ValueError(f"Cannot start campaign in status '{campaign.status.value}'")
+                    raise ValidationError(f"Cannot start campaign in status '{campaign.status.value}'")
 
                 if campaign.status in (CampaignStatus.IDLE, CampaignStatus.STARTING):
                     campaign.start()
@@ -177,7 +178,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 campaign_repo = SqliteCampaignRepository(session)
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if not campaign:
-                    raise ValueError(f"Campaign '{campaign_id}' not found")
+                    raise NotFoundError(f"Campaign '{campaign_id}' not found")
 
                 if campaign.status == CampaignStatus.PAUSED:
                     campaign_repo.set_status(campaign_id, CampaignStatus.RUNNING)

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from app.domain.enums import CampaignStatus, Channel
+from app.domain.errors import ValidationError
 
 
 @dataclass
@@ -121,7 +122,7 @@ class Campaign:
     def start(self, timestamp: Optional[datetime] = None) -> None:
         """Start the campaign execution."""
         if self.status not in (CampaignStatus.IDLE, CampaignStatus.STARTING):
-            raise ValueError(f"Cannot start campaign in status '{self.status}'")
+            raise ValidationError(f"Cannot start campaign in status '{self.status}'")
         now = timestamp or datetime.now(timezone.utc)
         self.status = CampaignStatus.RUNNING
         if not self.started_at:
@@ -130,26 +131,26 @@ class Campaign:
     def pause(self) -> None:
         """Pause active campaign."""
         if self.status != CampaignStatus.RUNNING:
-            raise ValueError(f"Cannot pause campaign in status '{self.status}'")
+            raise ValidationError(f"Cannot pause campaign in status '{self.status}'")
         self.status = CampaignStatus.PAUSED
 
     def resume(self) -> None:
         """Resume paused campaign."""
         if self.status != CampaignStatus.PAUSED:
-            raise ValueError(f"Cannot resume campaign in status '{self.status}'")
+            raise ValidationError(f"Cannot resume campaign in status '{self.status}'")
         self.status = CampaignStatus.RUNNING
 
     def stop(self, timestamp: Optional[datetime] = None) -> None:
         """Manually abort/stop campaign."""
         if self.status.is_terminal:
-            raise ValueError(f"Campaign is already in terminal status '{self.status}'")
+            raise ValidationError(f"Campaign is already in terminal status '{self.status}'")
         self.status = CampaignStatus.STOPPED
         self.ended_at = timestamp or datetime.now(timezone.utc)
 
     def complete(self, timestamp: Optional[datetime] = None) -> None:
         """Mark campaign as successfully completed."""
         if self.status not in (CampaignStatus.RUNNING, CampaignStatus.STOPPING):
-            raise ValueError(f"Cannot complete campaign in status '{self.status}'")
+            raise ValidationError(f"Cannot complete campaign in status '{self.status}'")
         self.status = CampaignStatus.COMPLETED
         self.ended_at = timestamp or datetime.now(timezone.utc)
 

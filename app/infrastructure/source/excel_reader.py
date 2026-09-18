@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from xml.etree import ElementTree as ET
 
+from app.domain.errors import SourceError
 from app.domain.source_record import compute_source_fingerprint
 from app.ports.source import SourceReader, SourceRow
 
@@ -50,7 +51,7 @@ class TabularSourceReader(SourceReader):
         elif file_ext in (".xlsx", ".xlsm"):
             return self._read_xlsx(path, sheet_name)
         else:
-            raise ValueError(f"Unsupported source file format: {file_ext}")
+            raise SourceError(f"Unsupported source file format: {file_ext}")
 
     def _read_csv(self, path: Path) -> List[SourceRow]:
         rows: List[SourceRow] = []
@@ -114,7 +115,7 @@ class TabularSourceReader(SourceReader):
                 )
 
             if sheet is None:
-                raise ValueError(f"No readable sheet found in workbook {path.name}")
+                raise SourceError(f"No readable sheet found in workbook {path.name}")
 
             actual_sheet_name = sheet.attrib.get("name", "Sheet1")
             relationship_id = sheet.attrib[f"{{{DOC_REL_NS}}}id"]

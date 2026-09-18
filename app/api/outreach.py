@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -51,70 +51,58 @@ class ResolveRecoveryRequest(BaseModel):
 def send_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Manually dispatch a WhatsApp message to a specific endpoint."""
     svc = OutreachService(session)
-    try:
-        return svc.send_whatsapp(
-            contact_id=payload.contact_id,
-            sender_id=payload.sender_id,
-            template_id=payload.template_id,
-            custom_body=payload.custom_body,
-            attachment_ref=payload.attachment_ref,
-            destination=payload.destination,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.send_whatsapp(
+        contact_id=payload.contact_id,
+        sender_id=payload.sender_id,
+        template_id=payload.template_id,
+        custom_body=payload.custom_body,
+        attachment_ref=payload.attachment_ref,
+        destination=payload.destination,
+    )
 
 
 @router.post("/send-email")
 def send_email(payload: SendEmailRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Manually dispatch an Email message to a specific endpoint."""
     svc = OutreachService(session)
-    try:
-        return svc.send_email(
-            contact_id=payload.contact_id,
-            sender_id=payload.sender_id,
-            template_id=payload.template_id,
-            subject=payload.subject,
-            custom_body=payload.custom_body,
-            attachment_ref=payload.attachment_ref,
-            destination=payload.destination,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.send_email(
+        contact_id=payload.contact_id,
+        sender_id=payload.sender_id,
+        template_id=payload.template_id,
+        subject=payload.subject,
+        custom_body=payload.custom_body,
+        attachment_ref=payload.attachment_ref,
+        destination=payload.destination,
+    )
 
 
 @router.post("/resend-whatsapp")
 def resend_whatsapp(payload: SendWhatsAppRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Trigger manual WhatsApp resend creating a new attempt while preserving history."""
     svc = OutreachService(session)
-    try:
-        return svc.resend_whatsapp(
-            contact_id=payload.contact_id,
-            sender_id=payload.sender_id,
-            template_id=payload.template_id,
-            custom_body=payload.custom_body,
-            attachment_ref=payload.attachment_ref,
-            destination=payload.destination,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.resend_whatsapp(
+        contact_id=payload.contact_id,
+        sender_id=payload.sender_id,
+        template_id=payload.template_id,
+        custom_body=payload.custom_body,
+        attachment_ref=payload.attachment_ref,
+        destination=payload.destination,
+    )
 
 
 @router.post("/resend-email")
 def resend_email(payload: SendEmailRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
     """Trigger manual Email resend creating a new attempt while preserving history."""
     svc = OutreachService(session)
-    try:
-        return svc.resend_email(
-            contact_id=payload.contact_id,
-            sender_id=payload.sender_id,
-            template_id=payload.template_id,
-            subject=payload.subject,
-            custom_body=payload.custom_body,
-            attachment_ref=payload.attachment_ref,
-            destination=payload.destination,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.resend_email(
+        contact_id=payload.contact_id,
+        sender_id=payload.sender_id,
+        template_id=payload.template_id,
+        subject=payload.subject,
+        custom_body=payload.custom_body,
+        attachment_ref=payload.attachment_ref,
+        destination=payload.destination,
+    )
 
 
 @router.get("/history/{contact_id}")
@@ -137,11 +125,8 @@ def resolve_recovery_attempt(
 ) -> Dict[str, Any]:
     """Resolve a stuck recovery attempt."""
     svc = OutreachService(session)
-    try:
-        return svc.resolve_recovery(
-            attempt_id=attempt_id,
-            action=payload.action,
-            recovery_notes=payload.recovery_notes,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return svc.resolve_recovery(
+        attempt_id=attempt_id,
+        action=payload.action,
+        recovery_notes=payload.recovery_notes,
+    )

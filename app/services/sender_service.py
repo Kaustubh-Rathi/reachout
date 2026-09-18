@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel, SenderStatus
+from app.domain.errors import NotFoundError, ValidationError
 from app.domain.sender_account import SenderAccount
 from app.ports.infrastructure import SessionManager
 from app.services.context import ServiceContext, build_service_context
@@ -200,7 +201,7 @@ class SenderService:
     def configure_whatsapp_sessions(self, count: int) -> List[Dict[str, Any]]:
         """Ensure exactly N WhatsApp sessions are configured in the repository."""
         if count < 1:
-            raise ValueError("WhatsApp session count must be at least 1")
+            raise ValidationError("WhatsApp session count must be at least 1")
         existing_wa = self.repo.list_by_channel(Channel.WHATSAPP)
         existing_map = {s.id: s for s in existing_wa}
 
@@ -241,7 +242,7 @@ class SenderService:
         if not is_temp:
             sender = self.repo.get_by_id(sender_id)
             if not sender or sender.channel != Channel.WHATSAPP:
-                raise ValueError(f"WhatsApp sender '{sender_id}' not found")
+                raise NotFoundError(f"WhatsApp sender '{sender_id}' not found")
             sender.status = SenderStatus.AUTHENTICATING
             self.repo.save(sender)
             self.session.commit()
@@ -346,7 +347,7 @@ class SenderService:
         is_temp = self.session_manager.is_auth_known(sender_id)
 
         if not sender and not is_temp:
-            raise ValueError(f"Sender '{sender_id}' not found")
+            raise NotFoundError(f"Sender '{sender_id}' not found")
 
         auth_state = self.session_manager.get_auth_state(sender_id)
         return {
@@ -372,7 +373,7 @@ class SenderService:
         """
         sender = self.repo.get_by_id(sender_id)
         if not sender or sender.channel != Channel.WHATSAPP:
-            raise ValueError(f"WhatsApp sender '{sender_id}' not found")
+            raise NotFoundError(f"WhatsApp sender '{sender_id}' not found")
 
         probe = self.session_manager.check_session_status(sender_id, timeout_seconds=timeout_seconds)
         previous = sender.status
@@ -419,7 +420,7 @@ class SenderService:
         clean_user = (user or clean_identity).strip()
 
         if not clean_identity:
-            raise ValueError("Email address (identity) is required.")
+            raise ValidationError("Email address (identity) is required.")
 
         # Auto-index the sender id (EMAIL_SESSION_N) when not supplied.
         if not clean_id:
@@ -438,12 +439,12 @@ class SenderService:
             )
             success, err = provider.verify_credentials(clean_id)
             if not success:
-                raise ValueError(f"SMTP connection failed: {err or 'could not connect'}")
+                raise ValidationError(f"SMTP connection failed: {err or 'could not connect'}")
         else:
             if not clean_user or not password:
-                raise ValueError("SMTP username and password are required.")
+                raise ValidationError("SMTP username and password are required.")
             if verify_now and not host:
-                raise ValueError("SMTP host is required to verify the connection.")
+                raise ValidationError("SMTP host is required to verify the connection.")
 
         # Persist only after verification succeeded.
         sender = self.repo.get_by_id(clean_id)
@@ -508,7 +509,7 @@ class SenderService:
         """Verify SMTP credentials for an existing email sender account."""
         sender = self.repo.get_by_id(sender_id)
         if not sender or sender.channel != Channel.EMAIL:
-            raise ValueError(f"Email sender '{sender_id}' not found")
+            raise NotFoundError(f"Email sender '{sender_id}' not found")
 
         provider = self.email_provider
         success, err = provider.verify_credentials(sender_id)
@@ -619,7 +620,7 @@ class SenderService:
         """Build the stable sender id for a WhatsApp phone number (``wa_<digits>``)."""
         digits = self._normalise_phone(phone)
         if not digits:
-            raise ValueError("Cannot derive sender id: extracted phone number is empty.")
+            raise ValidationError("Cannot derive sender id: extracted phone number is empty.")
         return f"wa_{digits}"
 
     def _phone_exists(self, final_id: str) -> bool:
@@ -638,7 +639,7 @@ class SenderService:
         phone = payload.get("phone")
         temp_id = payload.get("temp_id")
         if not final_id or not phone:
-            raise ValueError("Cannot persist WhatsApp session: missing final id or phone.")
+            raise ValidationError("Cannot persist WhatsApp session: missing final id or phone.")
 
         with self._session_factory() as db_sess:
             repo = build_service_context(db_sess).sender_repo
