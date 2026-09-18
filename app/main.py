@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from app.api import api_router
+from app.api.error_handlers import register_exception_handlers
 from app.config import (
     DEFAULT_OUTREACH_LIMIT,
     HTML_DEFAULT_LIMIT_TOKEN,
@@ -75,6 +76,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+register_exception_handlers(app)
 
 # Mount all /api endpoints
 app.include_router(api_router)

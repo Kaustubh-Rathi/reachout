@@ -107,8 +107,6 @@ class CrmService:
             "timestamp": now.isoformat(),
         }
         self.event_publisher.publish_event("CRM_STATUS_CHANGED", event_payload)
-        self.event_publisher.publish_event("CRM_OUTCOME_UPDATED", event_payload)
-        self.event_publisher.publish_event("CONTACT_UPDATED", event_payload)
 
     def mark_interested(self, contact_id: str, timestamp: Optional[datetime] = None) -> Dict[str, Any]:
         """Mark contact as interested, setting interested_at and resetting interview to PENDING."""
