@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from app.domain.contact import Contact
-from app.domain.enums import CRMOutcome, InterviewState, OutreachStatus, ReminderStatus
+from app.domain.enums import CRMOutcome, InterviewState, ReminderStatus
 from app.domain.errors import NotFoundError, ValidationError
 from app.domain.policies.reminder_policy import (
     DEFAULT_FOLLOW_UP_THRESHOLD_DAYS,
@@ -24,6 +24,7 @@ from app.domain.policies.reminder_policy import (
 )
 from app.domain.reminder import FollowUpReminder
 from app.services.context import ServiceContext, build_service_context
+from app.services.crm_analytics import CrmAnalyticsService
 
 CrmTransition = Callable[["CrmService", Contact, datetime], None]
 
@@ -87,6 +88,11 @@ class CrmService:
         self.reminder_repo = ctx.reminder_repo
         self.event_publisher = ctx.event_publisher
         self.clock = ctx.clock
+        self.analytics = CrmAnalyticsService(
+            contact_repo=self.contact_repo,
+            outreach_repo=self.outreach_repo,
+            clock=self.clock,
+        )
 
     def has_any_contacts(self) -> bool:
         """Return whether any contact exists (used to decide first-run auto-sync)."""
@@ -350,63 +356,4 @@ class CrmService:
 
     def get_kpis(self, current_time: Optional[datetime] = None) -> Dict[str, Any]:
         """Aggregate system-wide KPI metrics."""
-        now = current_time or self.clock.now()
-        contacts = self.contact_repo.list_all()
-        total_contacts = len(contacts)
-
-        contacted = 0
-        wa_sent = 0
-        email_sent = 0
-        interested = 0
-        not_interested = 0
-        interview = 0
-        follow_up_due = 0
-        eligible = 0
-
-        for c in contacts:
-            has_wa = c.last_whatsapp_at is not None
-            has_email = c.last_email_at is not None
-            if has_wa or has_email:
-                contacted += 1
-            if has_wa:
-                wa_sent += 1
-            if has_email:
-                email_sent += 1
-
-            if c.crm_outcome == CRMOutcome.INTERESTED:
-                interested += 1
-            elif c.crm_outcome == CRMOutcome.NOT_INTERESTED:
-                not_interested += 1
-
-            if c.interview_status == InterviewState.INTERVIEW:
-                interview += 1
-
-            # Follow-up due calculation
-            eligibility = check_contact_follow_up_eligibility(c, now, DEFAULT_FOLLOW_UP_THRESHOLD_DAYS)
-            if eligibility.is_due:
-                follow_up_due += 1
-
-            # Eligible for initial outreach (uncontacted on at least one channel)
-            if not has_wa and c.phone:
-                eligible += 1
-            elif not has_email and c.email:
-                eligible += 1
-
-        failed_attempts = len(self.outreach_repo.list_by_status(OutreachStatus.FAILED))
-        recovery_required = len(self.outreach_repo.list_by_status(OutreachStatus.RECOVERY_REQUIRED)) + len(
-            self.outreach_repo.list_by_status(OutreachStatus.UNKNOWN)
-        )
-
-        return {
-            "total_contacts": total_contacts,
-            "eligible": eligible,
-            "contacted": contacted,
-            "whatsapp_sent": wa_sent,
-            "email_sent": email_sent,
-            "interested": interested,
-            "not_interested": not_interested,
-            "interview": interview,
-            "follow_up_due": follow_up_due,
-            "failed": failed_attempts,
-            "recovery_required": recovery_required,
-        }
+        return self.analytics.get_kpis(current_time=current_time)
