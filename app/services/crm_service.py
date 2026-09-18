@@ -11,10 +11,11 @@ Encapsulates state transitions for:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from app.domain.contact import Contact
 from app.domain.enums import CRMOutcome, InterviewState, OutreachStatus, ReminderStatus
 from app.domain.policies.reminder_policy import (
     DEFAULT_FOLLOW_UP_THRESHOLD_DAYS,
@@ -22,6 +23,56 @@ from app.domain.policies.reminder_policy import (
 )
 from app.domain.reminder import FollowUpReminder
 from app.services.context import ServiceContext, build_service_context
+
+CrmTransition = Callable[["CrmService", Contact, datetime], None]
+
+
+def _apply_interested(_: "CrmService", contact: Contact, now: datetime) -> None:
+    contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
+
+
+def _apply_not_interested(service: "CrmService", contact: Contact, now: datetime) -> None:
+    contact.update_crm_outcome(CRMOutcome.NOT_INTERESTED, now)
+    service._complete_pending_reminders(contact.contact_id, now)
+
+
+def _apply_do_not_contact(service: "CrmService", contact: Contact, now: datetime) -> None:
+    if "do_not_contact" not in contact.tags:
+        contact.tags.append("do_not_contact")
+    contact.update_crm_outcome(CRMOutcome.NOT_INTERESTED, now)
+    service._complete_pending_reminders(contact.contact_id, now)
+
+
+def _apply_interview(service: "CrmService", contact: Contact, now: datetime) -> None:
+    contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
+    contact.update_interview_status(InterviewState.INTERVIEW, now)
+    service._complete_pending_reminders(contact.contact_id, now)
+
+
+def _apply_offer(_: "CrmService", contact: Contact, now: datetime) -> None:
+    contact.update_crm_outcome(CRMOutcome.OFFER, now)
+    contact.update_interview_status(InterviewState.INTERVIEW, now)
+
+
+def _apply_closed(_: "CrmService", contact: Contact, now: datetime) -> None:
+    contact.update_crm_outcome(CRMOutcome.CLOSED, now)
+
+
+def _apply_rejected(service: "CrmService", contact: Contact, now: datetime) -> None:
+    contact.update_interview_status(InterviewState.NOT_INTERVIEW, now)
+    service._complete_pending_reminders(contact.contact_id, now)
+
+
+# Extend by registering a new handler rather than editing update_status.
+CRM_STATUS_TRANSITIONS: Dict[str, CrmTransition] = {
+    "INTERESTED": _apply_interested,
+    "NOT_INTERESTED": _apply_not_interested,
+    "DO_NOT_CONTACT": _apply_do_not_contact,
+    "INTERVIEW": _apply_interview,
+    "OFFER": _apply_offer,
+    "CLOSED": _apply_closed,
+    "REJECTED": _apply_rejected,
+}
 
 
 class CrmService:
@@ -54,25 +105,9 @@ class CrmService:
         now = timestamp or self.clock.now()
         status_upper = status.strip().upper()
 
-        if status_upper == "INTERESTED":
-            contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
-        elif status_upper in ("NOT_INTERESTED", "DO_NOT_CONTACT"):
-            if status_upper == "DO_NOT_CONTACT" and "do_not_contact" not in contact.tags:
-                contact.tags.append("do_not_contact")
-            contact.update_crm_outcome(CRMOutcome.NOT_INTERESTED, now)
-            self._complete_pending_reminders(contact_id, now)
-        elif status_upper == "INTERVIEW":
-            contact.update_crm_outcome(CRMOutcome.INTERESTED, now)
-            contact.update_interview_status(InterviewState.INTERVIEW, now)
-            self._complete_pending_reminders(contact_id, now)
-        elif status_upper == "OFFER":
-            contact.update_crm_outcome(CRMOutcome.OFFER, now)
-            contact.update_interview_status(InterviewState.INTERVIEW, now)
-        elif status_upper == "CLOSED":
-            contact.update_crm_outcome(CRMOutcome.CLOSED, now)
-        elif status_upper == "REJECTED":
-            contact.update_interview_status(InterviewState.NOT_INTERVIEW, now)
-            self._complete_pending_reminders(contact_id, now)
+        transition = CRM_STATUS_TRANSITIONS.get(status_upper)
+        if transition is not None:
+            transition(self, contact, now)
         elif status_upper in CRMOutcome.__members__:
             contact.update_crm_outcome(CRMOutcome(status_upper), now)
         else:

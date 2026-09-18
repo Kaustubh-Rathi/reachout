@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.config import DEFAULT_MESSAGE_BODY, DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
+from app.config import SENDER_PROFILE
 from app.domain.contact import Contact
 from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachStatus, SenderStatus
 from app.domain.message_template import MessageTemplate
@@ -19,31 +19,8 @@ from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_ke
 from app.domain.policies.resend_policy import prepare_manual_resend
 from app.domain.sender_account import SenderAccount
 from app.ports.providers import EmailProvider, ProviderSendResult, WhatsAppProvider
+from app.services.channel_defaults import channel_label, default_body, default_subject, recipient_for
 from app.services.context import ServiceContext, build_service_context
-
-_CHANNEL_LABEL = {Channel.WHATSAPP: "WhatsApp", Channel.EMAIL: "Email"}
-
-
-def _default_body(contact: Contact, channel: Channel) -> str:
-    """Channel-agnostic default body when neither template nor custom body is supplied."""
-    return DEFAULT_MESSAGE_BODY.format(first_name=contact.first_name or "", company=contact.company_id or "")
-
-
-def _default_subject(contact: Contact) -> str:
-    return f"{DEFAULT_MESSAGE_SUBJECT} at {contact.company_id}"
-
-
-def _default_resend_body(contact: Contact, channel: Channel) -> str:
-    if channel == Channel.EMAIL:
-        return (
-            f"Hi {contact.first_name},\n\nFollowing up on my previous note regarding technical roles "
-            f"at {contact.company_id}.\n\nBest regards,\nCandidate"
-        )
-    return f"Hi {contact.first_name}, following up regarding opportunities at {contact.company_id}."
-
-
-def _default_resend_subject(contact: Contact) -> str:
-    return f"Following up: Opportunities at {contact.company_id}"
 
 
 class OutreachService:
@@ -92,7 +69,7 @@ class OutreachService:
         return contact
 
     def _resolve_recipient(self, contact: Contact, channel: Channel, destination: Optional[str]) -> str:
-        recipient = destination or (contact.primary_phone if channel == Channel.WHATSAPP else contact.primary_email)
+        recipient = destination or recipient_for(contact, channel)
         if not recipient:
             what = "phone number" if channel == Channel.WHATSAPP else "email address"
             raise ValueError(f"Contact {contact.name} has no valid {what}")
@@ -108,9 +85,9 @@ class OutreachService:
             active_senders = self.sender_repo.list_active(channel)
             sender = active_senders[0] if active_senders else None
         if not sender:
-            label = _CHANNEL_LABEL[channel].upper()
+            label = channel_label(channel)
             raise ValueError(
-                f"NO_ACTIVE_{label}_SESSION: No active {_CHANNEL_LABEL[channel]} sender account available for {contact_id}"
+                f"NO_ACTIVE_{label.upper()}_SESSION: No active {label} sender account available for {contact_id}"
             )
         # B13: never dispatch from a non-ACTIVE sender, even when explicitly selected.
         self._validate_sender_active(sender)
@@ -137,16 +114,15 @@ class OutreachService:
                 rendered = template.render(contact, sender_profile=SENDER_PROFILE)
                 body = rendered.body
                 if channel == Channel.EMAIL:
-                    default_subject = _default_resend_subject(contact) if is_resend else _default_subject(contact)
-                    subj = rendered.subject or default_subject
+                    subj = rendered.subject or default_subject(contact, is_resend=is_resend)
                 # Use the rendered attachment so the SENDER_RESUME default applies to
                 # manual sends exactly as it does for campaign sends.
                 attachment_ref = attachment_ref or rendered.attachment_ref
 
         if not body:
-            body = _default_resend_body(contact, channel) if is_resend else _default_body(contact, channel)
+            body = default_body(contact, channel, is_resend=is_resend)
         if channel == Channel.EMAIL and not subj:
-            subj = _default_resend_subject(contact) if is_resend else _default_subject(contact)
+            subj = default_subject(contact, is_resend=is_resend)
         return body, subj, attachment_ref, template
 
     # ------------------------------------------------------------------
