@@ -8,9 +8,10 @@ instances here.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
@@ -73,3 +74,25 @@ def get_event_bus() -> EventBus:
 def get_repository_factory() -> Any:
     """Return the canonical repository-bundle factory."""
     return build_repositories
+
+
+class SyncSummaryStore:
+    """Thread-safe holder for the most recent sync summary (separate request)."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._summary: Optional[Any] = None
+
+    def set(self, summary: Any) -> None:
+        with self._lock:
+            self._summary = summary
+
+    def get(self) -> Optional[Any]:
+        with self._lock:
+            return self._summary
+
+
+@lru_cache(maxsize=1)
+def get_sync_summary_store() -> SyncSummaryStore:
+    """Return the process-wide sync summary store."""
+    return SyncSummaryStore()

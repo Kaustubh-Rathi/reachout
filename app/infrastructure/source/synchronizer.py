@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -18,9 +18,6 @@ from app.config import DEFAULT_COUNTRY_CODE
 from app.domain.company import Company, normalize_company_name
 from app.domain.contact import Contact
 from app.domain.source_record import SourceRecord
-from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
-from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
 from app.infrastructure.source.excel_reader import TabularSourceReader, clean_text
 from app.ports.source import SourceReader, SourceRow, SourceSynchronizer, SyncSummary
 
@@ -87,14 +84,16 @@ class DatabaseSourceSynchronizer(SourceSynchronizer):
     def __init__(
         self,
         session: Session,
+        repository_factory: Any,
         reader: Optional[SourceReader] = None,
         default_country_code: str = DEFAULT_COUNTRY_CODE,
     ) -> None:
         self.session = session
         self.reader = reader or TabularSourceReader()
-        self.company_repo = SqliteCompanyRepository(session)
-        self.contact_repo = SqliteContactRepository(session)
-        self.suppression_repo = SqliteSuppressionRepository(session)
+        repos = repository_factory(session)
+        self.company_repo = repos.company
+        self.contact_repo = repos.contact
+        self.suppression_repo = repos.suppression
         self.default_country_code = default_country_code
 
     def sync_source(self, source_path: str, sheet_name: Optional[str] = None) -> SyncSummary:

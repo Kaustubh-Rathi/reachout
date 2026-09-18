@@ -737,7 +737,7 @@ class TestExcelSyncHistoryPreservation:
                 ]
 
         with SessionFactory() as session:
-            syncer = DatabaseSourceSynchronizer(session, reader=MockReader())
+            syncer = DatabaseSourceSynchronizer(session, reader=MockReader(), repository_factory=build_repositories)
             summary = syncer.sync_source("dummy.xlsx")
             assert summary.history_preserved is True
 
