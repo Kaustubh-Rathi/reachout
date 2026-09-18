@@ -10,7 +10,8 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.domain.enums import Channel
-from app.domain.message_template import ALL_OFFICIAL_TEMPLATES, MessageTemplate
+from app.domain.message_template import MessageTemplate
+from app.domain.template_catalog import ALL_OFFICIAL_TEMPLATES
 from app.services.context import ServiceContext, build_service_context
 
 DEFAULT_TEMPLATES = ALL_OFFICIAL_TEMPLATES
