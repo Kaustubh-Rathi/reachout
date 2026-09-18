@@ -1,7 +1,6 @@
 """Unit tests for the sender authentication state machine and multi-session management."""
 
 from app.domain.enums import SenderStatus
-from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager
 from app.services.sender_service import SenderService
 
@@ -43,20 +42,19 @@ def test_whatsapp_session_manager_state_machine():
     assert st_active["qr_code"] is None
 
 
-def test_sender_service_configure_sessions():
+def test_sender_service_configure_sessions(db_session):
     """Verify dynamic session count configuration for arbitrary N WhatsApp sessions."""
-    with SessionFactory() as session:
-        svc = SenderService(session)
+    svc = SenderService(db_session)
 
-        # Configure exactly 3 WhatsApp sessions
-        sessions = svc.configure_whatsapp_sessions(3)
-        assert len(sessions) == 3
-        ids = {s["id"] for s in sessions}
-        assert "WA_SESSION_1" in ids
-        assert "WA_SESSION_2" in ids
-        assert "WA_SESSION_3" in ids
+    # Configure exactly 3 WhatsApp sessions
+    sessions = svc.configure_whatsapp_sessions(3)
+    assert len(sessions) == 3
+    ids = {s["id"] for s in sessions}
+    assert "WA_SESSION_1" in ids
+    assert "WA_SESSION_2" in ids
+    assert "WA_SESSION_3" in ids
 
-        # Verify readiness check aggregation
-        readiness = svc.get_senders_readiness()
-        assert readiness["whatsapp"]["total_count"] == 3
-        assert "overall_ready" in readiness
+    # Verify readiness check aggregation
+    readiness = svc.get_senders_readiness()
+    assert readiness["whatsapp"]["total_count"] == 3
+    assert "overall_ready" in readiness

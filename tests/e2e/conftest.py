@@ -15,7 +15,10 @@ import pytest
 import uvicorn
 from camoufox.sync_api import Camoufox
 
+from app.domain.enums import Channel, SenderStatus
+from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory, init_db
+from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.main import app
 from app.services.sync_service import SyncService
 
@@ -24,8 +27,50 @@ TEST_PORT = 8899
 BASE_URL = f"http://{TEST_HOST}:{TEST_PORT}"
 
 
+@pytest.fixture(scope="session")
+def e2e_server_storage(tmp_path_factory):
+    """Give the non-live E2E server disposable credential/session storage.
+
+    The server starts before per-test isolation fixtures run. Without this,
+    startup reconciliation would read production credentials/sessions while
+    using the isolated test database. Live provider tests use their own
+    no-server fixture and are unaffected.
+    """
+    from app.infrastructure.providers import session_manager as session_manager_module
+    from app.infrastructure.providers.session_manager import default_session_manager
+    from app.infrastructure.security.credential_vault import default_credential_vault
+
+    storage_root = tmp_path_factory.mktemp("e2e-server-storage")
+    sessions_root = storage_root / "sessions"
+    sessions_root.mkdir(parents=True, exist_ok=True)
+
+    old_vault_path = default_credential_vault.vault_path
+    old_key_path = default_credential_vault.key_path
+    old_cache = default_credential_vault._cache
+    old_default_sessions_root = session_manager_module.DEFAULT_SESSIONS_ROOT
+    old_manager_sessions_root = default_session_manager.sessions_root
+    old_auth_state = default_session_manager._auth_state
+
+    default_credential_vault.vault_path = storage_root / "smtp_vault.enc"
+    default_credential_vault.key_path = storage_root / "vault_key"
+    default_credential_vault._cache = {}
+    session_manager_module.DEFAULT_SESSIONS_ROOT = sessions_root
+    default_session_manager.sessions_root = sessions_root
+    default_session_manager._auth_state = {}
+
+    try:
+        yield storage_root
+    finally:
+        default_credential_vault.vault_path = old_vault_path
+        default_credential_vault.key_path = old_key_path
+        default_credential_vault._cache = old_cache
+        session_manager_module.DEFAULT_SESSIONS_ROOT = old_default_sessions_root
+        default_session_manager.sessions_root = old_manager_sessions_root
+        default_session_manager._auth_state = old_auth_state
+
+
 @pytest.fixture(scope="session", autouse=True)
-def run_test_server():
+def run_test_server(e2e_server_storage):
     """Launch local ASGI test server in a background daemon thread."""
     init_db()
 
@@ -36,6 +81,31 @@ def run_test_server():
             sync_svc.sync_source()
         except Exception:
             pass
+
+        # Seed display-only senders so sender UI lists accounts without credentials.
+        # AUTH_REQUIRED rows survive startup reconciliation and cannot dispatch.
+        sender_repo = SqliteSenderRepository(session)
+        if sender_repo.get_by_id("WA_E2E_SMOKE") is None:
+            wa_sender = SenderAccount.create(
+                channel=Channel.WHATSAPP,
+                provider="playwright_whatsapp",
+                identity="100000000001",
+                display_name="E2E Smoke WhatsApp Sender",
+                sender_id="WA_E2E_SMOKE",
+            )
+            wa_sender.mark_status(SenderStatus.AUTH_REQUIRED)
+            sender_repo.save(wa_sender)
+        if sender_repo.get_by_id("EMAIL_E2E_SMOKE") is None:
+            email_sender = SenderAccount.create(
+                channel=Channel.EMAIL,
+                provider="smtp",
+                identity="e2e-smoke@example.invalid",
+                display_name="E2E Smoke Email Sender",
+                sender_id="EMAIL_E2E_SMOKE",
+            )
+            email_sender.mark_status(SenderStatus.AUTH_REQUIRED)
+            sender_repo.save(email_sender)
+        session.commit()
 
     config = uvicorn.Config(app, host=TEST_HOST, port=TEST_PORT, log_level="error")
     server = uvicorn.Server(config)

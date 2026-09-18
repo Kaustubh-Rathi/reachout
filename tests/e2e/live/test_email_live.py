@@ -25,7 +25,6 @@ from app.infrastructure.models import (
     ContactModel,
     MessageTemplateModel,
 )
-from app.infrastructure.providers.smtp_email_provider import SmtpEmailProvider
 from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 
@@ -34,24 +33,14 @@ from app.infrastructure.repositories.sqlite_sender_repository import SqliteSende
 class TestEmailLiveProviderE2E:
     """Live Email end-to-end test against real SMTP server infrastructure."""
 
-    def test_real_smtp_email_dispatch(self):
+    def test_real_smtp_email_dispatch(self, live_email_pair):
         # 1. Environment and credential guard
         is_live = os.environ.get("LIVE_E2E") == "1" or os.environ.get("LIVE_EMAIL_E2E") == "1"
         if not is_live:
             pytest.skip("LIVE EMAIL: NOT RUN (LIVE_E2E=1 or LIVE_EMAIL_E2E=1 not set)")
 
-        smtp_user = os.environ.get("LIVE_TEST_SMTP_USER") or os.environ.get("EMAIL_USER", "")
-        smtp_pass = os.environ.get("LIVE_TEST_SMTP_PASSWORD") or os.environ.get("EMAIL_PASSWORD", "")
-        recipient_email = os.environ.get("LIVE_TEST_EMAIL_RECIPIENT", "").strip()
-
-        if not (smtp_user and smtp_pass and recipient_email):
-            pytest.skip(
-                "LIVE EMAIL: BLOCKED — CREDENTIALS REQUIRED "
-                "(Set LIVE_TEST_SMTP_USER, LIVE_TEST_SMTP_PASSWORD, and LIVE_TEST_EMAIL_RECIPIENT)"
-            )
-
-        smtp_host = os.environ.get("LIVE_TEST_SMTP_HOST") or os.environ.get("SMTP_HOST", "smtp.gmail.com")
-        smtp_port = int(os.environ.get("LIVE_TEST_SMTP_PORT") or os.environ.get("SMTP_PORT", "587"))
+        pair, provider = live_email_pair
+        recipient_email = pair.recipient
 
         # 2. Database setup
         engine = create_engine(
@@ -70,9 +59,9 @@ class TestEmailLiveProviderE2E:
         sender = SenderAccount.create(
             channel=Channel.EMAIL,
             provider="smtp",
-            identity=smtp_user,
+            identity=pair.sender.identity,
             display_name="Live Test SMTP Sender",
-            sender_id="EMAIL_SESSION_LIVE_TEST",
+            sender_id=pair.sender.id,
         )
         sender_repo.save(sender)
 
@@ -98,19 +87,6 @@ class TestEmailLiveProviderE2E:
             )
         )
         session.commit()
-
-        # 4. Instantiate REAL SMTP Provider
-        provider = SmtpEmailProvider(
-            default_smtp_host=smtp_host,
-            default_smtp_port=smtp_port,
-        )
-        provider.set_sender_credentials(
-            sender_account_id=sender.id,
-            user=smtp_user,
-            password=smtp_pass,
-            host=smtp_host,
-            port=smtp_port,
-        )
 
         # 5. Verify SMTP credentials against live server
         verified, err = provider.verify_credentials(sender.id)

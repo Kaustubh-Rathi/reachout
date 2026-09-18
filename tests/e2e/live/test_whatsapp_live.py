@@ -35,19 +35,15 @@ from app.infrastructure.repositories.sqlite_sender_repository import SqliteSende
 class TestWhatsAppLiveProviderE2E:
     """Live WhatsApp end-to-end test against real WhatsApp Web infrastructure."""
 
-    def test_real_whatsapp_message_dispatch(self):
+    def test_real_whatsapp_message_dispatch(self, live_whatsapp_pair):
         # 1. Environment and credential guard
         is_live = os.environ.get("LIVE_E2E") == "1" or os.environ.get("LIVE_WHATSAPP_E2E") == "1"
         if not is_live:
             pytest.skip("LIVE WHATSAPP: NOT RUN (LIVE_E2E=1 or LIVE_WHATSAPP_E2E=1 not set)")
 
-        recipient_phone = os.environ.get("LIVE_TEST_WHATSAPP_RECIPIENT", "").strip()
-        if not recipient_phone:
-            pytest.skip(
-                "LIVE WHATSAPP: BLOCKED — RECIPIENT REQUIRED (Set LIVE_TEST_WHATSAPP_RECIPIENT to a valid phone number)"
-            )
-
-        sender_id = os.environ.get("LIVE_TEST_WHATSAPP_SENDER_ID", "WA_SESSION_LIVE_TEST").strip()
+        pair = live_whatsapp_pair
+        recipient_phone = pair.recipient
+        sender_id = pair.sender.id
 
         # 2. Database setup
         engine = create_engine(
@@ -66,7 +62,7 @@ class TestWhatsAppLiveProviderE2E:
         sender = SenderAccount.create(
             channel=Channel.WHATSAPP,
             provider="playwright_whatsapp",
-            identity="+910000000000",
+            identity=pair.sender.identity,
             display_name="Live Test WhatsApp Sender",
             sender_id=sender_id,
         )
@@ -95,7 +91,8 @@ class TestWhatsAppLiveProviderE2E:
         provider = PlaywrightWhatsAppProvider(
             session_manager=session_manager,
             headless=os.environ.get("PLAYWRIGHT_HEADLESS", "true").lower() == "true",
-            timeout_seconds=90,
+            timeout_seconds=180,
+            expected_identity=pair.sender.identity,
         )
 
         now = datetime.now(timezone.utc)

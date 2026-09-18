@@ -49,7 +49,7 @@ from app.infrastructure.repositories import (
 )
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
-from app.infrastructure.security.credential_vault import CredentialVault
+from app.infrastructure.security.credential_vault import CredentialVault, default_credential_vault
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.ports.source import SourceRow
 from app.services.crm_service import CrmService
@@ -514,9 +514,10 @@ class TestWhatsAppAuthentication:
             svc = SenderService(session)
             assert svc.list_senders() == []
 
-    def test_whatsapp_auth_flow_qr_to_active(self):
+    def test_whatsapp_auth_flow_qr_to_active(self, monkeypatch):
         """Starting QR auth returns AUTHENTICATING and set_auth_state transitions to ACTIVE."""
         mgr = WhatsAppSessionManager()
+        monkeypatch.setattr(mgr, "_run_auth_flow", lambda *args, **kwargs: None)
         sender_id = "WA_SESSION_TEST_P9"
 
         # Start auth
@@ -590,6 +591,38 @@ class TestSmtpCredentialPersistence:
             updated = svc.repo.get_by_id("snd_em_orphan")
             assert updated is not None
             assert updated.status == SenderStatus.AUTH_REQUIRED
+
+    def test_reconcile_sender_states_skips_duplicate_email_identities(self, tmp_path):
+        """Two vault IDs resolving to one email address must not crash startup reconciliation."""
+        engine = create_engine(f"sqlite:///{tmp_path / 'duplicate_identity_reconcile.db'}")
+        Base.metadata.create_all(engine)
+        SessionFactory = sessionmaker(bind=engine)
+
+        with SessionFactory() as session:
+            sender_repo = SqliteSenderRepository(session)
+            snd = SenderAccount.create(
+                Channel.EMAIL, "smtp", "Duplicate@Example.com", "Registered Sender", sender_id="snd_em_registered"
+            )
+            snd.status = SenderStatus.ACTIVE
+            sender_repo.save(snd)
+            session.commit()
+
+        duplicate_credentials = {
+            "user": "duplicate@example.com",
+            "password": "synthetic-test-password",
+            "host": "smtp.test.local",
+            "port": "587",
+        }
+        default_credential_vault.save_credentials("snd_em_first_duplicate", duplicate_credentials)
+        default_credential_vault.save_credentials("snd_em_second_duplicate", duplicate_credentials)
+
+        with SessionFactory() as session:
+            svc = SenderService(session)
+            svc.reconcile_sender_states()
+            senders = svc.repo.list_by_channel(Channel.EMAIL)
+
+            assert [sender.identity for sender in senders] == ["Duplicate@Example.com"]
+            assert {sender.id for sender in senders} == {"snd_em_registered"}
 
 
 # ==============================================================================

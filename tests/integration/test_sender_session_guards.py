@@ -128,3 +128,84 @@ def test_startup_reconcile_downgrades_active_sender_without_profile(session_fact
         SenderService(session, session_manager=manager).reconcile_sender_states()
 
     assert _load_sender(session_factory).status == SenderStatus.AUTH_REQUIRED
+
+
+class StubHealthSessionManager:
+    """Session manager double with a scripted live-probe result."""
+
+    def __init__(self, probe_result):
+        self._probe_result = probe_result
+
+    def check_session_status(self, sender_id, timeout_seconds=20):
+        return self._probe_result
+
+
+def _activate_guard_sender(session_factory):
+    with session_factory() as session:
+        sender = SqliteSenderRepository(session).get_by_id("WA-GUARD")
+        sender.status = SenderStatus.ACTIVE
+        SqliteSenderRepository(session).save(sender)
+        session.commit()
+
+
+def test_health_check_keeps_synced_sender_active(session_factory):
+    """A live probe reporting ACTIVE must leave the sender ACTIVE."""
+    from app.services.sender_service import SenderService
+
+    _activate_guard_sender(session_factory)
+    with session_factory() as session:
+        result = SenderService(
+            session, session_manager=StubHealthSessionManager(SenderStatus.ACTIVE)
+        ).check_whatsapp_session_health("WA-GUARD")
+
+    assert result["probe"] == "ACTIVE"
+    assert result["status"] == "ACTIVE"
+    assert result["status_changed"] is False
+    assert _load_sender(session_factory).status == SenderStatus.ACTIVE
+
+
+def test_health_check_downgrades_dead_login(session_factory):
+    """Positive evidence of a dead login (QR/AUTH_REQUIRED) must downgrade the sender."""
+    from app.services.sender_service import SenderService
+
+    for probe, expected in (
+        (SenderStatus.QR_REQUIRED, SenderStatus.QR_REQUIRED),
+        (SenderStatus.AUTH_REQUIRED, SenderStatus.AUTH_REQUIRED),
+    ):
+        _activate_guard_sender(session_factory)
+        with session_factory() as session:
+            result = SenderService(
+                session, session_manager=StubHealthSessionManager(probe)
+            ).check_whatsapp_session_health("WA-GUARD")
+
+        assert result["probe"] == expected.value
+        assert result["status"] == expected.value
+        assert result["status_changed"] is True
+        assert _load_sender(session_factory).status == expected
+
+
+def test_health_check_leaves_sender_untouched_on_inconclusive_probe(session_factory):
+    """Errors/disconnects are reported but must not mutate stored status."""
+    from app.services.sender_service import SenderService
+
+    _activate_guard_sender(session_factory)
+    with session_factory() as session:
+        result = SenderService(
+            session, session_manager=StubHealthSessionManager(SenderStatus.DISCONNECTED)
+        ).check_whatsapp_session_health("WA-GUARD")
+
+    assert result["probe"] == "DISCONNECTED"
+    assert result["status"] == "ACTIVE"
+    assert result["status_changed"] is False
+    assert _load_sender(session_factory).status == SenderStatus.ACTIVE
+
+
+def test_health_check_rejects_unknown_sender(session_factory):
+    """Health checks for unknown ids must raise, mapped to HTTP 404 by the API."""
+    from app.services.sender_service import SenderService
+
+    with session_factory() as session:
+        with pytest.raises(ValueError, match="not found"):
+            SenderService(
+                session, session_manager=StubHealthSessionManager(SenderStatus.ACTIVE)
+            ).check_whatsapp_session_health("WA-NOPE")
