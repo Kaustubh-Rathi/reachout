@@ -51,7 +51,7 @@ class TestDuplicateAndSuppression:
                 }
             )
 
-        synchronizer = DatabaseSourceSynchronizer(tombstone_session)
+        synchronizer = DatabaseSourceSynchronizer(tombstone_session, repository_factory=build_repositories)
         summary1 = synchronizer.sync_source(str(source_csv))
         assert summary1.new_contacts == 1
 
@@ -142,3 +142,6 @@ class TestDuplicateAndSuppression:
         )
         assert manual_attempt.attempt_type == AttemptType.RESEND
         assert manual_attempt.idempotency_key != attempt.idempotency_key
+
+
+from app.composition import build_repositories

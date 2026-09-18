@@ -69,7 +69,7 @@ class TestSourceSynchronizationRegression:
 
         # Run initial sync
         with SessionFactory() as session:
-            sync = DatabaseSourceSynchronizer(session)
+            sync = DatabaseSourceSynchronizer(session, repository_factory=build_repositories)
             res1 = sync.sync_source(str(source_csv))
             assert res1.total_read == 3
             assert res1.new_contacts == 3
@@ -143,7 +143,7 @@ class TestSourceSynchronizationRegression:
 
         # Run second sync
         with SessionFactory() as session:
-            sync = DatabaseSourceSynchronizer(session)
+            sync = DatabaseSourceSynchronizer(session, repository_factory=build_repositories)
             res2 = sync.sync_source(str(source_csv))
             assert res2.new_contacts >= 2  # Travis + Dario
             assert res2.updated_contacts >= 1  # Dara
@@ -180,3 +180,4 @@ class TestSourceSynchronizationRegression:
 # ==============================================================================
 # 10. END-TO-END CRM FLOW
 # ==============================================================================
+from app.composition import build_repositories

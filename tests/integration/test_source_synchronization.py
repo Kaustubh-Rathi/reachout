@@ -50,7 +50,7 @@ class TestSourceSynchronization:
 
         initial_sha256 = compute_file_sha256(source_csv)
 
-        synchronizer = DatabaseSourceSynchronizer(sync_session)
+        synchronizer = DatabaseSourceSynchronizer(sync_session, repository_factory=build_repositories)
         summary = synchronizer.sync_source(str(source_csv))
 
         assert summary.total_read == 2
@@ -80,7 +80,7 @@ class TestSourceSynchronization:
             writer.writeheader()
             writer.writerow({"company": "Uber", "name": "Dara", "phone": "919999999999", "email": ""})
 
-        synchronizer = DatabaseSourceSynchronizer(sync_session)
+        synchronizer = DatabaseSourceSynchronizer(sync_session, repository_factory=build_repositories)
         synchronizer.sync_source(str(source_csv))
 
         contact_repo = SqliteContactRepository(sync_session)
@@ -128,7 +128,7 @@ class TestSourceSynchronization:
             writer.writeheader()
             writer.writerows(rows)
 
-        synchronizer = DatabaseSourceSynchronizer(sync_session)
+        synchronizer = DatabaseSourceSynchronizer(sync_session, repository_factory=build_repositories)
         summary = synchronizer.sync_source(str(source_csv))
         assert summary.new_contacts == 2
 
@@ -137,3 +137,6 @@ class TestSourceSynchronization:
         assert len(amazon_contacts) == 2
         names = {c.name for c in amazon_contacts}
         assert names == {"Recruiter Alice", "Recruiter Bob"}
+
+
+from app.composition import build_repositories
