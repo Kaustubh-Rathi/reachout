@@ -332,3 +332,28 @@ def test_contact_history_timeline_modal(browser_page: Page):
     page.click("#history-modal .modal-footer button")
     page.wait_for_timeout(300)
     assert not page.is_visible("#history-modal.open")
+
+
+def test_sidebar_navigation_and_pagination(browser_page: Page):
+    """Test sidebar routing between Overview and Contacts plus contacts pagination."""
+    page = browser_page
+    page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+
+    # Overview is the default landing page; Contacts is hidden until routed to.
+    assert page.eval_on_selector("#page-overview", "el => el.classList.contains('active')")
+    assert not page.eval_on_selector("#page-contacts", "el => el.classList.contains('active')")
+    assert page.is_visible("text=Live Activity")
+
+    page.click('[data-nav="contacts"]')
+    page.wait_for_selector(".company-card", timeout=30000)
+    assert page.eval_on_selector("#page-contacts", "el => el.classList.contains('active')")
+    assert not page.eval_on_selector("#page-overview", "el => el.classList.contains('active')")
+
+    # Result count reflects the filtered hierarchy.
+    summary = page.locator("#hierarchy-summary-text").inner_text()
+    assert "compan" in summary.lower(), "Contacts page must show a result count"
+
+    page.click('[data-nav="overview"]')
+    page.wait_for_selector("#campaign-control-card", timeout=30000)
+    assert page.eval_on_selector("#page-overview", "el => el.classList.contains('active')")
