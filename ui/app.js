@@ -987,6 +987,11 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
     }
 
     // 9. Senders & Authentication Control Plane (Phase 8.2 & 8.3)
+    async function openSendersDrawer() {
+      showPage('senders');
+      await fetchSenders();
+    }
+
     async function fetchSenders() {
       try {
         const res = await apiFetch('/api/senders');
@@ -994,6 +999,7 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
           state.senders = await res.json();
           updateHeaderSendersIndicator();
           renderSendersModal();
+          updateOnboarding();
           clearLoadError('senders');
         } else {
           reportLoadError('senders');
@@ -1205,15 +1211,6 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       }
     }
 
-
-    async function openSendersDrawer() {
-      await fetchSenders();
-      document.getElementById('senders-modal').classList.add('open');
-    }
-
-    function closeSendersDrawer() {
-      document.getElementById('senders-modal').classList.remove('open');
-    }
 
     async function addWhatsAppSession() {
       try {
@@ -1522,7 +1519,12 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
     }
 
     async function openTemplatesDrawer() {
+      showPage('templates');
       if (!state.templates || state.templates.length === 0) await fetchTemplates();
+      renderTemplatesList();
+    }
+
+    function renderTemplatesList() {
       const container = document.getElementById('templates-list-container');
       container.innerHTML = '';
 
@@ -1533,7 +1535,6 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
             <div style="font-weight: 600; color: var(--text-primary);">No templates yet</div>
             <div style="font-size: 0.8rem; margin-top: 0.25rem;">Add your first message template to start outreach.</div>
           </div>`;
-        document.getElementById('templates-modal').classList.add('open');
         return;
       }
 
@@ -1554,12 +1555,6 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
         `;
         container.appendChild(card);
       });
-
-      document.getElementById('templates-modal').classList.add('open');
-    }
-
-    function closeTemplatesDrawer() {
-      document.getElementById('templates-modal').classList.remove('open');
     }
 
     // Template Add/Edit Inline Form (shared for create and edit)
@@ -1646,8 +1641,11 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
 
       try {
         const res = await apiFetch('/api/sync', { method: 'POST', body: '{}' });
-        if (res.ok) {
-          const summary = await res.json();
+        if (!res.ok) {
+          showToast('Sync failed: ' + (await apiErrorText(res)), 'error');
+          return;
+        }
+        const summary = await res.json();
           if (document.getElementById('sync-source-filename')) document.getElementById('sync-source-filename').innerText = summary.source_file || 'External Source';
           document.getElementById('sync-total').innerText = summary.total_read || 0;
           if (document.getElementById('sync-new-comp')) document.getElementById('sync-new-comp').innerText = summary.new_companies || 0;
@@ -1676,7 +1674,6 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
           document.getElementById('sync-modal').classList.add('open');
           showToast('Source synchronization completed! History preserved.', 'success');
           await loadInitialData();
-        }
       } catch (err) {
         showToast('Sync error: ' + err.message, 'error');
       } finally {
@@ -2213,39 +2210,63 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       }
     }
 
-    // Sidebar navigation: switch routed pages or open configuration drawers.
+    // Sidebar navigation: switch routed pages.
     function setActiveNav(route) {
       document.querySelectorAll('.nav-item').forEach(function (el) {
         el.classList.toggle('active', el.dataset.nav === route);
       });
     }
 
-    function navigate(route) {
-      if (route === 'senders') {
-        setActiveNav('senders');
-        openSendersDrawer();
-        return;
+    // Onboarding: visible until at least one sender is ready (persisted per browser).
+    const ONBOARDING_KEY = 'reachout-onboarding-dismissed';
+
+    function updateOnboarding() {
+      const card = document.getElementById('onboarding-card');
+      if (!card) return;
+      let dismissed = false;
+      try {
+        dismissed = localStorage.getItem(ONBOARDING_KEY) === 'true';
+      } catch (e) {
+        dismissed = false;
       }
-      if (route === 'templates') {
-        setActiveNav('templates');
-        openTemplatesDrawer();
-        return;
+      const activeSenders = state.senders.filter((s) => s.status === 'ACTIVE').length;
+      card.hidden = dismissed || activeSenders > 0;
+    }
+
+    function dismissOnboarding() {
+      try {
+        localStorage.setItem(ONBOARDING_KEY, 'true');
+      } catch (e) {
+        /* storage unavailable; the card just hides for this session */
       }
-      const page = route === 'contacts' ? 'contacts' : 'overview';
+      const card = document.getElementById('onboarding-card');
+      if (card) card.hidden = true;
+    }
+
+    function showPage(route) {
+      const page = route === 'contacts' || route === 'senders' || route === 'templates' ? route : 'overview';
       document.querySelectorAll('.page').forEach(function (el) {
         el.classList.toggle('active', el.id === 'page-' + page);
       });
       setActiveNav(page);
+      return page;
+    }
+
+    async function navigate(route) {
+      const page = showPage(route);
+      if (page === 'senders') await openSendersDrawer();
+      if (page === 'templates') await openTemplatesDrawer();
     }
 
     // Registry of all delegated actions (module scope is not global).
     const ACTIONS = {
       navigate,
+      dismissOnboarding,
       changeContactsPage,
       addEmailSession, addWhatsAppSession, applyFilters, archiveContact, checkWhatsAppAuthStatus,
       closeDiscrepanciesDrawer, closeEmailConfigModal, closeHistoryModal, closeMoreMenu, closeReadinessModal,
-      closeRecoveryDrawer, closeSendModal, closeSendersDrawer, closeSyncModal, closeTemplateForm,
-      closeTemplatesDrawer, closeWhatsAppQrModal, deactivateSender, fetchDiscrepancies, fetchRecoveryQueue,
+      closeRecoveryDrawer, closeSendModal, closeSyncModal, closeTemplateForm,
+      closeWhatsAppQrModal, deactivateSender, fetchDiscrepancies, fetchRecoveryQueue,
       fetchSenders, handleSearchChange, handleTemplateSelectChange, onCampaignAction, openDiscrepanciesDrawer,
       openEmailConfigModal, openHistoryModal, openRecoveryDrawer, openSendModal, openSendersDrawer,
       openTemplateForm, openTemplateFormById, openTemplatesDrawer, reactivateSender, resolveConfirm,
@@ -2289,4 +2310,29 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       event.preventDefault();
       const names = (el.getAttribute('data-action') || '').trim().split(/\s+/).filter(Boolean);
       runActionNames(el, names, event);
+    });
+
+    // Keyboard shortcuts (ignored while typing in a field).
+    document.addEventListener('keydown', function (event) {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+      const target = event.target;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      const shortcuts = {
+        '/': function () {
+          const search = document.getElementById('search-input');
+          if (search) {
+            search.focus();
+            search.select();
+          }
+        },
+        o: function () { navigate('overview'); },
+        c: function () { navigate('contacts'); },
+        s: function () { navigate('senders'); },
+        t: function () { navigate('templates'); },
+      };
+      const handler = shortcuts[event.key];
+      if (handler) {
+        event.preventDefault();
+        handler();
+      }
     });
