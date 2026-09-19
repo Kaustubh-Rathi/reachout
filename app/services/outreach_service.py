@@ -249,13 +249,13 @@ class OutreachService:
             "duplicate": True,
         }
 
-    def _result(self, attempt, res, channel, recipient, sender, template) -> Dict[str, Any]:
+    def _result(self, attempt, res, channel, recipient, sender, template, attempt_type_label=None) -> Dict[str, Any]:
         return {
             "attempt_id": attempt.id,
             "status": attempt.status.value,
             "success": res.success,
             "channel": channel.value,
-            "attempt_type": attempt.attempt_type.value,
+            "attempt_type": attempt_type_label or attempt.attempt_type.value,
             "destination": recipient,
             "sender_account_id": sender.id,
             "template_id": template.id if template else None,
@@ -264,8 +264,11 @@ class OutreachService:
             "failure_detail": attempt.failure_detail,
         }
 
-    def _finalize_send(self, attempt, res, contact, channel, recipient, sender, template, now) -> None:
-        """Resolve the terminal state for a first-time send and emit its events."""
+    def _finalize_send(
+        self, attempt, res, contact, channel, recipient, sender, template, now, attempt_type_label=None
+    ) -> None:
+        """Resolve the terminal state for an outreach attempt and emit its events."""
+        type_label = attempt_type_label or attempt.attempt_type.value
         if res.success:
             attempt.mark_sent(provider_reference=res.provider_reference, timestamp=now)
             contact.record_outreach_success(channel, now)
@@ -273,6 +276,7 @@ class OutreachService:
             self.outreach_repo.save(attempt)
             self.session.commit()
             sent_payload = {
+                "attempt_type": type_label,
                 "provider_reference": res.provider_reference,
                 "status": "SENT",
                 "timestamp": now.isoformat(),
@@ -313,6 +317,7 @@ class OutreachService:
                 )
             self.session.commit()
             failed_payload = {
+                "attempt_type": type_label,
                 "status": "FAILED",
                 "failure_code": attempt.failure_code,
                 "failure_detail": attempt.failure_detail,
@@ -513,48 +518,13 @@ class OutreachService:
 
         attempt, res = self._dispatch(channel, attempt, recipient, subj, body, attachment_ref, sender, now)
 
-        if res.success:
-            attempt.mark_sent(provider_reference=res.provider_reference, timestamp=now)
-            contact.record_outreach_success(channel, now)
-            self.contact_repo.save(contact)
-            self.outreach_repo.save(attempt)
-            self.session.commit()
-            self._publish(
-                "MESSAGE_SENT",
-                attempt,
-                contact,
-                channel,
-                recipient,
-                sender,
-                template,
-                attempt_type="RESEND",
-            )
-        else:
-            attempt.mark_failed(res.failure_code or "ERR_RESEND_FAILED", res.failure_detail or "Dispatch error", now)
-            self.outreach_repo.save(attempt)
-            if (res.failure_code or "") in AUTH_FAILURE_CODES:
-                sender.mark_status(SenderStatus.AUTH_REQUIRED)
-                self.sender_repo.save(sender)
-                self.event_publisher.publish_event(
-                    "SENDER_STATUS_CHANGED",
-                    {
-                        "sender_id": sender.id,
-                        "channel": channel.value,
-                        "status": SenderStatus.AUTH_REQUIRED.value,
-                        "reason": res.failure_code,
-                        "timestamp": now.isoformat(),
-                    },
-                )
-            self.session.commit()
+        # Shared terminal-state resolution (also routes RECOVERY_REQUIRED/UNKNOWN
+        # into operator recovery, and downgrades dead senders on auth failures).
+        self._finalize_send(
+            attempt, res, contact, channel, recipient, sender, template, now, attempt_type_label="RESEND"
+        )
 
-        return {
-            "attempt_id": attempt.id,
-            "status": attempt.status.value,
-            "success": res.success,
-            "destination": recipient,
-            "provider_reference": res.provider_reference,
-            "attempt_type": "RESEND",
-        }
+        return self._result(attempt, res, channel, recipient, sender, template, attempt_type_label="RESEND")
 
     def get_history(self, contact_id: str) -> List[Dict[str, Any]]:
         """Retrieve complete historical attempts for a contact."""
