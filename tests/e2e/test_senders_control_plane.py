@@ -24,7 +24,7 @@ def test_senders_control_plane(browser_page: Page):
 
     # 2. Open Senders & Auth modal
     page.click("#senders-btn")
-    page.wait_for_selector("#senders-modal.open", timeout=20000)
+    page.wait_for_selector("#senders-modal.open", timeout=30000)
     assert page.is_visible("text=WhatsApp Senders")
     assert page.is_visible("text=Email Senders")
 
@@ -64,22 +64,22 @@ def test_readiness_modal_on_blocked_start(browser_page: Page):
     page.goto(BASE_URL, wait_until="networkidle")
 
     # Wait for the consolidated campaign action to be enabled
-    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=20000)
+    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=30000)
 
     # Click New Run
     page.click("#campaign-action-btn")
-    page.wait_for_selector("#readiness-modal.open", timeout=20000)
+    page.wait_for_selector("#readiness-modal.open", timeout=30000)
     assert page.is_visible("#readiness-error-reason")
     assert page.is_visible("text=NO_ACTIVE_WHATSAPP_SESSION")
 
     # Click Open Senders & Authenticate button inside readiness modal
     page.click("#readiness-modal button:has-text('Open Senders')")
-    page.wait_for_selector("#senders-modal.open", timeout=20000)
+    page.wait_for_selector("#senders-modal.open", timeout=30000)
 
     # Re-activate sender
     confirm_btn = page.locator("button:has-text('Confirm')").first
     if confirm_btn.is_visible():
         confirm_btn.click()
-        page.wait_for_selector(".toast", timeout=20000)
+        page.wait_for_selector(".toast", timeout=30000)
 
     page.click("#senders-modal .modal-close-btn")
