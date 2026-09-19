@@ -10,20 +10,15 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from app.domain.contact import Contact
 from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus
 from app.domain.errors import NotFoundError, ValidationError
-from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.channel_rotation_policy import (
     ChannelRotationPolicy,
 )
 from app.domain.policies.endpoint_coverage_policy import (
     is_contact_fully_covered,
-)
-from app.domain.policies.prioritization import (
-    prioritize_company_first,
 )
 from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.policies.template_rotation import select_template_round_robin
@@ -31,6 +26,7 @@ from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
+from app.infrastructure.scheduler.candidate_selector import CandidateSelector
 from app.infrastructure.scheduler.crash_recovery import CrashRecoveryService
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import CampaignScheduler, Clock, DomainEvent, EventPublisher
@@ -297,36 +293,14 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 # Load all contacts and full historical attempts
                 all_contacts = contact_repo.list_all()
                 all_attempts = outreach_repo.list_all()
-
-                # Build lookup of attempts per contact
-                attempts_by_contact: Dict[str, List[OutreachAttempt]] = {}
-                for a in all_attempts:
-                    if a.contact_id not in attempts_by_contact:
-                        attempts_by_contact[a.contact_id] = []
-                    attempts_by_contact[a.contact_id].append(a)
+                attempts_by_contact = CandidateSelector.attempts_by_contact(all_attempts)
 
                 # Prioritize WHO (Company-First Round-Robin selection).
-                # Bind the loop-scoped values as defaults so the closure does not
-                # capture a variable that changes on the next loop iteration (B023).
-                def eligibility_check(
-                    cnt: Contact,
-                    _attempts=attempts_by_contact,
-                    _channel=preferred_channel,
-                    _suppressed=suppressed_set,
-                ) -> bool:
-                    hist = _attempts.get(cnt.contact_id, [])
-                    decision = ChannelRotationPolicy.evaluate_contact_dispatch(
-                        contact=cnt,
-                        preferred_channel=_channel,
-                        historical_attempts=hist,
-                        suppressed_identifiers=_suppressed,
-                    )
-                    return decision.is_eligible
-
-                prioritized_candidates = prioritize_company_first(
+                prioritized_candidates = CandidateSelector.select(
                     contacts=all_contacts,
-                    eligibility_predicate=eligibility_check,
-                    dispatched_contact_ids=attempts_by_contact,
+                    attempts=all_attempts,
+                    suppressed_identifiers=suppressed_set,
+                    preferred_channel=preferred_channel,
                 )
 
                 if not prioritized_candidates:
