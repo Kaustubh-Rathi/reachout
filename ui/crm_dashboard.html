@@ -10,21 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <script>
-    (function () {
-      var MODE_KEY = 'reachout-theme-mode';
-      var mode = 'system';
-      try { mode = localStorage.getItem(MODE_KEY) || 'system'; } catch (e) { mode = 'system'; }
-      if (mode !== 'light' && mode !== 'dark' && mode !== 'system') mode = 'system';
-      var mql = window.matchMedia('(prefers-color-scheme: dark)');
-      var resolved = mode === 'system' ? (mql.matches ? 'dark' : 'light') : mode;
-      document.documentElement.setAttribute('data-theme-mode', mode);
-      document.documentElement.setAttribute('data-theme', resolved);
-    })();
-  </script>
+  <script src="/ui/theme.js"></script>
   <link rel="stylesheet" href="/ui/styles.css">
 </head>
-<body>
+<body data-default-limit="__DEFAULT_OUTREACH_LIMIT__" data-max-limit="__MAX_OUTREACH_LIMIT__">
 
   <!-- Top Header Navigation -->
   <header>
@@ -664,12 +653,6 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <!-- Application Logic (Vanilla JS) -->
-  <script>
-    window.APP_CONFIG = {
-      defaultOutreachLimit: __DEFAULT_OUTREACH_LIMIT__,
-      maxOutreachLimit: __MAX_OUTREACH_LIMIT__,
-    };
-  </script>
   <script type="module" src="/ui/app.js"></script>
 </body>
 </html>
