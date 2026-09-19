@@ -11,11 +11,12 @@ from typing import Any, Dict, Optional
 
 from app.config import DEFAULT_MESSAGE_SUBJECT, SENDER_PROFILE
 from app.domain.campaign import Campaign
-from app.domain.enums import AUTH_FAILURE_CODES, AttemptType, Channel, OutreachStatus, SenderStatus
+from app.domain.enums import AttemptType, Channel, OutreachStatus
 from app.domain.errors import NotFoundError, ValidationError
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
 from app.domain.sender_account import SenderAccount
+from app.infrastructure.scheduler.post_send_resolver import PostSendResolver
 from app.infrastructure.scheduler.pre_send_validator import PreSendValidator
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import Clock, DomainEvent, EventPublisher
@@ -42,6 +43,7 @@ class OutreachWorker:
         self.event_publisher = event_publisher
         self.repository_factory = repository_factory
         self.clock = clock
+        self.post_send_resolver = PostSendResolver(rate_limiter=rate_limiter, event_publisher=event_publisher)
 
     def _record_pre_send_failure(
         self,
@@ -387,131 +389,18 @@ class OutreachWorker:
             # --- Phase 5: Post-Send State Resolution & Quota Accounting ---
             post_now = self.clock.now()
             with self.session_factory() as session:
-                repos = self.repository_factory(session)
-                outreach_repo = repos.outreach
-                contact_repo = repos.contact
-                sender_repo = repos.sender
-                campaign_repo = repos.campaign
-
-                db_attempt = outreach_repo.get_by_id(attempt.id) or attempt
-                db_contact = contact_repo.get_by_id(attempt.contact_id)
-                db_sender = sender_repo.get_by_id(sender_account.id)
-                db_campaign = campaign_repo.get_by_id(campaign_id) if campaign_id else None
-
-                if provider_result.success:
-                    db_attempt.mark_sent(
-                        provider_reference=provider_result.provider_reference,
-                        timestamp=post_now,
-                    )
-                    if db_contact:
-                        db_contact.record_outreach_success(channel=channel, timestamp=post_now)
-                        contact_repo.save(db_contact)
-
-                    if db_sender:
-                        db_sender.record_usage(post_now)
-                        sender_repo.save(db_sender)
-
-                    if db_campaign:
-                        if attempt_type == AttemptType.AUTOMATIC:
-                            campaign_repo.increment_automatic_used(campaign_id)
-                        else:
-                            campaign_repo.increment_manual_used(campaign_id)
-
-                    self.rate_limiter.record_dispatch_success(sender_account.id)
-                    self.event_publisher.publish(
-                        DomainEvent(
-                            event_type="AttemptSent",
-                            payload={
-                                "attempt_id": db_attempt.id,
-                                "contact_id": db_attempt.contact_id,
-                                "channel": channel.value,
-                                "destination": db_attempt.destination,
-                                "sender_account_id": sender_account.id,
-                                "template_id": template.id,
-                                "status": "SENT",
-                                "provider_reference": db_attempt.provider_reference,
-                                "timestamp": post_now.isoformat(),
-                            },
-                        )
-                    )
-
-                elif provider_result.status == OutreachStatus.FAILED:
-                    db_attempt.mark_failed(
-                        failure_code=provider_result.failure_code or "ERR_PROVIDER_FAILED",
-                        failure_detail=provider_result.failure_detail or "Delivery failed",
-                        timestamp=post_now,
-                    )
-                    is_rate_limit = "RATE_LIMIT" in (provider_result.failure_code or "")
-                    self.rate_limiter.record_dispatch_failure(sender_account.id, is_rate_limit=is_rate_limit)
-
-                    # A provider auth failure means the session died: downgrade the
-                    # sender so the readiness gate and rotation stop selecting it.
-                    if db_sender and (provider_result.failure_code or "") in AUTH_FAILURE_CODES:
-                        db_sender.mark_status(SenderStatus.AUTH_REQUIRED)
-                        sender_repo.save(db_sender)
-                        self.event_publisher.publish(
-                            DomainEvent(
-                                event_type="SENDER_STATUS_CHANGED",
-                                payload={
-                                    "sender_id": db_sender.id,
-                                    "channel": channel.value,
-                                    "status": SenderStatus.AUTH_REQUIRED.value,
-                                    "reason": provider_result.failure_code,
-                                    "timestamp": post_now.isoformat(),
-                                },
-                            )
-                        )
-
-                    self.event_publisher.publish(
-                        DomainEvent(
-                            event_type="AttemptFailed",
-                            payload={
-                                "attempt_id": db_attempt.id,
-                                "contact_id": db_attempt.contact_id,
-                                "channel": channel.value,
-                                "destination": db_attempt.destination,
-                                "sender_account_id": sender_account.id,
-                                "template_id": template.id,
-                                "status": "FAILED",
-                                "failure_code": db_attempt.failure_code,
-                                "failure_detail": db_attempt.failure_detail,
-                                "timestamp": post_now.isoformat(),
-                            },
-                        )
-                    )
-
-                else:
-                    # UNKNOWN or RECOVERY_REQUIRED
-                    if provider_result.status == OutreachStatus.RECOVERY_REQUIRED:
-                        db_attempt.mark_recovery_required(
-                            reason=provider_result.failure_detail or "Ambiguous external outcome",
-                            timestamp=post_now,
-                        )
-                    else:
-                        db_attempt.mark_unknown(
-                            reason=provider_result.failure_detail or "Unknown delivery state",
-                            timestamp=post_now,
-                        )
-                    self.rate_limiter.record_dispatch_failure(sender_account.id)
-                    self.event_publisher.publish(
-                        DomainEvent(
-                            event_type="AttemptUnknown",
-                            payload={
-                                "attempt_id": db_attempt.id,
-                                "contact_id": db_attempt.contact_id,
-                                "channel": channel.value,
-                                "destination": db_attempt.destination,
-                                "sender_account_id": sender_account.id,
-                                "status": db_attempt.status.value,
-                                "reason": db_attempt.failure_detail,
-                                "timestamp": post_now.isoformat(),
-                            },
-                        )
-                    )
-
-                outreach_repo.save(db_attempt)
-                session.commit()
-                attempt = db_attempt
+                attempt = self.post_send_resolver.resolve(
+                    session=session,
+                    repository_factory=self.repository_factory,
+                    attempt=attempt,
+                    sender_account=sender_account,
+                    campaign_id=campaign_id,
+                    attempt_type=attempt_type,
+                    channel=channel,
+                    template=template,
+                    provider_result=provider_result,
+                    now=post_now,
+                )
 
         finally:
             self.rate_limiter.release_sender(sender_account.id)
