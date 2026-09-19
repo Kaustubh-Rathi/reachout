@@ -1,5 +1,5 @@
 import { apiErrorText, apiFetch } from './modules/api.js';
-import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
+import { escapeHtml, jsonAttr } from './modules/dom.js';
 
     // Server-injected limits (see <body data-*>).
     const APP_CONFIG = {
@@ -109,6 +109,8 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
         fetchCampaigns(),
       ]);
       await fetchHierarchies();
+      // Signal for E2E tests that initial data has rendered.
+      window.__dashboardReady = true;
     }
 
     // 1. Fetch & Render KPIs
@@ -274,7 +276,7 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
         (comp.contacts || []).forEach((hr, hrIdx) => {
           const curStatus = hr.crm_outcome || 'NOT_CONTACTED';
           const statusSelect = `
-            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" data-change="updateContactStatus" data-args='["${hr.contact_id}","$value","$el"]'>
+            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" data-change="updateContactStatus" data-args='[${jsonAttr(hr.contact_id)},"$value","$el"]'>
               <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
               <option value="PENDING_REPLY" ${curStatus === 'PENDING_REPLY' ? 'selected' : ''}>Pending Reply</option>
               <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
@@ -313,8 +315,8 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
             const sendBtn = recoveryAtt
               ? `<button class="btn btn-amber btn-xs" data-action="openRecoveryDrawer">⏱ Review queue</button>`
               : (ep.channel === 'WHATSAPP'
-                ? `<button class="btn btn-emerald btn-xs" data-action="openSendModal" data-args='["${jsAttr(hr.contact_id)}","WHATSAPP",${isSent},"${jsAttr(ep.address)}"]'>${isSent ? 'Resend WA' : 'Send WA'}</button>`
-                : `<button class="btn btn-primary btn-xs" data-action="openSendModal" data-args='["${jsAttr(hr.contact_id)}","EMAIL",${isSent},"${jsAttr(ep.address)}"]'>${isSent ? 'Resend Email' : 'Send Email'}</button>`);
+                ? `<button class="btn btn-emerald btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"WHATSAPP",${isSent},${jsonAttr(ep.address)}]'>${isSent ? 'Resend WA' : 'Send WA'}</button>`
+                : `<button class="btn btn-primary btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"EMAIL",${isSent},${jsonAttr(ep.address)}]'>${isSent ? 'Resend Email' : 'Send Email'}</button>`);
 
             endpointsHtml += `
               <div class="endpoint-box ${epClass}">
@@ -357,7 +359,7 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
           const emailDisplay = hr.email || '-';
 
           hrsHtml += `
-            <div class="hr-card" data-contact-id="${hr.contact_id}">
+            <div class="hr-card" data-contact-id="${escapeHtml(hr.contact_id)}">
               <div class="hr-header">
                 <div class="hr-title-wrap">
                   <span class="hr-name-bold">HR ${hrIdx + 1}: ${escapeHtml(hr.name)}</span>
@@ -367,8 +369,8 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                   <span>CRM Status:</span>
                   ${statusSelect}
-                  <button class="btn btn-secondary btn-xs" data-action="openHistoryModal" data-args='["${hr.contact_id}"]'>History</button>
-                  <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive / DNC" aria-label="Archive contact" data-action="archiveContact" data-args='["${hr.contact_id}"]'>🗑</button>
+                  <button class="btn btn-secondary btn-xs" data-action="openHistoryModal" data-args='[${jsonAttr(hr.contact_id)}]'>History</button>
+                  <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive / DNC" aria-label="Archive contact" data-action="archiveContact" data-args='[${jsonAttr(hr.contact_id)}]'>🗑</button>
                 </div>
               </div>
               <div class="hr-contact-meta" style="font-size: 0.72rem; color: var(--text-secondary); padding: 0.35rem 0.9rem 0; display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -388,7 +390,7 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
         });
 
         card.innerHTML = `
-          <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='["${jsAttr(comp.id)}"]' title="Click to expand / collapse HR contacts">
+          <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='[${jsonAttr(comp.id)}]' title="Click to expand / collapse HR contacts">
             <div class="company-title-area">
               <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
               <span class="company-name-lg">${escapeHtml(comp.name)}</span>
@@ -1055,19 +1057,19 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
           let actionButtons = '';
           if (s.status === 'INACTIVE') {
             actionButtons = `
-              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='["${jsAttr(s.id)}"]' title="Reactivate sender into rotation">
+              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='[${jsonAttr(s.id)}]' title="Reactivate sender into rotation">
                 <span>⚡ Reactivate</span>
               </button>
             `;
           } else {
             actionButtons = `
-              <button class="btn btn-emerald btn-xs" data-action="startWhatsAppAuth" data-args='["${jsAttr(s.id)}"]' title="Re-authenticate this WhatsApp sender (re-scan QR)">
+              <button class="btn btn-emerald btn-xs" data-action="startWhatsAppAuth" data-args='[${jsonAttr(s.id)}]' title="Re-authenticate this WhatsApp sender (re-scan QR)">
                 <span>📱 Re-Authenticate</span>
               </button>
-              <button class="btn btn-outline btn-xs" data-action="checkWhatsAppAuthStatus" data-args='["${jsAttr(s.id)}"]' title="Check connection health">
+              <button class="btn btn-outline btn-xs" data-action="checkWhatsAppAuthStatus" data-args='[${jsonAttr(s.id)}]' title="Check connection health">
                 <span>🔍 Status</span>
               </button>
-              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='["${jsAttr(s.id)}"]' title="Deactivate and pause from rotation (history preserved)">
+              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='[${jsonAttr(s.id)}]' title="Deactivate and pause from rotation (history preserved)">
                 <span>⏸️ Deactivate</span>
               </button>
             `;
@@ -1120,19 +1122,19 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
           let actionButtons = '';
           if (s.status === 'INACTIVE') {
             actionButtons = `
-              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='["${jsAttr(s.id)}"]' title="Reactivate sender">
+              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='[${jsonAttr(s.id)}]' title="Reactivate sender">
                 <span>⚡ Reactivate</span>
               </button>
             `;
           } else {
             actionButtons = `
-              <button class="btn btn-primary btn-xs" data-action="openEmailConfigModal" data-args='["${jsAttr(s.id)}"]'>
+              <button class="btn btn-primary btn-xs" data-action="openEmailConfigModal" data-args='[${jsonAttr(s.id)}]'>
                 <span>⚙️ Re-configure</span>
               </button>
-              <button class="btn btn-outline btn-xs" data-action="verifyEmailSender" data-args='["${jsAttr(s.id)}"]'>
+              <button class="btn btn-outline btn-xs" data-action="verifyEmailSender" data-args='[${jsonAttr(s.id)}]'>
                 <span>🔌 Test &amp; Verify</span>
               </button>
-              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='["${jsAttr(s.id)}"]' title="Deactivate and pause from rotation (history preserved)">
+              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='[${jsonAttr(s.id)}]' title="Deactivate and pause from rotation (history preserved)">
                 <span>⏸️ Deactivate</span>
               </button>
             `;
@@ -1501,7 +1503,7 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
             <strong>${escapeHtml(t.id)} - ${escapeHtml(t.name)}</strong>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <span class="badge badge-sent">${escapeHtml(t.channel)}</span>
-              <button class="btn btn-outline btn-xs" data-action="openTemplateFormById" data-args='["${jsAttr(t.id)}"]'>Edit</button>
+              <button class="btn btn-outline btn-xs" data-action="openTemplateFormById" data-args='[${jsonAttr(t.id)}]'>Edit</button>
             </div>
           </div>
           ${t.subject ? `<div style="font-size: 0.75rem; color: var(--accent-blue); font-weight: 600;">Subject: ${escapeHtml(t.subject)}</div>` : ''}

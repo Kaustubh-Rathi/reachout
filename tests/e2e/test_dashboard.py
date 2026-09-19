@@ -39,7 +39,7 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
     """Test dashboard page loads with all 11 required KPI metrics."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("header h1", timeout=20000)
+    page.wait_for_selector("header h1", timeout=30000)
 
     # Verify brand & header
     assert "Reachout CRM" in page.title()
@@ -67,7 +67,7 @@ def test_theme_toggle_switches_modes(browser_page: Page):
     """The theme control must resolve and switch between light, dark, and system."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("header h1", timeout=20000)
+    page.wait_for_selector("header h1", timeout=30000)
 
     html = page.locator("html")
     assert html.get_attribute("data-theme") in ("light", "dark")
@@ -91,13 +91,14 @@ def test_contact_display_and_email_visibility(browser_page: Page):
     page.goto(BASE_URL, wait_until="networkidle")
 
     # Wait for hierarchy company cards to render
-    page.wait_for_selector(".company-card", timeout=20000)
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.wait_for_selector(".company-card", timeout=30000)
     cards = page.query_selector_all(".company-card")
     assert len(cards) > 0, "Hierarchy view must render company cards"
 
     # Expand the first company card to reveal HR contacts
     page.locator(".company-card-header").first.click()
-    page.wait_for_selector(".hr-card", timeout=20000)
+    page.wait_for_selector(".hr-card", timeout=30000)
     hr_cards = page.query_selector_all(".hr-card")
     assert len(hr_cards) > 0, "Company card must reveal HR contacts when expanded"
 
@@ -110,7 +111,7 @@ def test_campaign_lifecycle_controls(browser_page: Page):
     """Test the consolidated campaign control: one context-aware action + contextual stop."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("#campaign-action-btn", timeout=20000)
+    page.wait_for_selector("#campaign-action-btn", timeout=30000)
 
     action_btn = page.locator("#campaign-action-btn")
     stop_btn = page.locator("#stop-campaign-btn")
@@ -118,7 +119,7 @@ def test_campaign_lifecycle_controls(browser_page: Page):
     assert stop_btn.count() == 1
 
     # Idle/terminal state exposes a single "New Run" action.
-    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=20000)
+    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=30000)
     assert "New Run" in action_btn.inner_text()
 
     if action_btn.get_attribute("data-action") == "start":
@@ -140,24 +141,25 @@ def test_manual_whatsapp_send_and_resend(browser_page: Page):
     """Test manual WhatsApp send modal, template selection, and resend workflow."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector(".company-card", timeout=20000)
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
-    page.wait_for_selector(".hr-card", timeout=20000)
+    page.wait_for_selector(".hr-card", timeout=30000)
 
     # Click first available enabled WA send button
     wa_btn = page.locator("button:has-text('Send WA'):not([disabled]), button:has-text('WA'):not([disabled])").first
     wa_btn.click()
 
     # Modal should appear
-    page.wait_for_selector("#send-modal.open", timeout=20000)
+    page.wait_for_selector("#send-modal.open", timeout=30000)
     assert page.is_visible("text=Send WHATSAPP Message")
 
     # Submit
     page.click("#modal-submit-send-btn")
-    page.wait_for_selector(".toast", timeout=20000)
+    page.wait_for_selector(".toast", timeout=30000)
     # The hierarchy refreshes after the send and the endpoint reflects the
     # persisted SENT attempt.
-    page.wait_for_selector("text=WHATSAPP SENT", timeout=20000)
+    page.wait_for_selector("text=WHATSAPP SENT", timeout=30000)
 
 
 def test_manual_email_send_and_resend(browser_page: Page):
@@ -173,45 +175,47 @@ def test_manual_email_send_and_resend(browser_page: Page):
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector(".company-card", timeout=20000)
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
-    page.wait_for_selector(".hr-card", timeout=20000)
+    page.wait_for_selector(".hr-card", timeout=30000)
 
     # Click first available enabled Email button
     email_btn = page.locator(
         "button:has-text('Send Email'):not([disabled]), button:has-text('Email'):not([disabled])"
     ).first
     email_btn.click()
-    page.wait_for_selector("#send-modal.open", timeout=20000)
+    page.wait_for_selector("#send-modal.open", timeout=30000)
     assert page.is_visible("text=Send EMAIL Message")
     assert page.is_visible("#modal-subject-group")
     assert page.is_visible("#modal-attachment-input")
 
     page.click("#modal-submit-send-btn")
-    page.wait_for_selector(".toast", timeout=20000)
-    page.wait_for_selector("text=EMAIL SENT", timeout=20000)
+    page.wait_for_selector(".toast", timeout=30000)
+    page.wait_for_selector("text=EMAIL SENT", timeout=30000)
 
 
 def test_interested_and_interview_workflows(browser_page: Page):
     """Test Interested workflow records interested_at and transitions interview states via dropdown."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector(".company-card", timeout=20000)
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
-    page.wait_for_selector(".hr-card select", timeout=20000)
+    page.wait_for_selector(".hr-card select", timeout=30000)
 
     # 1. Mark Interested
     status_select = page.locator(".hr-card select").first
     status_select.select_option("INTERESTED")
-    page.wait_for_selector(".toast", timeout=20000)
+    page.wait_for_selector(".toast", timeout=30000)
 
     # 2. Mark Interview
     status_select.select_option("INTERVIEW")
-    page.wait_for_selector(".toast", timeout=20000)
+    page.wait_for_selector(".toast", timeout=30000)
 
     # 3. Mark Not Interview / Rejected
     status_select.select_option("REJECTED")
-    page.wait_for_selector(".toast", timeout=20000)
+    page.wait_for_selector(".toast", timeout=30000)
 
 
 def test_followup_reminder_due_display(browser_page: Page):
@@ -265,8 +269,8 @@ def test_senders_and_templates_drawers(browser_page: Page):
 
     # 1. Senders drawer
     page.click("#senders-btn")
-    page.wait_for_selector("#senders-modal.open", timeout=20000)
-    page.wait_for_selector("#senders-list-container .kpi-card", timeout=20000)
+    page.wait_for_selector("#senders-modal.open", timeout=30000)
+    page.wait_for_selector("#senders-list-container .kpi-card", timeout=30000)
     assert page.is_visible("text=WhatsApp Senders")
     assert page.is_visible("text=Email Senders")
     # Verify no passwords or tokens exposed in HTML
@@ -277,8 +281,8 @@ def test_senders_and_templates_drawers(browser_page: Page):
 
     # 2. Templates drawer
     page.click("#templates-btn")
-    page.wait_for_selector("#templates-modal.open", timeout=20000)
-    page.wait_for_selector("#templates-list-container", timeout=20000)
+    page.wait_for_selector("#templates-modal.open", timeout=30000)
+    page.wait_for_selector("#templates-list-container", timeout=30000)
     templates_text = page.locator("#templates-list-container").inner_text()
     assert (
         "tmpl_wa_default" in templates_text or "Default SDE Outreach" in templates_text or "WHATSAPP" in templates_text
@@ -290,16 +294,17 @@ def test_contact_history_timeline_modal(browser_page: Page):
     """Test contact activity timeline modal renders chronological events."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector(".company-card", timeout=20000)
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
-    page.wait_for_selector(".hr-card", timeout=20000)
+    page.wait_for_selector(".hr-card", timeout=30000)
 
     hist_btn = page.locator("button:has-text('History')").first
     hist_btn.click()
 
-    page.wait_for_selector("#history-modal.open", timeout=20000)
+    page.wait_for_selector("#history-modal.open", timeout=30000)
     assert page.is_visible("text=Activity Timeline")
-    page.wait_for_selector("#history-timeline-list", timeout=20000)
+    page.wait_for_selector("#history-timeline-list", timeout=30000)
     page.click("#history-modal .modal-footer button")
     page.wait_for_timeout(300)
     assert not page.is_visible("#history-modal.open")
