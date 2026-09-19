@@ -76,6 +76,26 @@ class OutreachService:
             raise NotFoundError(f"Contact not found: {contact_id}")
         return contact
 
+    def preview_message(
+        self,
+        contact_id: str,
+        channel: Channel,
+        template_id: Optional[str],
+        is_resend: bool = False,
+    ) -> Dict[str, Any]:
+        """Render the canonical outbound body/subject/attachment without dispatching."""
+        contact = self._require_contact(contact_id)
+        body, subject, attachment_ref, _ = self.composer.resolve_message(
+            contact,
+            channel,
+            template_id,
+            None,
+            None,
+            None,
+            is_resend=is_resend,
+        )
+        return {"body": body, "subject": subject, "attachment_ref": attachment_ref}
+
     def _resolve_sender(self, sender_id: Optional[str], channel: Channel, contact_id: str) -> SenderAccount:
         sender = None
         if sender_id:
