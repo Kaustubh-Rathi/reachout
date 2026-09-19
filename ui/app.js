@@ -2115,8 +2115,34 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       });
     }
 
+    // Sidebar navigation: switch routed pages or open configuration drawers.
+    function setActiveNav(route) {
+      document.querySelectorAll('.nav-item').forEach(function (el) {
+        el.classList.toggle('active', el.dataset.nav === route);
+      });
+    }
+
+    function navigate(route) {
+      if (route === 'senders') {
+        setActiveNav('senders');
+        openSendersDrawer();
+        return;
+      }
+      if (route === 'templates') {
+        setActiveNav('templates');
+        openTemplatesDrawer();
+        return;
+      }
+      const page = route === 'contacts' ? 'contacts' : 'overview';
+      document.querySelectorAll('.page').forEach(function (el) {
+        el.classList.toggle('active', el.id === 'page-' + page);
+      });
+      setActiveNav(page);
+    }
+
     // Registry of all delegated actions (module scope is not global).
     const ACTIONS = {
+      navigate,
       addEmailSession, addWhatsAppSession, applyFilters, archiveContact, checkWhatsAppAuthStatus,
       closeDiscrepanciesDrawer, closeEmailConfigModal, closeHistoryModal, closeMoreMenu, closeReadinessModal,
       closeRecoveryDrawer, closeSendModal, closeSendersDrawer, closeSyncModal, closeTemplateForm,

@@ -15,6 +15,29 @@
 </head>
 <body data-default-limit="__DEFAULT_OUTREACH_LIMIT__" data-max-limit="__MAX_OUTREACH_LIMIT__">
 
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-brand">
+        <div class="brand-badge">R</div>
+        <span class="sidebar-brand-text">Reachout</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-item active" data-nav="overview" data-action="navigate" data-args='["overview"]'>
+          <span class="nav-icon" aria-hidden="true">◉</span><span>Overview</span>
+        </button>
+        <button type="button" class="nav-item" data-nav="contacts" data-action="navigate" data-args='["contacts"]'>
+          <span class="nav-icon" aria-hidden="true">☰</span><span>Contacts</span>
+        </button>
+        <button type="button" class="nav-item" data-nav="senders" data-action="navigate" data-args='["senders"]'>
+          <span class="nav-icon" aria-hidden="true">👥</span><span>Senders</span>
+        </button>
+        <button type="button" class="nav-item" data-nav="templates" data-action="navigate" data-args='["templates"]'>
+          <span class="nav-icon" aria-hidden="true">📝</span><span>Templates</span>
+        </button>
+      </nav>
+    </aside>
+    <div class="app-main">
+
   <!-- Top Header Navigation -->
   <header>
     <div class="brand">
@@ -77,6 +100,8 @@
   </div>
 
   <main>
+    <!-- ============================ Overview ============================ -->
+    <section id="page-overview" class="page active">
     <!-- Section 4: Operational KPI Metrics Dashboard -->
     <section class="kpi-grid" id="kpi-grid">
       <div class="kpi-card" id="kpi-total">
@@ -183,6 +208,10 @@
       </div>
     </section>
 
+    </section>
+
+    <!-- ============================ Contacts ============================ -->
+    <section id="page-contacts" class="page">
     <!-- Section 8: Search & Priority Filter Bar -->
     <section class="filters-bar">
       <div class="search-wrapper">
@@ -244,7 +273,11 @@
         </div>
       </div>
     </section>
+    </section>
   </main>
+
+    </div><!-- /app-main -->
+  </div><!-- /app-shell -->
 
   <!-- Modals & Drawers -->
 
