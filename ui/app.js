@@ -109,6 +109,7 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
         fetchCampaigns(),
       ]);
       await fetchHierarchies();
+      await fetchActivity();
       // Signal for E2E tests that initial data has rendered.
       window.__dashboardReady = true;
     }
@@ -1823,6 +1824,8 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       const type = String(rawType).toUpperCase().replace(/\./g, '_');
       const p = ev.payload || {};
 
+      addActivityItem(describeLiveActivity(type, p), ev.occurred_at);
+
       if (type === 'SENDER_STATUS_CHANGED') {
         await fetchSenders();
         if (p.sender_id && p.status) {
@@ -2113,6 +2116,57 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
         if (a === '$event') return event;
         return a;
       });
+    }
+
+    // ------------------------------------------------------------------
+    // Overview live activity feed
+    // ------------------------------------------------------------------
+    const ACTIVITY_MAX = 20;
+
+    function describeLiveActivity(type, p) {
+      const ch = p.channel || '';
+      if (type === 'OUTREACH_SENT' || type === 'MESSAGE_SENT') return `${ch || 'Message'} sent to ${p.destination || p.recipient || 'recipient'}`;
+      if (type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') return `Send failed: ${p.failure_detail || p.failure_code || 'error'}`;
+      if (type === 'OUTREACH_RECOVERY_REQUIRED') return `Recovery required for ${p.destination || 'contact'}`;
+      if (type.startsWith('CAMPAIGN_')) return `Campaign ${type.replace('CAMPAIGN_', '').toLowerCase()}${p.campaign_id ? ' (' + p.campaign_id + ')' : ''}`;
+      if (type === 'SENDER_STATUS_CHANGED') return `Sender ${p.sender_id || ''} is now ${p.status || ''}`;
+      if (type === 'SENDER_QR_RECEIVED') return `QR code received for ${p.sender_id || ''}`;
+      if (type === 'EXCEL_SYNC_COMPLETED') return `Sync completed: ${p.new_contacts || 0} new, ${p.updated_contacts || 0} updated contacts`;
+      if (type === 'EXCEL_SYNC_STARTED') return `Sync started: ${p.source_file || ''}`;
+      if (type === 'CRM_STATUS_CHANGED') return `Contact marked ${p.status || ''}`;
+      return type;
+    }
+
+    function addActivityItem(text, occurredAt) {
+      const list = document.getElementById('activity-list');
+      if (!list) return;
+      const empty = list.querySelector('.activity-empty');
+      if (empty) empty.remove();
+      const item = document.createElement('div');
+      item.className = 'activity-item';
+      const time = document.createElement('span');
+      time.className = 'activity-time';
+      time.textContent = occurredAt ? String(occurredAt).slice(11, 16) : '';
+      const body = document.createElement('span');
+      body.className = 'activity-text';
+      body.textContent = text;
+      item.appendChild(time);
+      item.appendChild(body);
+      list.prepend(item);
+      while (list.children.length > ACTIVITY_MAX) list.removeChild(list.lastChild);
+    }
+
+    async function fetchActivity() {
+      try {
+        const res = await apiFetch('/api/events/history?limit=15');
+        if (!res.ok) return;
+        const events = await res.json();
+        const list = document.getElementById('activity-list');
+        if (list) list.innerHTML = '';
+        (events || []).slice().reverse().forEach((ev) => addActivityItem(describeLiveActivity(ev.event_type, ev.payload || {}), ev.occurred_at));
+      } catch (err) {
+        console.error('Error loading activity:', err);
+      }
     }
 
     // Sidebar navigation: switch routed pages or open configuration drawers.

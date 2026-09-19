@@ -103,61 +103,84 @@
     <!-- ============================ Overview ============================ -->
     <section id="page-overview" class="page active">
     <!-- Section 4: Operational KPI Metrics Dashboard -->
-    <section class="kpi-grid" id="kpi-grid">
-      <div class="kpi-card" id="kpi-total">
-        <div class="kpi-label">Total Contacts</div>
-        <div class="kpi-value" id="val-total">0</div>
-        <div class="kpi-sub">Total database prospects</div>
+    <section class="kpi-sections" id="kpi-grid" aria-label="Dashboard KPI metrics">
+      <div class="kpi-section">
+        <h2 class="section-title">Pipeline</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card" id="kpi-total">
+            <div class="kpi-label">Total Contacts</div>
+            <div class="kpi-value" id="val-total">0</div>
+            <div class="kpi-sub">Total database prospects</div>
+          </div>
+          <div class="kpi-card kpi-eligible" id="kpi-eligible">
+            <div class="kpi-label">Eligible</div>
+            <div class="kpi-value" id="val-eligible">0</div>
+            <div class="kpi-sub">Ready for outreach</div>
+          </div>
+          <div class="kpi-card kpi-contacted" id="kpi-contacted">
+            <div class="kpi-label">Contacted</div>
+            <div class="kpi-value" id="val-contacted">0</div>
+            <div class="kpi-sub">Outreached via WA/Email</div>
+          </div>
+        </div>
       </div>
-      <div class="kpi-card kpi-eligible" id="kpi-eligible">
-        <div class="kpi-label">Eligible</div>
-        <div class="kpi-value" id="val-eligible">0</div>
-        <div class="kpi-sub">Ready for outreach</div>
+
+      <div class="kpi-section">
+        <h2 class="section-title">Outreach</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card kpi-wa" id="kpi-wa-sent">
+            <div class="kpi-label">WhatsApp Sent</div>
+            <div class="kpi-value" id="val-wa-sent">0</div>
+            <div class="kpi-sub">Delivered on WA</div>
+          </div>
+          <div class="kpi-card kpi-email" id="kpi-email-sent">
+            <div class="kpi-label">Email Sent</div>
+            <div class="kpi-value" id="val-email-sent">0</div>
+            <div class="kpi-sub">Dispatched via SMTP</div>
+          </div>
+          <div class="kpi-card kpi-failed" id="kpi-failed">
+            <div class="kpi-label">Failed</div>
+            <div class="kpi-value" id="val-failed">0</div>
+            <div class="kpi-sub">Failed dispatches</div>
+          </div>
+        </div>
       </div>
-      <div class="kpi-card kpi-contacted" id="kpi-contacted">
-        <div class="kpi-label">Contacted</div>
-        <div class="kpi-value" id="val-contacted">0</div>
-        <div class="kpi-sub">Outreached via WA/Email</div>
+
+      <div class="kpi-section">
+        <h2 class="section-title">Responses</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card kpi-interested" id="kpi-interested">
+            <div class="kpi-label">Interested</div>
+            <div class="kpi-value" id="val-interested">0</div>
+            <div class="kpi-sub">Positive responses</div>
+          </div>
+          <div class="kpi-card kpi-not-interested" id="kpi-not-interested">
+            <div class="kpi-label">Not Interested</div>
+            <div class="kpi-value" id="val-not-interested">0</div>
+            <div class="kpi-sub">No hiring / Declined</div>
+          </div>
+          <div class="kpi-card kpi-interview" id="kpi-interview">
+            <div class="kpi-label">Interview</div>
+            <div class="kpi-value" id="val-interview">0</div>
+            <div class="kpi-sub">Interviews scheduled</div>
+          </div>
+        </div>
       </div>
-      <div class="kpi-card kpi-wa" id="kpi-wa-sent">
-        <div class="kpi-label">WhatsApp Sent</div>
-        <div class="kpi-value" id="val-wa-sent">0</div>
-        <div class="kpi-sub">Delivered on WA</div>
-      </div>
-      <div class="kpi-card kpi-email" id="kpi-email-sent">
-        <div class="kpi-label">Email Sent</div>
-        <div class="kpi-value" id="val-email-sent">0</div>
-        <div class="kpi-sub">Dispatched via SMTP</div>
-      </div>
-      <div class="kpi-card kpi-interested" id="kpi-interested">
-        <div class="kpi-label">Interested</div>
-        <div class="kpi-value" id="val-interested">0</div>
-        <div class="kpi-sub">Positive responses</div>
-      </div>
-      <div class="kpi-card kpi-not-interested" id="kpi-not-interested">
-        <div class="kpi-label">Not Interested</div>
-        <div class="kpi-value" id="val-not-interested">0</div>
-        <div class="kpi-sub">No hiring / Declined</div>
-      </div>
-      <div class="kpi-card kpi-interview" id="kpi-interview">
-        <div class="kpi-label">Interview</div>
-        <div class="kpi-value" id="val-interview">0</div>
-        <div class="kpi-sub">Interviews scheduled</div>
-      </div>
-      <div class="kpi-card kpi-followup" id="kpi-followup">
-        <div class="kpi-label">Follow-up Due</div>
-        <div class="kpi-value" id="val-followup">0</div>
-        <div class="kpi-sub">Pending 7-day milestone</div>
-      </div>
-      <div class="kpi-card kpi-failed" id="kpi-failed">
-        <div class="kpi-label">Failed</div>
-        <div class="kpi-value" id="val-failed">0</div>
-        <div class="kpi-sub">Failed dispatches</div>
-      </div>
-      <div class="kpi-card kpi-recovery" id="kpi-recovery" role="button" tabindex="0" title="Open the recovery queue" aria-label="Open the recovery queue" data-action="openRecoveryDrawer">
-        <div class="kpi-label">Recovery Required</div>
-        <div class="kpi-value" id="val-recovery">0</div>
-        <div class="kpi-sub">Blocked in recovery queue &bull; click to review</div>
+
+      <div class="kpi-section kpi-section-action">
+        <h2 class="section-title">Action Needed</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card kpi-followup" id="kpi-followup">
+            <div class="kpi-label">Follow-up Due</div>
+            <div class="kpi-value" id="val-followup">0</div>
+            <div class="kpi-sub">Pending 7-day milestone</div>
+          </div>
+          <div class="kpi-card kpi-recovery" id="kpi-recovery" role="button" tabindex="0" title="Open the recovery queue" aria-label="Open the recovery queue" data-action="openRecoveryDrawer">
+            <div class="kpi-label">Recovery Required</div>
+            <div class="kpi-value" id="val-recovery">0</div>
+            <div class="kpi-sub">Blocked in recovery queue &bull; click to review</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -207,6 +230,25 @@
         </div>
       </div>
     </section>
+
+    <!-- Live Activity + Quick Actions -->
+    <div class="overview-bottom">
+      <section class="activity-feed" aria-labelledby="activity-title">
+        <h2 class="section-title" id="activity-title">Live Activity</h2>
+        <div id="activity-list" role="log" aria-live="polite" aria-relevant="additions">
+          <div class="activity-empty">Events from campaigns, senders, and syncs will appear here.</div>
+        </div>
+      </section>
+      <section class="quick-actions" aria-labelledby="quick-actions-title">
+        <h2 class="section-title" id="quick-actions-title">Quick Actions</h2>
+        <div class="quick-actions-grid">
+          <button type="button" class="btn btn-secondary" data-action="triggerSync"><span aria-hidden="true">🔄</span><span>Sync Contacts</span></button>
+          <button type="button" class="btn btn-secondary" data-action="openSendersDrawer"><span aria-hidden="true">👥</span><span>Senders</span></button>
+          <button type="button" class="btn btn-secondary" data-action="openTemplatesDrawer"><span aria-hidden="true">📝</span><span>Templates</span></button>
+          <a class="btn btn-secondary" href="/api/contacts/export/csv" download><span aria-hidden="true">📥</span><span>Export CSV</span></a>
+        </div>
+      </section>
+    </div>
 
     </section>
 
