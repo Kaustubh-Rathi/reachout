@@ -1,6 +1,12 @@
 import { apiErrorText, apiFetch } from './modules/api.js';
 import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
 
+    // Server-injected limits (see <body data-*>).
+    const APP_CONFIG = {
+      defaultOutreachLimit: Number(document.body.dataset.defaultLimit) || 100,
+      maxOutreachLimit: Number(document.body.dataset.maxLimit) || 1000,
+    };
+
     // Global State Management
     let state = {
       companies: [],
@@ -550,11 +556,11 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
       const limitInput = document.getElementById('campaign-limit-input');
       const parsedLimit = limitInput ? parseInt(limitInput.value, 10) : NaN;
       // Clamp to the configured ceiling (the HTML max attribute is advisory only).
-      let maxCount = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : window.APP_CONFIG.defaultOutreachLimit;
-      if (maxCount > window.APP_CONFIG.maxOutreachLimit) {
-        maxCount = window.APP_CONFIG.maxOutreachLimit;
+      let maxCount = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : APP_CONFIG.defaultOutreachLimit;
+      if (maxCount > APP_CONFIG.maxOutreachLimit) {
+        maxCount = APP_CONFIG.maxOutreachLimit;
         if (limitInput) limitInput.value = maxCount;
-        showToast(`Limit capped at the maximum of ${window.APP_CONFIG.maxOutreachLimit}.`, 'info');
+        showToast(`Limit capped at the maximum of ${APP_CONFIG.maxOutreachLimit}.`, 'info');
       }
       const actionBtn = document.getElementById('campaign-action-btn');
       const originalHtml = actionBtn ? actionBtn.innerHTML : '';

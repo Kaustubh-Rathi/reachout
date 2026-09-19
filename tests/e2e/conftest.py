@@ -144,6 +144,9 @@ def browser_page():
         context = browser.new_context(
             viewport={"width": 1440, "height": 900},
             reduced_motion="reduce",
+            # The app ships a strict CSP; bypass it so Playwright's injected
+            # selector/eval scripts are not blocked in Firefox.
+            bypass_csp=True,
         )
         # Camoufox (Firefox) is slower to first paint than Chromium; give UI
         # selectors a generous default so tests are not timing-flaky.
