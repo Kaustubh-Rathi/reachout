@@ -30,9 +30,16 @@ from playwright.sync_api import Page
 from app.domain.enums import CRMOutcome, InterviewState
 from app.infrastructure.database import SessionFactory
 from app.services.crm_service import CrmService
+from app.services.sender_service import SenderService
 from tests.e2e.conftest import BASE_URL
 
 pytestmark = pytest.mark.e2e
+
+
+def _activate_sender(sender_id: str) -> None:
+    """Mark a seeded sender ACTIVE so manual dispatch is permitted."""
+    with SessionFactory() as session:
+        SenderService(session).update_sender_status(sender_id, "ACTIVE")
 
 
 def test_dashboard_loading_and_kpis(browser_page: Page):
@@ -92,6 +99,7 @@ def test_contact_display_and_email_visibility(browser_page: Page):
 
     # Wait for hierarchy company cards to render
     page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     cards = page.query_selector_all(".company-card")
     assert len(cards) > 0, "Hierarchy view must render company cards"
@@ -139,9 +147,11 @@ def test_campaign_lifecycle_controls(browser_page: Page):
 
 def test_manual_whatsapp_send_and_resend(browser_page: Page):
     """Test manual WhatsApp send modal, template selection, and resend workflow."""
+    _activate_sender("WA_E2E_SMOKE")
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
     page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
     page.wait_for_selector(".hr-card", timeout=30000)
@@ -157,13 +167,16 @@ def test_manual_whatsapp_send_and_resend(browser_page: Page):
     # Submit
     page.click("#modal-submit-send-btn")
     page.wait_for_selector(".toast", timeout=30000)
-    # The hierarchy refreshes after the send and the endpoint reflects the
-    # persisted SENT attempt.
+    assert "Sent" in page.inner_text(".toast"), "WhatsApp send should succeed"
+    page.wait_for_selector("#send-modal.open", state="hidden", timeout=30000)
+    # The Overview KPI reflects the persisted SENT attempt.
+    page.click('[data-nav="overview"]')
     page.wait_for_selector("text=WHATSAPP SENT", timeout=30000)
 
 
 def test_manual_email_send_and_resend(browser_page: Page):
     """Test manual Email send modal and subject/template customization."""
+    _activate_sender("EMAIL_E2E_SMOKE")
     # Ensure at least one contact has an email
     with SessionFactory() as session:
         crm_svc = CrmService(session)
@@ -176,6 +189,7 @@ def test_manual_email_send_and_resend(browser_page: Page):
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
     page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
     page.wait_for_selector(".hr-card", timeout=30000)
@@ -192,6 +206,9 @@ def test_manual_email_send_and_resend(browser_page: Page):
 
     page.click("#modal-submit-send-btn")
     page.wait_for_selector(".toast", timeout=30000)
+    assert "Sent" in page.inner_text(".toast"), "Email send should succeed"
+    page.wait_for_selector("#send-modal.open", state="hidden", timeout=30000)
+    page.click('[data-nav="overview"]')
     page.wait_for_selector("text=EMAIL SENT", timeout=30000)
 
 
@@ -200,6 +217,7 @@ def test_interested_and_interview_workflows(browser_page: Page):
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
     page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
     page.wait_for_selector(".hr-card select", timeout=30000)
@@ -234,13 +252,18 @@ def test_followup_reminder_due_display(browser_page: Page):
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.click('[data-nav="contacts"]')
 
-    # Filter to Follow-up Due
+    # Filter to Follow-up Due and expand the resulting company to reveal the badge
     page.click("button[data-filter='FOLLOW_UP_DUE']")
-    page.wait_for_timeout(500)
+    page.wait_for_selector(".company-card", timeout=30000)
+    page.locator(".company-card-header").first.click()
+    page.wait_for_selector(".hr-card", timeout=30000)
 
     # Verify FOLLOW-UP DUE indicator is visible
-    assert page.is_visible("text=FOLLOW-UP DUE"), "FOLLOW-UP DUE callout must be prominently visible"
+    badge = page.locator(".hr-card .badge", has_text="FOLLOW-UP DUE").first
+    assert badge.is_visible(), "FOLLOW-UP DUE callout must be prominently visible"
 
 
 def test_source_synchronization_modal(browser_page: Page):
@@ -295,6 +318,7 @@ def test_contact_history_timeline_modal(browser_page: Page):
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
     page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
     page.wait_for_selector(".hr-card", timeout=30000)
