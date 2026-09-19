@@ -285,32 +285,28 @@ def test_source_synchronization_modal(browser_page: Page):
     assert not page.is_visible("#sync-modal.open")
 
 
-def test_senders_and_templates_drawers(browser_page: Page):
-    """Test multi-sender and templates modals dynamically list accounts without credentials."""
+def test_senders_and_templates_pages(browser_page: Page):
+    """Test the Senders and Templates pages dynamically list accounts without credentials."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
 
-    # 1. Senders drawer
-    page.click("#senders-btn")
-    page.wait_for_selector("#senders-modal.open", timeout=30000)
+    # 1. Senders page
+    page.click('[data-nav="senders"]')
     page.wait_for_selector("#senders-list-container .kpi-card", timeout=30000)
     assert page.is_visible("text=WhatsApp Senders")
     assert page.is_visible("text=Email Senders")
     # Verify no passwords or tokens exposed in HTML
-    modal_html = page.locator("#senders-modal").inner_html()
-    assert "password" not in modal_html.lower()
-    assert "cookie" not in modal_html.lower()
-    page.click("#senders-modal .modal-close-btn")
+    page_html = page.locator("#page-senders").inner_html()
+    assert "password" not in page_html.lower()
+    assert "cookie" not in page_html.lower()
 
-    # 2. Templates drawer
-    page.click("#templates-btn")
-    page.wait_for_selector("#templates-modal.open", timeout=30000)
+    # 2. Templates page
+    page.click('[data-nav="templates"]')
     page.wait_for_selector("#templates-list-container", timeout=30000)
     templates_text = page.locator("#templates-list-container").inner_text()
     assert (
         "tmpl_wa_default" in templates_text or "Default SDE Outreach" in templates_text or "WHATSAPP" in templates_text
     )
-    page.click("#templates-modal .modal-close-btn")
 
 
 def test_contact_history_timeline_modal(browser_page: Page):

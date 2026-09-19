@@ -7,9 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230284c7'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>R</text></svg>">
   <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/ui/fonts/fonts.css">
   <script src="/ui/theme.js"></script>
   <link rel="stylesheet" href="/ui/styles.css">
 </head>
@@ -63,12 +61,6 @@
           <span id="hdr-readiness-text">Checking…</span>
         </span>
       </div>
-      <button class="btn btn-outline btn-sm" id="senders-btn" data-action="openSendersDrawer">
-        <span>👥 Senders</span>
-      </button>
-      <button class="btn btn-outline btn-sm" id="templates-btn" data-action="openTemplatesDrawer">
-        <span>📝 Templates</span>
-      </button>
       <button class="btn btn-secondary btn-sm" id="sync-btn" data-action="triggerSync">
         <span>🔄 Sync</span>
       </button>
@@ -102,6 +94,23 @@
   <main>
     <!-- ============================ Overview ============================ -->
     <section id="page-overview" class="page active">
+    <!-- Onboarding: shown until at least one sender is authenticated -->
+    <div id="onboarding-card" class="onboarding-card" hidden>
+      <div class="onboarding-icon" aria-hidden="true">🚀</div>
+      <div class="onboarding-body">
+        <div class="onboarding-title">Get started with outreach</div>
+        <div class="onboarding-text">
+          1. Sync your contacts from the source workbook.<br>
+          2. Authenticate a WhatsApp sender (QR) or configure an email sender in <strong>Senders</strong>.<br>
+          3. Start a campaign run below — coverage, pacing, and history are tracked automatically.
+        </div>
+      </div>
+      <div class="onboarding-actions">
+        <button type="button" class="btn btn-primary btn-sm" data-action="navigate" data-args='["senders"]'>Set up senders</button>
+        <button type="button" class="btn btn-outline btn-sm" data-action="dismissOnboarding">Dismiss</button>
+      </div>
+    </div>
+
     <!-- Section 4: Operational KPI Metrics Dashboard -->
     <section class="kpi-sections" id="kpi-grid" aria-label="Dashboard KPI metrics">
       <div class="kpi-section">
@@ -317,6 +326,113 @@
       <div id="contacts-pagination" class="contacts-pagination" role="navigation" aria-label="Contacts pagination"></div>
     </section>
     </section>
+
+    <!-- ============================ Senders ============================ -->
+    <section id="page-senders" class="page">
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">Sender Accounts</h2>
+          <div class="page-subtitle">Real-time session state, WhatsApp QR linking, and SMTP verification.</div>
+        </div>
+      </div>
+
+      <div id="senders-list-container" class="senders-list-container">
+        <!-- Multi-Session WhatsApp Section -->
+        <div class="sender-channel-card">
+          <div class="sender-channel-header">
+            <div>
+              <h4 class="sender-channel-title sender-channel-wa">
+                <span aria-hidden="true">📱</span> WhatsApp Senders
+                <span id="wa-active-badge" class="badge badge-emerald">0 Active</span>
+              </h4>
+              <div class="sender-channel-sub">Each session operates in an isolated browser context with dedicated QR code authentication.</div>
+            </div>
+            <button class="btn btn-emerald btn-xs" data-action="addWhatsAppSession">+ Add WhatsApp Session</button>
+          </div>
+          <div id="wa-senders-list-container" class="sender-grid">
+            Loading WhatsApp sessions...
+          </div>
+        </div>
+
+        <!-- Email Senders Section -->
+        <div class="sender-channel-card">
+          <div class="sender-channel-header">
+            <div>
+              <h4 class="sender-channel-title sender-channel-em">
+                <span aria-hidden="true">✉️</span> Email Senders
+                <span id="email-active-badge" class="badge badge-blue">0 Active</span>
+              </h4>
+              <div class="sender-channel-sub">Authenticated SMTP credentials and TLS delivery verification.</div>
+            </div>
+            <button class="btn btn-outline btn-xs" data-action="addEmailSession">+ Add Email Sender</button>
+          </div>
+          <div id="email-senders-list-container" class="sender-grid">
+            Loading Email sessions...
+          </div>
+        </div>
+      </div>
+
+      <div class="senders-page-footer">
+        <div id="senders-readiness-summary" role="status" aria-live="polite" class="readiness-summary">
+          Readiness: <strong id="overall-readiness-text" style="color: var(--accent-amber);">Checking...</strong>
+        </div>
+        <button class="btn btn-secondary" data-action="fetchSenders">Refresh State</button>
+      </div>
+    </section>
+
+    <!-- ============================ Templates ============================ -->
+    <section id="page-templates" class="page">
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">Message Templates</h2>
+          <div class="page-subtitle">Rotational outreach copy with variable substitution.</div>
+        </div>
+        <button class="btn btn-emerald btn-xs" id="add-template-btn" data-action="openTemplateForm" data-args='[null]'>+ Add Template</button>
+      </div>
+
+      <div id="template-form-container" class="template-form" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong id="template-form-title" style="color: var(--accent-blue);">Add Template</strong>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="tpl-id">Template ID</label>
+          <input type="text" id="tpl-id" class="form-control" placeholder="e.g. TEMPLATE_1">
+        </div>
+        <div class="template-form-row">
+          <div class="form-group">
+            <label class="form-label" for="tpl-name">Name</label>
+            <input type="text" id="tpl-name" class="form-control" placeholder="e.g. Initial Outreach">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="tpl-channel">Channel</label>
+            <select id="tpl-channel" class="form-control">
+              <option value="WHATSAPP">WHATSAPP</option>
+              <option value="EMAIL">EMAIL</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="tpl-subject">Subject (optional)</label>
+          <input type="text" id="tpl-subject" class="form-control" placeholder="Email subject line">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="tpl-body">Body</label>
+          <textarea id="tpl-body" class="form-control" rows="4" placeholder="Message body / content"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="tpl-attachment-ref">Resume / Attachment Path</label>
+          <input type="text" id="tpl-attachment-ref" class="form-control" placeholder="Path to resume or attachment (optional)">
+        </div>
+        <div class="template-form-actions">
+          <button class="btn btn-secondary btn-xs" data-action="closeTemplateForm">Cancel</button>
+          <button class="btn btn-primary btn-xs" data-action="saveTemplate">Save Template</button>
+        </div>
+      </div>
+
+      <div id="templates-list-container" class="templates-list">
+        Loading templates...
+      </div>
+    </section>
   </main>
 
     </div><!-- /app-main -->
@@ -394,74 +510,6 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-action="closeHistoryModal">Close</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. Senders & Authentication Control Drawer (Phase 8.2 & 8.3) -->
-  <div class="modal-overlay" id="senders-modal" role="dialog" aria-modal="true" aria-labelledby="senders-modal-title">
-    <div class="modal-content" style="max-width: 820px; max-height: 90vh; display: flex; flex-direction: column;">
-      <div class="modal-header">
-        <div>
-          <h3 id="senders-modal-title" style="margin: 0;">Sender Accounts &amp; Authentication Control Plane</h3>
-          <div style="font-size: 0.775rem; color: var(--text-secondary); margin-top: 0.2rem;">
-            Real-time session state, WhatsApp QR linking, and SMTP connection verification.
-          </div>
-        </div>
-        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeSendersDrawer">&times;</button>
-      </div>
-      <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 1.25rem;">
-        <div id="senders-list-container" style="display: flex; flex-direction: column; gap: 1.25rem;">
-          <!-- Multi-Session WhatsApp Section -->
-          <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-              <div>
-                <h4 style="margin: 0; color: var(--accent-emerald); display: flex; align-items: center; gap: 0.4rem;">
-                  <span>📱 WhatsApp Senders</span>
-                  <span id="wa-active-badge" class="badge badge-emerald" style="font-size: 0.7rem;">0 Active</span>
-                </h4>
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem;">
-                  Each session operates in an isolated browser context with dedicated QR code authentication.
-                </div>
-              </div>
-              <button class="btn btn-emerald btn-xs" data-action="addWhatsAppSession">+ Add WhatsApp Session</button>
-            </div>
-
-
-            <div id="wa-senders-list-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.85rem;">
-              Loading WhatsApp sessions...
-            </div>
-          </div>
-
-          <!-- Email Senders Section -->
-          <div style="background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-              <div>
-                <h4 style="margin: 0; color: var(--accent-blue); display: flex; align-items: center; gap: 0.4rem;">
-                  <span>✉️ Email Senders</span>
-                  <span id="email-active-badge" class="badge badge-blue" style="font-size: 0.7rem;">0 Active</span>
-                </h4>
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem;">
-                  Authenticated SMTP credentials and TLS delivery verification.
-                </div>
-              </div>
-              <button class="btn btn-outline btn-xs" data-action="addEmailSession">+ Add Email Sender</button>
-            </div>
-
-            <div id="email-senders-list-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.85rem;">
-              Loading Email sessions...
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <div id="senders-readiness-summary" role="status" aria-live="polite" style="font-size: 0.775rem; color: var(--text-secondary);">
-          Readiness: <strong id="overall-readiness-text" style="color: var(--accent-amber);">Checking...</strong>
-        </div>
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-secondary" data-action="fetchSenders">Refresh State</button>
-          <button class="btn btn-primary" data-action="closeSendersDrawer">Done</button>
-        </div>
       </div>
     </div>
   </div>
@@ -584,65 +632,6 @@
         <button class="btn btn-emerald" data-action="closeReadinessModal openSendersDrawer">
           <span>👥 Open Senders &amp; Authenticate</span>
         </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 6. Templates Management Drawer (Section 14) -->
-  <div class="modal-overlay" id="templates-modal" role="dialog" aria-modal="true" aria-labelledby="templates-modal-title">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="templates-modal-title">Message Templates</h3>
-        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeTemplatesDrawer">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 0.75rem;">
-          <button class="btn btn-emerald btn-xs" id="add-template-btn" data-action="openTemplateForm" data-args='[null]'>+ Add Template</button>
-        </div>
-        <div id="template-form-container" style="display: none; flex-direction: column; gap: 0.75rem; margin-bottom: 0.75rem; padding: 0.85rem; background: var(--bg-surface-raised); border: 1px solid var(--border-medium); border-radius: var(--radius-md);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong id="template-form-title" style="color: var(--accent-blue);">Add Template</strong>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="tpl-id">Template ID</label>
-            <input type="text" id="tpl-id" class="form-control" placeholder="e.g. TEMPLATE_1">
-          </div>
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem;">
-            <div class="form-group">
-              <label class="form-label" for="tpl-name">Name</label>
-              <input type="text" id="tpl-name" class="form-control" placeholder="e.g. Initial Outreach">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="tpl-channel">Channel</label>
-              <select id="tpl-channel" class="form-control">
-                <option value="WHATSAPP">WHATSAPP</option>
-                <option value="EMAIL">EMAIL</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="tpl-subject">Subject (optional)</label>
-            <input type="text" id="tpl-subject" class="form-control" placeholder="Email subject line">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="tpl-body">Body</label>
-            <textarea id="tpl-body" class="form-control" rows="4" placeholder="Message body / content"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="tpl-attachment-ref">Resume / Attachment Path</label>
-            <input type="text" id="tpl-attachment-ref" class="form-control" placeholder="Path to resume or attachment (optional)">
-          </div>
-          <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-            <button class="btn btn-secondary btn-xs" data-action="closeTemplateForm">Cancel</button>
-            <button class="btn btn-primary btn-xs" data-action="saveTemplate">Save Template</button>
-          </div>
-        </div>
-        <div id="templates-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
-          Loading templates...
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-action="closeTemplatesDrawer">Close</button>
       </div>
     </div>
   </div>

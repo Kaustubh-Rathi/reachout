@@ -22,9 +22,9 @@ def test_senders_control_plane(browser_page: Page):
     assert page.is_visible("#hdr-wa-text")
     assert page.is_visible("#hdr-em-text")
 
-    # 2. Open Senders & Auth modal
-    page.click("#senders-btn")
-    page.wait_for_selector("#senders-modal.open", timeout=30000)
+    # 2. Open the Senders page
+    page.click('[data-nav="senders"]')
+    page.wait_for_selector("#senders-list-container .kpi-card", timeout=30000)
     assert page.is_visible("text=WhatsApp Senders")
     assert page.is_visible("text=Email Senders")
 
@@ -36,10 +36,10 @@ def test_senders_control_plane(browser_page: Page):
     page.click("button:has-text('Refresh State')")
     page.wait_for_timeout(300)
 
-    # Close modal
-    page.click("#senders-modal .modal-close-btn")
-    page.wait_for_timeout(300)
-    assert not page.is_visible("#senders-modal.open")
+    # Route back to Overview
+    page.click('[data-nav="overview"]')
+    page.wait_for_selector("#campaign-control-card", timeout=30000)
+    assert page.eval_on_selector("#page-senders", "el => !el.classList.contains('active')")
 
 
 def test_readiness_modal_on_blocked_start(browser_page: Page):
@@ -74,7 +74,7 @@ def test_readiness_modal_on_blocked_start(browser_page: Page):
 
     # Click Open Senders & Authenticate button inside readiness modal
     page.click("#readiness-modal button:has-text('Open Senders')")
-    page.wait_for_selector("#senders-modal.open", timeout=30000)
+    page.wait_for_selector("#senders-list-container .kpi-card", timeout=30000)
 
     # Re-activate sender
     confirm_btn = page.locator("button:has-text('Confirm')").first
@@ -82,4 +82,4 @@ def test_readiness_modal_on_blocked_start(browser_page: Page):
         confirm_btn.click()
         page.wait_for_selector(".toast", timeout=30000)
 
-    page.click("#senders-modal .modal-close-btn")
+    page.click('[data-nav="overview"]')
