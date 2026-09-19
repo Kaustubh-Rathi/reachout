@@ -19,7 +19,10 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       selectedCrmStatus: 'ALL',
       selectedChannelStatus: 'ALL',
       selectedPriorityFilter: 'ALL',
+      contactsPage: 1,
     };
+
+    const CONTACTS_PAGE_SIZE = 10;
 
     let activeEventSource = null;
     let activeWebSocket = null;
@@ -246,10 +249,26 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
             ${emptyMsg}
           </div>
         `;
+        renderContactsPagination(0);
         return;
       }
 
-      hierarchies.forEach(comp => {
+      // Result count keeps the operator oriented; pagination bounds the scroll.
+      const contactCount = hierarchies.reduce((n, c) => n + (c.contacts ? c.contacts.length : 0), 0);
+      const summaryTextEl = document.getElementById('hierarchy-summary-text');
+      if (summaryTextEl) {
+        summaryTextEl.textContent =
+          `${hierarchies.length} compan${hierarchies.length === 1 ? 'y' : 'ies'} · ` +
+          `${contactCount} contact${contactCount === 1 ? '' : 's'}`;
+      }
+      const totalPages = Math.max(1, Math.ceil(hierarchies.length / CONTACTS_PAGE_SIZE));
+      if (state.contactsPage > totalPages) state.contactsPage = totalPages;
+      const pageSlice = hierarchies.slice(
+        (state.contactsPage - 1) * CONTACTS_PAGE_SIZE,
+        state.contactsPage * CONTACTS_PAGE_SIZE
+      );
+
+      pageSlice.forEach(comp => {
         const card = document.createElement('div');
         card.className = 'company-card';
         card.setAttribute('data-company-id', comp.id);
@@ -408,6 +427,28 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
         `;
         container.appendChild(card);
       });
+
+      renderContactsPagination(hierarchies.length);
+    }
+
+    function renderContactsPagination(totalCount) {
+      const host = document.getElementById('contacts-pagination');
+      if (!host) return;
+      const totalPages = Math.max(1, Math.ceil(totalCount / CONTACTS_PAGE_SIZE));
+      if (totalPages <= 1) {
+        host.innerHTML = '';
+        return;
+      }
+      host.innerHTML = `
+        <button class="btn btn-outline btn-xs" data-action="changeContactsPage" data-args='[-1]' ${state.contactsPage <= 1 ? 'disabled' : ''} aria-label="Previous page">&lsaquo; Prev</button>
+        <span class="page-indicator">Page ${state.contactsPage} of ${totalPages}</span>
+        <button class="btn btn-outline btn-xs" data-action="changeContactsPage" data-args='[1]' ${state.contactsPage >= totalPages ? 'disabled' : ''} aria-label="Next page">Next &rsaquo;</button>
+      `;
+    }
+
+    function changeContactsPage(delta) {
+      state.contactsPage = Math.max(1, state.contactsPage + (Number(delta) || 0));
+      renderHierarchyView(state.hierarchies);
     }
 
     function toggleCompany(companyId) {
@@ -1863,6 +1904,7 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       clearTimeout(searchDebounce);
       searchDebounce = setTimeout(() => {
         state.searchQuery = document.getElementById('search-input').value.trim();
+        state.contactsPage = 1;
         fetchHierarchies();
       }, 200);
     }
@@ -1871,11 +1913,13 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       state.selectedCompany = document.getElementById('company-filter').value;
       state.selectedCrmStatus = document.getElementById('crm-status-filter').value;
       state.selectedChannelStatus = document.getElementById('channel-filter').value;
+      state.contactsPage = 1;
       fetchHierarchies();
     }
 
     function setPriorityFilter(filterName) {
       state.selectedPriorityFilter = filterName;
+      state.contactsPage = 1;
       document.querySelectorAll('.priority-pills .pill-btn').forEach(btn => {
         const isActive = btn.getAttribute('data-filter') === filterName;
         btn.classList.toggle('active', isActive);
@@ -2197,6 +2241,7 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
     // Registry of all delegated actions (module scope is not global).
     const ACTIONS = {
       navigate,
+      changeContactsPage,
       addEmailSession, addWhatsAppSession, applyFilters, archiveContact, checkWhatsAppAuthStatus,
       closeDiscrepanciesDrawer, closeEmailConfigModal, closeHistoryModal, closeMoreMenu, closeReadinessModal,
       closeRecoveryDrawer, closeSendModal, closeSendersDrawer, closeSyncModal, closeTemplateForm,
