@@ -740,29 +740,36 @@ import { escapeHtml, jsAttr, jsonAttr } from './modules/dom.js';
       document.getElementById('send-modal').classList.add('open');
     }
 
-    function handleTemplateSelectChange() {
+    async function handleTemplateSelectChange() {
       const tplId = document.getElementById('modal-template-select').value;
       const contactId = document.getElementById('modal-contact-id').value;
-      let contact = {};
-      for (const h of state.hierarchies || []) {
-        const found = (h.contacts || []).find(c => c.contact_id === contactId);
-        if (found) { contact = { ...found, company: h.name }; break; }
-      }
+      const channel = document.getElementById('modal-channel').value;
+      const isResend = document.getElementById('modal-is-resend').value === 'true';
+      if (!tplId || !contactId) return;
 
-      if (!tplId) return;
-
-      const tpl = state.templates.find(t => t.id === tplId);
-      if (tpl) {
-        let body = tpl.body;
-        const firstName = contact.first_name || (contact.name ? contact.name.split(' ')[0] : 'there');
-        body = body.replace(/{first_name}/g, firstName);
-        body = body.replace(/{name}/g, contact.name || 'there');
-        body = body.replace(/{company}/g, contact.company || contact.company_id || '');
-        document.getElementById('modal-body-input').value = body;
-        if (tpl.subject) {
-          document.getElementById('modal-subject-input').value = tpl.subject.replace(/{company}/g, contact.company || contact.company_id || '');
+      // Rendering is owned by the backend so the preview matches the dispatched message.
+      try {
+        const res = await apiFetch('/api/outreach/preview', {
+          method: 'POST',
+          body: JSON.stringify({
+            contact_id: contactId,
+            channel: channel,
+            template_id: tplId,
+            is_resend: isResend,
+          }),
+        });
+        if (!res.ok) {
+          showToast('Failed to render template: ' + (await apiErrorText(res)), 'error');
+          return;
         }
-        document.getElementById('modal-attachment-input').value = tpl.attachment_ref || '';
+        const rendered = await res.json();
+        document.getElementById('modal-body-input').value = rendered.body || '';
+        if (rendered.subject) {
+          document.getElementById('modal-subject-input').value = rendered.subject;
+        }
+        document.getElementById('modal-attachment-input').value = rendered.attachment_ref || '';
+      } catch (err) {
+        showToast('Failed to render template: ' + err.message, 'error');
       }
     }
 

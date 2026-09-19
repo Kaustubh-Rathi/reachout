@@ -12,9 +12,19 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db_session
+from app.domain.enums import Channel
 from app.services.outreach_service import OutreachService
 
 router = APIRouter(prefix="/api/outreach", tags=["Outreach"])
+
+
+class PreviewMessageRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    contact_id: str = Field(..., min_length=1)
+    channel: str = Field(..., description="'WHATSAPP' or 'EMAIL'")
+    template_id: Optional[str] = None
+    is_resend: bool = False
 
 
 class SendWhatsAppRequest(BaseModel):
@@ -102,6 +112,24 @@ def resend_email(payload: SendEmailRequest, session: Session = Depends(get_db_se
         custom_body=payload.custom_body,
         attachment_ref=payload.attachment_ref,
         destination=payload.destination,
+    )
+
+
+@router.post("/preview")
+def preview_message(payload: PreviewMessageRequest, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
+    """Render the canonical outbound body/subject/attachment for a template + contact."""
+    svc = OutreachService(session)
+    try:
+        channel = Channel(payload.channel.upper())
+    except ValueError as exc:
+        from app.domain.errors import ValidationError
+
+        raise ValidationError(f"Invalid channel '{payload.channel}'") from exc
+    return svc.preview_message(
+        contact_id=payload.contact_id,
+        channel=channel,
+        template_id=payload.template_id,
+        is_resend=payload.is_resend,
     )
 
 
