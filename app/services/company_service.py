@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.domain.company import calculate_company_status
 from app.domain.policies.endpoint_coverage_policy import get_contact_endpoint_metrics
 from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, check_contact_follow_up_eligibility
+from app.services.contact_filters import company_matches_filters
 from app.services.context import ServiceContext, build_service_context
 
 
@@ -264,54 +265,13 @@ class CompanyService:
                 if not any(c["crm_outcome"] == crm_status.upper() for c in h["contacts"]):
                     continue
 
-            # Channel/outreach-status filter
-            if channel_status and channel_status != "ALL":
-                cs = channel_status.upper()
-                if cs == "SENT":
-                    if h["covered_endpoints"] == 0:
-                        continue
-                elif cs == "NOT_SENT":
-                    if h["covered_endpoints"] > 0:
-                        continue
-                elif cs == "WHATSAPP_SENT":
-                    if not any(c["last_whatsapp_at"] for c in h["contacts"]):
-                        continue
-                elif cs == "EMAIL_SENT":
-                    if not any(c["last_email_at"] for c in h["contacts"]):
-                        continue
-
-            # Priority filter (company included if any HR contact matches the bucket)
-            if priority_filter and priority_filter != "ALL":
-                pf = priority_filter.upper()
-                matched = False
-                for c in h["contacts"]:
-                    if pf == "INTERESTED":
-                        if c["crm_outcome"] == "INTERESTED":
-                            matched = True
-                            break
-                    elif pf == "NOT_INTERESTED":
-                        if c["crm_outcome"] == "NOT_INTERESTED":
-                            matched = True
-                            break
-                    elif pf == "FOLLOW_UP_DUE":
-                        if c["follow_up_due"]:
-                            matched = True
-                            break
-                    elif pf == "RECENTLY_ACTIVE":
-                        if c["last_activity_at"] or c["last_whatsapp_at"] or c["last_email_at"]:
-                            matched = True
-                            break
-                    elif pf == "UNCONTACTED":
-                        uncontacted = (
-                            not c["last_whatsapp_at"]
-                            and not c["last_email_at"]
-                            and c["crm_outcome"] != "NOT_INTERESTED"
-                        )
-                        if uncontacted:
-                            matched = True
-                            break
-                if not matched:
-                    continue
+            # Channel/outreach-status and priority filters (shared predicates).
+            if not company_matches_filters(
+                h,
+                channel_status=channel_status if channel_status and channel_status != "ALL" else None,
+                priority_filter=priority_filter if priority_filter and priority_filter != "ALL" else None,
+            ):
+                continue
 
             results.append(h)
         return results

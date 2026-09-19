@@ -15,6 +15,7 @@ from app.domain.contact import Contact
 from app.domain.enums import CRMOutcome
 from app.domain.policies.endpoint_coverage_policy import get_contact_endpoint_metrics
 from app.domain.policies.reminder_policy import DEFAULT_FOLLOW_UP_THRESHOLD_DAYS, check_contact_follow_up_eligibility
+from app.services.contact_filters import matches_priority, matches_send_status
 from app.services.context import ServiceContext, build_service_context
 
 
@@ -173,33 +174,10 @@ class ContactService:
             items = [x for x in items if x["crm_outcome"].lower() == crm_status.lower()]
 
         if send_status and send_status != "ALL":
-            if send_status.upper() == "SENT":
-                items = [x for x in items if x["whatsapp_status"] == "SENT" or x["email_status"] == "SENT"]
-            elif send_status.upper() == "NOT_SENT":
-                items = [x for x in items if x["whatsapp_status"] == "NOT_SENT" and x["email_status"] == "NOT_SENT"]
-            elif send_status.upper() == "WHATSAPP_SENT":
-                items = [x for x in items if x["whatsapp_status"] == "SENT"]
-            elif send_status.upper() == "EMAIL_SENT":
-                items = [x for x in items if x["email_status"] == "SENT"]
+            items = [x for x in items if matches_send_status(x, send_status)]
 
         if priority_filter and priority_filter != "ALL":
-            pf = priority_filter.upper()
-            if pf == "INTERESTED":
-                items = [x for x in items if x["crm_outcome"] == "INTERESTED"]
-            elif pf == "FOLLOW_UP_DUE":
-                items = [x for x in items if x["follow_up_due"]]
-            elif pf == "RECENTLY_ACTIVE":
-                items = [x for x in items if x["last_activity_at"] or x["last_contacted"]]
-            elif pf == "UNCONTACTED":
-                items = [
-                    x
-                    for x in items
-                    if x["whatsapp_status"] == "NOT_SENT"
-                    and x["email_status"] == "NOT_SENT"
-                    and x["crm_outcome"] != "NOT_INTERESTED"
-                ]
-            elif pf == "NOT_INTERESTED":
-                items = [x for x in items if x["crm_outcome"] == "NOT_INTERESTED"]
+            items = [x for x in items if matches_priority(x, priority_filter)]
 
         # Sorting: priority_rank ascending (1 to 5), then sort_ts descending (newest first), then source_row ascending
         items.sort(key=lambda x: (x["priority_rank"], -(x["_sort_ts"].timestamp()), x["source_row"]))
