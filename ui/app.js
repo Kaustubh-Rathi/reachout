@@ -1,5 +1,7 @@
-import { renderSenderCard, senderActionsHtml } from './components/sender_card.js';
 import { apiErrorText, apiFetch } from './modules/api.js';
+import { renderCompanyCard } from './components/company_card.js';
+import { appendTimelineItem, buildTimelineEvents, isRecoveryAttempt } from './components/timeline.js';
+import { renderSenderCard, senderActionsHtml } from './components/sender_card.js';
 import { escapeHtml, jsonAttr } from './modules/dom.js';
 import { formatDate } from './modules/format.js';
 import { initEventStream, setWsBanner, subscribeToEvents } from './modules/realtime.js';
@@ -171,10 +173,6 @@ import { store } from './modules/store.js';
       `).join('');
     }
 
-    function isRecoveryAttempt(att) {
-      return att && (att.status === 'RECOVERY_REQUIRED' || att.status === 'UNKNOWN');
-    }
-
     // 3. Fetch & Render Hierarchies (Company -> HR -> Endpoints -> History)
     async function fetchHierarchies() {
       const summary = document.getElementById('hierarchy-summary-text');
@@ -220,203 +218,40 @@ import { store } from './modules/store.js';
 
       // Client-side RECOVERY bucket: keep companies with at least one contact
       // whose history holds a RECOVERY_REQUIRED / UNKNOWN attempt.
+      let visible = hierarchies || [];
       if (state.selectedPriorityFilter === 'RECOVERY') {
-        hierarchies = (hierarchies || []).filter(comp =>
-          (comp.contacts || []).some(hr =>
-            (hr.history || []).some(isRecoveryAttempt)
-          )
+        visible = visible.filter((comp) =>
+          (comp.contacts || []).some((hr) => (hr.history || []).some(isRecoveryAttempt))
         );
       }
 
-      if (!hierarchies || hierarchies.length === 0) {
+      if (visible.length === 0) {
         const emptyMsg = state.selectedPriorityFilter === 'RECOVERY'
-          ? `Recovery queue is clear &mdash; no contacts need operator review.`
+          ? 'Recovery queue is clear &mdash; no contacts need operator review.'
           : 'No companies found matching the selected filter criteria.';
-        container.innerHTML = `
-          <div style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
-            ${emptyMsg}
-          </div>
-        `;
+        container.innerHTML = `<div class="hierarchy-empty">${emptyMsg}</div>`;
         renderContactsPagination(0);
         return;
       }
 
       // Result count keeps the operator oriented; pagination bounds the scroll.
-      const contactCount = hierarchies.reduce((n, c) => n + (c.contacts ? c.contacts.length : 0), 0);
+      const contactCount = visible.reduce((n, c) => n + (c.contacts ? c.contacts.length : 0), 0);
       const summaryTextEl = document.getElementById('hierarchy-summary-text');
       if (summaryTextEl) {
         summaryTextEl.textContent =
-          `${hierarchies.length} compan${hierarchies.length === 1 ? 'y' : 'ies'} · ` +
+          `${visible.length} compan${visible.length === 1 ? 'y' : 'ies'} · ` +
           `${contactCount} contact${contactCount === 1 ? '' : 's'}`;
       }
-      const totalPages = Math.max(1, Math.ceil(hierarchies.length / CONTACTS_PAGE_SIZE));
+      const totalPages = Math.max(1, Math.ceil(visible.length / CONTACTS_PAGE_SIZE));
       if (state.contactsPage > totalPages) state.contactsPage = totalPages;
-      const pageSlice = hierarchies.slice(
+      const pageSlice = visible.slice(
         (state.contactsPage - 1) * CONTACTS_PAGE_SIZE,
         state.contactsPage * CONTACTS_PAGE_SIZE
       );
 
-      pageSlice.forEach(comp => {
-        const card = document.createElement('div');
-        card.className = 'company-card';
-        card.setAttribute('data-company-id', comp.id);
+      pageSlice.forEach((comp) => container.appendChild(renderCompanyCard(comp)));
 
-        let statusClass = 'status-not-contacted';
-        let statusIcon = '🔴';
-        let statusText = 'NOT CONTACTED';
-
-        if (comp.status === 'IN_PROGRESS') {
-          statusClass = 'status-in-progress';
-          statusIcon = '🟡';
-          statusText = 'IN PROGRESS';
-        } else if (comp.status === 'CONTACTED') {
-          statusClass = 'status-contacted';
-          statusIcon = '🟢';
-          statusText = 'CONTACTED';
-        } else if (comp.status === 'CLOSED') {
-          statusClass = 'status-closed';
-          statusIcon = '⚫';
-          statusText = 'CLOSED';
-        }
-
-        // Build HR Contacts HTML
-        let hrsHtml = '';
-        (comp.contacts || []).forEach((hr, hrIdx) => {
-          const curStatus = hr.crm_outcome || 'NOT_CONTACTED';
-          const statusSelect = `
-            <select class="form-control" style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: var(--bg-surface); border: 1px solid var(--border-medium); border-radius: var(--radius-xs); color: var(--text-primary);" data-change="updateContactStatus" data-args='[${jsonAttr(hr.contact_id)},"$value","$el"]'>
-              <option value="NOT_CONTACTED" ${curStatus === 'NOT_CONTACTED' || curStatus === 'NONE' ? 'selected' : ''}>Not Contacted</option>
-              <option value="PENDING_REPLY" ${curStatus === 'PENDING_REPLY' ? 'selected' : ''}>Pending Reply</option>
-              <option value="CONTACTED" ${curStatus === 'CONTACTED' ? 'selected' : ''}>Contacted</option>
-              <option value="REPLIED" ${curStatus === 'REPLIED' ? 'selected' : ''}>Replied</option>
-              <option value="FOLLOW_UP" ${curStatus === 'FOLLOW_UP' ? 'selected' : ''}>Follow-Up Due</option>
-              <option value="INTERESTED" ${curStatus === 'INTERESTED' ? 'selected' : ''}>Interested ★</option>
-              <option value="NOT_INTERESTED" ${curStatus === 'NOT_INTERESTED' ? 'selected' : ''}>Not Interested</option>
-              <option value="INTERVIEW" ${curStatus === 'INTERVIEW' ? 'selected' : ''}>Interview 📅</option>
-              <option value="OFFER" ${curStatus === 'OFFER' ? 'selected' : ''}>Offer 🏆</option>
-              <option value="REJECTED" ${curStatus === 'REJECTED' ? 'selected' : ''}>Rejected ✕</option>
-              <option value="CLOSED" ${curStatus === 'CLOSED' ? 'selected' : ''}>Closed ⚫</option>
-              <option value="DO_NOT_CONTACT" ${curStatus === 'DO_NOT_CONTACT' ? 'selected' : ''}>Do Not Contact ⛔</option>
-            </select>
-          `;
-
-          let endpointsHtml = '';
-          (hr.endpoints || []).forEach(ep => {
-            const isSent = ep.status === 'SENT';
-            const recoveryAtt = (hr.history || []).find(att =>
-              isRecoveryAttempt(att) && att.channel === ep.channel && (att.destination || '') === (ep.address || '')
-            );
-            const epClass = isSent ? 'endpoint-covered' : '';
-            const statusBadge = isSent
-              ? `<span style="color: var(--accent-emerald); font-weight: 600;">✓ ${ep.channel} SENT</span>`
-              : (recoveryAtt
-                ? `<span style="color: var(--accent-amber); font-weight: 600;">⏱ ${ep.channel} IN RECOVERY QUEUE</span>`
-                : `<span style="color: var(--text-secondary);">○ Not contacted</span>`);
-
-            let metaDetails = '';
-            if (isSent && ep.sender_account_id) {
-              metaDetails = `<div style="font-size: 0.675rem; color: var(--text-secondary);">${escapeHtml(ep.sender_account_id)} &bull; ${escapeHtml(ep.template_id || 'Direct')} &bull; ${formatDate(ep.sent_at)}</div>`;
-            } else if (recoveryAtt && recoveryAtt.failure_detail) {
-              metaDetails = `<div style="font-size: 0.675rem; color: var(--accent-amber);">${escapeHtml(recoveryAtt.failure_detail)}</div>`;
-            }
-
-            const sendBtn = recoveryAtt
-              ? `<button class="btn btn-amber btn-xs" data-action="openRecoveryDrawer">⏱ Review queue</button>`
-              : (ep.channel === 'WHATSAPP'
-                ? `<button class="btn btn-emerald btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"WHATSAPP",${isSent},${jsonAttr(ep.address)}]'>${isSent ? 'Resend WA' : 'Send WA'}</button>`
-                : `<button class="btn btn-primary btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"EMAIL",${isSent},${jsonAttr(ep.address)}]'>${isSent ? 'Resend Email' : 'Send Email'}</button>`);
-
-            endpointsHtml += `
-              <div class="endpoint-box ${epClass}">
-                <div class="endpoint-info">
-                  <span class="endpoint-label">${escapeHtml(ep.label)} &bull; ${statusBadge}</span>
-                  <span class="endpoint-addr">${escapeHtml(ep.address)}</span>
-                  ${metaDetails}
-                </div>
-                <div>${sendBtn}</div>
-              </div>
-            `;
-          });
-
-          // Contact history timeline (from backend attempts)
-          const followUpBadge = hr.follow_up_due
-            ? `<span class="badge badge-pending-reply" style="font-size: 0.68rem;">⚠️ FOLLOW-UP DUE${hr.follow_up_due_at ? ' ' + formatDate(hr.follow_up_due_at) : ''}</span>`
-            : '';
-          let historyHtml = '<div style="font-size: 0.75rem; color: var(--text-muted); padding: 0.25rem 0;">No message history yet.</div>';
-          if ((hr.history || []).length > 0) {
-            historyHtml = (hr.history || []).map(att => {
-              const ok = att.status === 'SENT';
-              const inRecovery = isRecoveryAttempt(att);
-              const icon = ok ? '✓' : (inRecovery ? '⏱' : '✕');
-              const color = ok ? 'var(--accent-emerald)' : (inRecovery ? 'var(--accent-amber)' : 'var(--accent-rose)');
-              const when = att.completed_at || att.prepared_at;
-              return `
-                <div style="display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.72rem; padding: 0.2rem 0; border-bottom: 1px solid var(--border-subtle);">
-                  <span style="color: ${color}; font-weight: 700;">${icon}</span>
-                  <div style="flex: 1;">
-                    <div><strong>${escapeHtml(att.channel)}</strong> ${escapeHtml(att.attempt_type || '')} &rarr; <span style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(att.destination || '')}</span></div>
-                    <div style="color: var(--text-muted);">${when ? formatDate(when) : '--'} &bull; ${escapeHtml(att.sender_account_id || 'auto')} &bull; ${escapeHtml(att.template_id || 'Direct')}</div>
-                    ${att.failure_detail ? `<div style="color: var(--accent-rose);">${escapeHtml(att.failure_detail)}</div>` : ''}
-                  </div>
-                </div>
-              `;
-            }).join('');
-          }
-
-          const phoneDisplay = hr.phone || '-';
-          const emailDisplay = hr.email || '-';
-
-          hrsHtml += `
-            <div class="hr-card" data-contact-id="${escapeHtml(hr.contact_id)}">
-              <div class="hr-header">
-                <div class="hr-title-wrap">
-                  <span class="hr-name-bold">HR ${hrIdx + 1}: ${escapeHtml(hr.name)}</span>
-                  ${hr.designation ? `<span class="hr-designation-text">&bull; ${escapeHtml(hr.designation)}</span>` : ''}
-                  ${followUpBadge}
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <span>CRM Status:</span>
-                  ${statusSelect}
-                  <button class="btn btn-secondary btn-xs" data-action="openHistoryModal" data-args='[${jsonAttr(hr.contact_id)}]'>History</button>
-                  <button class="btn btn-outline btn-xs" style="color: var(--accent-rose);" title="Archive / DNC" aria-label="Archive contact" data-action="archiveContact" data-args='[${jsonAttr(hr.contact_id)}]'>🗑</button>
-                </div>
-              </div>
-              <div class="hr-contact-meta" style="font-size: 0.72rem; color: var(--text-secondary); padding: 0.35rem 0.9rem 0; display: flex; gap: 1rem; flex-wrap: wrap;">
-                <span>📞 ${escapeHtml(phoneDisplay)}</span>
-                <span>✉️ ${escapeHtml(emailDisplay)}</span>
-                ${hr.last_activity_at ? `<span>🕒 Last activity: ${formatDate(hr.last_activity_at)}</span>` : ''}
-              </div>
-              <div class="endpoints-container">
-                ${endpointsHtml || '<div style="color: var(--text-muted); font-size: 0.75rem;">No endpoints registered for this contact.</div>'}
-              </div>
-              <div class="hr-history-block" style="border-top: 1px dashed var(--border-subtle); padding: 0.5rem 0.9rem;">
-                <div style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.25rem;">Interaction History</div>
-                ${historyHtml}
-              </div>
-            </div>
-          `;
-        });
-
-        card.innerHTML = `
-          <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='[${jsonAttr(comp.id)}]' title="Click to expand / collapse HR contacts">
-            <div class="company-title-area">
-              <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
-              <span class="company-name-lg">${escapeHtml(comp.name)}</span>
-              <span class="company-status-badge ${statusClass}">${statusIcon} ${statusText}</span>
-            </div>
-            <div class="company-meta-pills">
-              <span>HRs: <strong>${comp.total_contacts || 0}</strong></span>
-              <span>Endpoints: <strong>${comp.covered_endpoints || 0} / ${comp.total_endpoints || 0} covered</strong></span>
-            </div>
-          </div>
-          <div class="hr-contacts-list" id="hrlist-${escapeHtml(comp.id)}" style="display: none;">
-            ${hrsHtml || '<div style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem;">No HR contacts registered.</div>'}
-          </div>
-        `;
-        container.appendChild(card);
-      });
-
-      renderContactsPagination(hierarchies.length);
+      renderContactsPagination(visible.length);
     }
 
     function renderContactsPagination(totalCount) {
@@ -899,71 +734,14 @@ import { store } from './modules/store.js';
           summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml(((detail.phones && detail.phones.length ? detail.phones : (detail.phone ? [detail.phone] : [])).join(', ') || '-'))} &bull; Email(s): ${escapeHtml(((detail.emails && detail.emails.length ? detail.emails : (detail.email ? [detail.email] : [])).join(', ') || '-'))}`;
 
           timelineList.innerHTML = '';
-          const history = detail.history || [];
+          const events = buildTimelineEvents(detail);
 
-          if (history.length === 0 && !detail.interested_at) {
-            timelineList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No outreach attempts or CRM activities recorded yet.</div>';
+          if (events.length === 0) {
+            timelineList.innerHTML = '<div class="history-empty">No outreach attempts or CRM activities recorded yet.</div>';
             return;
           }
 
-          const events = [];
-
-          history.forEach(h => {
-            // Build titles/bodies as plain text; escaping happens once at render time
-            // (previously HTML entities/divs were escaped again and shown literally).
-            const destStr = h.destination ? ` → ${h.destination}` : '';
-            const tplStr = h.template_id ? ` • Template: ${h.template_id}` : '';
-            const refStr = h.provider_reference ? ` • Ref: ${h.provider_reference}` : '';
-            const attStr = h.attachment ? ` • Attachment: ${h.attachment}` : '';
-            const failStr = h.failure_detail ? `Failure: ${h.failure_detail} (${h.failure_code || ''})` : '';
-
-            events.push({
-              type: h.channel,
-              title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr} • Sender: ${h.sender_account_id || 'AUTO'}${tplStr}${refStr}${attStr}`,
-              status: h.status,
-              body: (h.message_body || '') + (failStr ? '\n' + failStr : ''),
-              date: h.completed_at || h.prepared_at,
-              dotClass: h.status === 'SENT' ? 'dot-sent' : 'dot-failed'
-            });
-          });
-
-          if (detail.interested_at) {
-            events.push({
-              type: 'CRM',
-              title: 'CRM - INTERESTED',
-              status: 'INTERESTED',
-              body: 'Contact marked as Interested.',
-              date: detail.interested_at,
-              dotClass: 'dot-interested'
-            });
-          }
-
-          if (detail.reminders) {
-            detail.reminders.forEach(r => {
-              events.push({
-                type: 'REMINDER',
-                title: `Follow-up Reminder (${r.status})`,
-                status: r.status,
-                body: r.reason,
-                date: r.due_at,
-                dotClass: 'dot-followup'
-              });
-            });
-          }
-
-          events.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-          events.forEach(ev => {
-            const item = document.createElement('div');
-            item.className = 'timeline-item';
-            item.innerHTML = `
-              <div class="timeline-dot ${ev.dotClass}"></div>
-              <div class="timeline-date">${formatDate(ev.date)}</div>
-              <div class="timeline-title">${escapeHtml(ev.title)} <span class="badge ${ev.status === 'SENT' ? 'badge-sent' : 'badge-failed'}">${escapeHtml(ev.status)}</span></div>
-              <div class="timeline-body">${escapeHtml(ev.body || '')}</div>
-            `;
-            timelineList.appendChild(item);
-          });
+          events.forEach((ev) => appendTimelineItem(timelineList, ev));
         }
       } catch (err) {
         timelineList.innerHTML = `<div style="color: var(--accent-rose);">Failed to load history: ${err.message}</div>`;
