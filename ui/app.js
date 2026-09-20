@@ -1,5 +1,7 @@
+import { renderSenderCard, senderActionsHtml } from './components/sender_card.js';
 import { apiErrorText, apiFetch } from './modules/api.js';
 import { escapeHtml, jsonAttr } from './modules/dom.js';
+import { formatDate } from './modules/format.js';
 import { initEventStream, setWsBanner, subscribeToEvents } from './modules/realtime.js';
 import { store } from './modules/store.js';
 
@@ -1061,142 +1063,38 @@ import { store } from './modules/store.js';
       const emContainer = document.getElementById('email-senders-list-container');
       if (!waContainer || !emContainer) return;
 
-      const waSenders = state.senders.filter(s => s.channel === 'WHATSAPP');
-      const emSenders = state.senders.filter(s => s.channel === 'EMAIL');
+      const waSenders = state.senders.filter((s) => s.channel === 'WHATSAPP');
+      const emSenders = state.senders.filter((s) => s.channel === 'EMAIL');
 
-      // 1. Render WhatsApp Sessions
-      waContainer.innerHTML = '';
-      if (waSenders.length === 0) {
-        waContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No WhatsApp sessions configured. Click "+ Add WhatsApp Session" to create one.</div>';
-      } else {
-        waSenders.forEach(s => {
-          const card = document.createElement('div');
-          card.className = 'kpi-card';
-          card.style.padding = '0.85rem';
-          card.style.display = 'flex';
-          card.style.flexDirection = 'column';
-          card.style.gap = '0.5rem';
-
-          let statusBadgeClass = 'badge-failed';
-          if (s.status === 'ACTIVE') statusBadgeClass = 'badge-sent';
-          else if (s.status === 'AUTHENTICATING') statusBadgeClass = 'badge-partial';
-          else if (s.status === 'QR_REQUIRED') statusBadgeClass = 'badge-partial';
-          else if (s.status === 'AUTH_REQUIRED' || s.status === 'NOT_CONFIGURED') statusBadgeClass = 'badge-uncovered';
-          else if (s.status === 'INACTIVE') statusBadgeClass = 'badge-not-sent';
-
-          const errorHtml = s.error_message ? `<div style="color: var(--accent-rose); font-size: 0.7rem;">⚠️ ${escapeHtml(s.error_message)}</div>` : '';
-          const lastCheckedHtml = s.last_checked ? `<div style="font-size: 0.675rem; color: var(--text-muted);">Last verified: ${formatDate(s.last_checked)}</div>` : '';
-          const lastUsedHtml = s.last_used_at ? `<div style="font-size: 0.675rem; color: var(--text-secondary);">Last used: ${formatDate(s.last_used_at)}</div>` : '';
-
-          let actionButtons = '';
-          if (s.status === 'INACTIVE') {
-            actionButtons = `
-              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='[${jsonAttr(s.id)}]' title="Reactivate sender into rotation">
-                <span>⚡ Reactivate</span>
-              </button>
-            `;
-          } else {
-            actionButtons = `
-              <button class="btn btn-emerald btn-xs" data-action="startWhatsAppAuth" data-args='[${jsonAttr(s.id)}]' title="Re-authenticate this WhatsApp sender (re-scan QR)">
-                <span>📱 Re-Authenticate</span>
-              </button>
-              <button class="btn btn-outline btn-xs" data-action="checkWhatsAppAuthStatus" data-args='[${jsonAttr(s.id)}]' title="Check connection health">
-                <span>🔍 Status</span>
-              </button>
-              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='[${jsonAttr(s.id)}]' title="Deactivate and pause from rotation (history preserved)">
-                <span>⏸️ Deactivate</span>
-              </button>
-            `;
-          }
-
-          card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div>
-                <strong style="color: var(--text-primary);">${escapeHtml(s.display_name)}</strong>
-                <div style="font-size: 0.725rem; font-family: monospace; color: var(--text-secondary);">${escapeHtml(s.id)}</div>
-                <div style="font-size: 0.75rem; color: var(--accent-blue);">${escapeHtml(s.identity)}</div>
-              </div>
-              <span class="badge ${statusBadgeClass}">${escapeHtml(s.status)}</span>
-            </div>
-            <div style="font-size: 0.7rem; color: var(--text-muted);">
-              Limit: ${s.daily_limit == null ? 'Unlimited' : s.daily_limit}/day &bull; Rate: ${s.hourly_limit == null ? 'Unlimited' : s.hourly_limit}/hr
-            </div>
-            ${errorHtml}
-            ${lastCheckedHtml}
-            ${lastUsedHtml}
-            <div style="display: flex; gap: 0.35rem; margin-top: auto; padding-top: 0.35rem; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
-              ${actionButtons}
-            </div>
-          `;
-          waContainer.appendChild(card);
+      const renderInto = (container, senders, channel, showLastChecked, emptyText) => {
+        container.innerHTML = '';
+        if (senders.length === 0) {
+          container.innerHTML = `<div class="sender-empty">${emptyText}</div>`;
+          return;
+        }
+        senders.forEach((s) => {
+          container.appendChild(renderSenderCard(s, {
+            actionsHtml: senderActionsHtml(s, channel),
+            showLastChecked,
+          }));
         });
-      }
+      };
 
-      // 2. Render Email Sessions
-      emContainer.innerHTML = '';
-      if (emSenders.length === 0) {
-        emContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem;">No Email senders configured. Click "+ Add Email Sender" to add one.</div>';
-      } else {
-        emSenders.forEach(s => {
-          const card = document.createElement('div');
-          card.className = 'kpi-card';
-          card.style.padding = '0.85rem';
-          card.style.display = 'flex';
-          card.style.flexDirection = 'column';
-          card.style.gap = '0.5rem';
-
-          let statusBadgeClass = 'badge-failed';
-          if (s.status === 'ACTIVE') statusBadgeClass = 'badge-sent';
-          else if (s.status === 'INACTIVE') statusBadgeClass = 'badge-not-sent';
-          else if (s.status === 'AUTH_REQUIRED') statusBadgeClass = 'badge-uncovered';
-
-          const errorHtml = s.error_message ? `<div style="color: var(--accent-rose); font-size: 0.7rem;">⚠️ ${escapeHtml(s.error_message)}</div>` : '';
-          const lastUsedHtml = s.last_used_at ? `<div style="font-size: 0.675rem; color: var(--text-secondary);">Last used: ${formatDate(s.last_used_at)}</div>` : '';
-
-          let actionButtons = '';
-          if (s.status === 'INACTIVE') {
-            actionButtons = `
-              <button class="btn btn-outline btn-xs" data-action="reactivateSender" data-args='[${jsonAttr(s.id)}]' title="Reactivate sender">
-                <span>⚡ Reactivate</span>
-              </button>
-            `;
-          } else {
-            actionButtons = `
-              <button class="btn btn-primary btn-xs" data-action="openEmailConfigModal" data-args='[${jsonAttr(s.id)}]'>
-                <span>⚙️ Re-configure</span>
-              </button>
-              <button class="btn btn-outline btn-xs" data-action="verifyEmailSender" data-args='[${jsonAttr(s.id)}]'>
-                <span>🔌 Test &amp; Verify</span>
-              </button>
-              <button class="btn btn-amber btn-xs" data-action="deactivateSender" data-args='[${jsonAttr(s.id)}]' title="Deactivate and pause from rotation (history preserved)">
-                <span>⏸️ Deactivate</span>
-              </button>
-            `;
-          }
-
-          card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div>
-                <strong style="color: var(--text-primary);">${escapeHtml(s.display_name)}</strong>
-                <div style="font-size: 0.725rem; font-family: monospace; color: var(--text-secondary);">${escapeHtml(s.id)}</div>
-                <div style="font-size: 0.75rem; color: var(--accent-blue);">${escapeHtml(s.identity)}</div>
-              </div>
-              <span class="badge ${statusBadgeClass}">${escapeHtml(s.status)}</span>
-            </div>
-            ${errorHtml}
-            ${lastUsedHtml}
-            <div style="font-size: 0.7rem; color: var(--text-muted);">
-              Limit: ${s.daily_limit == null ? 'Unlimited' : s.daily_limit}/day &bull; Rate: ${s.hourly_limit == null ? 'Unlimited' : s.hourly_limit}/hr
-            </div>
-            <div style="display: flex; gap: 0.35rem; margin-top: auto; padding-top: 0.35rem; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;">
-              ${actionButtons}
-            </div>
-          `;
-          emContainer.appendChild(card);
-        });
-      }
+      renderInto(
+        waContainer,
+        waSenders,
+        'WHATSAPP',
+        true,
+        'No WhatsApp sessions configured. Click "+ Add WhatsApp Session" to create one.'
+      );
+      renderInto(
+        emContainer,
+        emSenders,
+        'EMAIL',
+        false,
+        'No Email senders configured. Click "+ Add Email Sender" to add one.'
+      );
     }
-
 
     async function addWhatsAppSession() {
       try {
@@ -1806,24 +1704,6 @@ import { store } from './modules/store.js';
       });
       fetchHierarchies();
     }
-
-    // Utility Helpers
-    function formatDate(dateStr) {
-      if (!dateStr) return '';
-      try {
-        const d = new Date(dateStr);
-        const day = d.getDate().toString().padStart(2, '0');
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const month = months[d.getMonth()];
-        const year = d.getFullYear();
-        const hours = d.getHours().toString().padStart(2, '0');
-        const minutes = d.getMinutes().toString().padStart(2, '0');
-        return `${day} ${month} ${year} ${hours}:${minutes}`;
-      } catch {
-        return dateStr;
-      }
-    }
-
 
     function showToast(message, type = 'info') {
       const container = document.getElementById('toast-container');
