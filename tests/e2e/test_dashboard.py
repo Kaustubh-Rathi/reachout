@@ -289,6 +289,7 @@ def test_senders_and_templates_pages(browser_page: Page):
     """Test the Senders and Templates pages dynamically list accounts without credentials."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
 
     # 1. Senders page
     page.click('[data-nav="senders"]')

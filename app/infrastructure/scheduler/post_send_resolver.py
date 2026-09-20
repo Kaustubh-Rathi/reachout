@@ -72,7 +72,7 @@ class PostSendResolver:
             self.rate_limiter.record_dispatch_success(sender_account.id)
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="AttemptSent",
+                    event_type="ATTEMPT_SENT",
                     payload={
                         "attempt_id": db_attempt.id,
                         "contact_id": db_attempt.contact_id,
@@ -116,7 +116,7 @@ class PostSendResolver:
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="AttemptFailed",
+                    event_type="ATTEMPT_FAILED",
                     payload={
                         "attempt_id": db_attempt.id,
                         "contact_id": db_attempt.contact_id,
@@ -147,7 +147,7 @@ class PostSendResolver:
             self.rate_limiter.record_dispatch_failure(sender_account.id)
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="AttemptUnknown",
+                    event_type="ATTEMPT_UNKNOWN",
                     payload={
                         "attempt_id": db_attempt.id,
                         "contact_id": db_attempt.contact_id,

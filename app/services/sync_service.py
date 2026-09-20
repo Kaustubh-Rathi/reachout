@@ -56,7 +56,7 @@ class SyncService:
 
         filename = Path(path).name
         self.event_publisher.publish_event(
-            "EXCEL_SYNC_STARTED",
+            "SYNC_STARTED",
             {"source_file": filename},
         )
 
@@ -80,12 +80,12 @@ class SyncService:
                 "errors": summary.errors,
             }
 
-            self.event_publisher.publish_event("EXCEL_SYNC_COMPLETED", payload)
+            self.event_publisher.publish_event("SYNC_COMPLETED", payload)
 
             return payload
         except Exception as exc:
             self.event_publisher.publish_event(
-                "EXCEL_SYNC_FAILED",
+                "SYNC_FAILED",
                 {"source_file": filename, "error": str(exc)},
             )
             raise exc

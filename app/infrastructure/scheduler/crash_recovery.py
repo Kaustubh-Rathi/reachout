@@ -46,7 +46,7 @@ class CrashRecoveryService:
                     recovered_count += 1
                     self.event_publisher.publish(
                         DomainEvent(
-                            event_type="AttemptRecoveryRequired",
+                            event_type="ATTEMPT_RECOVERY_REQUIRED",
                             payload={"attempt_id": attempt.id, "reason": attempt.failure_detail},
                         )
                     )
@@ -57,7 +57,7 @@ class CrashRecoveryService:
                     campaign_repo.save(cmp)
                     self.event_publisher.publish(
                         DomainEvent(
-                            event_type="CampaignPaused",
+                            event_type="CAMPAIGN_PAUSED",
                             payload={"campaign_id": cmp.id, "reason": "Crash recovery auto-pause"},
                         )
                     )

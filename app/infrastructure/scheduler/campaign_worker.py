@@ -93,7 +93,7 @@ class OutreachWorker:
         session.commit()
         self.event_publisher.publish(
             DomainEvent(
-                event_type="AttemptFailed",
+                event_type="ATTEMPT_FAILED",
                 payload={
                     "attempt_id": failed_attempt.id,
                     "contact_id": contact_id,
@@ -250,7 +250,7 @@ class OutreachWorker:
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="AttemptPrepared",
+                    event_type="ATTEMPT_PREPARED",
                     payload={
                         "attempt_id": attempt.id,
                         "contact_id": contact.contact_id,
@@ -292,7 +292,7 @@ class OutreachWorker:
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="AttemptFailed",
+                    event_type="ATTEMPT_FAILED",
                     payload={
                         "attempt_id": attempt.id,
                         "contact_id": attempt.contact_id,
@@ -343,7 +343,7 @@ class OutreachWorker:
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="AttemptStarted",
+                    event_type="ATTEMPT_STARTED",
                     payload={
                         "attempt_id": attempt.id,
                         "contact_id": attempt.contact_id,
