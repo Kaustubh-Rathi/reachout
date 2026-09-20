@@ -1765,3 +1765,63 @@
         flex-direction: column;
       }
     }
+
+    /* Sender account card component */
+    .sender-card {
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .sender-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .sender-name {
+      color: var(--text-primary);
+    }
+
+    .sender-id {
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-secondary);
+    }
+
+    .sender-identity {
+      font-size: 0.75rem;
+      color: var(--accent-blue);
+      overflow-wrap: anywhere;
+    }
+
+    .sender-limits {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .sender-error {
+      color: var(--accent-rose);
+      font-size: 0.75rem;
+    }
+
+    .sender-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .sender-actions {
+      display: flex;
+      gap: 0.35rem;
+      margin-top: auto;
+      padding-top: 0.35rem;
+      border-top: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+    }
+
+    .sender-empty {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
