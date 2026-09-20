@@ -80,14 +80,17 @@ def test_theme_toggle_switches_modes(browser_page: Page):
     assert html.get_attribute("data-theme") in ("light", "dark")
 
     page.click("#theme-dark")
+    page.wait_for_function("document.documentElement.getAttribute('data-theme') === 'dark'", timeout=15000)
     assert html.get_attribute("data-theme") == "dark"
     assert html.get_attribute("data-theme-mode") == "dark"
 
     page.click("#theme-light")
+    page.wait_for_function("document.documentElement.getAttribute('data-theme') === 'light'", timeout=15000)
     assert html.get_attribute("data-theme") == "light"
     assert html.get_attribute("data-theme-mode") == "light"
 
     page.click("#theme-system")
+    page.wait_for_function("document.documentElement.getAttribute('data-theme-mode') === 'system'", timeout=15000)
     assert html.get_attribute("data-theme-mode") == "system"
     assert html.get_attribute("data-theme") in ("light", "dark")
 

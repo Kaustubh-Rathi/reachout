@@ -1766,6 +1766,121 @@
       }
     }
 
+    /* Hierarchy view: empty state and compact structure classes */
+    .hierarchy-empty,
+    .history-empty {
+      text-align: center;
+      padding: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    .attempt-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+      font-size: 0.75rem;
+      padding: 0.2rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .attempt-icon {
+      flex-shrink: 0;
+    }
+
+    .attempt-row-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .attempt-dest {
+      font-family: 'JetBrains Mono', monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .attempt-meta {
+      color: var(--text-muted);
+    }
+
+    .attempt-failure {
+      color: var(--accent-rose);
+    }
+
+    /* Endpoint status text */
+    .endpoint-sent {
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+
+    .endpoint-recovery-badge {
+      color: var(--accent-amber);
+      font-weight: 600;
+    }
+
+    .endpoint-uncontacted {
+      color: var(--text-secondary);
+    }
+
+    .endpoint-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .endpoint-meta-warn {
+      color: var(--accent-amber);
+    }
+
+    /* Compact select used inside HR rows */
+    .select-compact {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+    }
+
+    .badge-compact {
+      font-size: 0.75rem;
+    }
+
+    /* HR card structure */
+    .hr-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .hr-contact-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      padding: 0.35rem 0.9rem 0;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .hr-history-block {
+      border-top: 1px dashed var(--border-subtle);
+      padding: 0.5rem 0.9rem;
+    }
+
+    .hr-history-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    /* Outline danger button variant */
+    .btn-outline-danger {
+      background: transparent;
+      color: var(--accent-rose);
+      border-color: var(--accent-rose-border);
+    }
+    .btn-outline-danger:hover:not(:disabled) {
+      background: var(--accent-rose-bg);
+      color: var(--accent-rose);
+    }
+
     /* Sender account card component */
     .sender-card {
       padding: 0.85rem;
