@@ -1,5 +1,6 @@
 import { apiErrorText, apiFetch } from './modules/api.js';
 import { escapeHtml, jsonAttr } from './modules/dom.js';
+import { store } from './modules/store.js';
 
     // Server-injected limits (see <body data-*>).
     const APP_CONFIG = {
@@ -7,20 +8,8 @@ import { escapeHtml, jsonAttr } from './modules/dom.js';
       maxOutreachLimit: Number(document.body.dataset.maxLimit) || 1000,
     };
 
-    // Global State Management
-    let state = {
-      companies: [],
-      hierarchies: [],
-      senders: [],
-      templates: [],
-      activeCampaign: null,
-      searchQuery: '',
-      selectedCompany: 'ALL',
-      selectedCrmStatus: 'ALL',
-      selectedChannelStatus: 'ALL',
-      selectedPriorityFilter: 'ALL',
-      contactsPage: 1,
-    };
+    // Centralized observable state (see modules/store.js).
+    const state = store.state;
 
     const CONTACTS_PAGE_SIZE = 10;
 
