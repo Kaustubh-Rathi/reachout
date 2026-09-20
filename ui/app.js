@@ -1,5 +1,6 @@
 import { apiErrorText, apiFetch } from './modules/api.js';
 import { escapeHtml, jsonAttr } from './modules/dom.js';
+import { initEventStream, setWsBanner, subscribeToEvents } from './modules/realtime.js';
 import { store } from './modules/store.js';
 
     // Server-injected limits (see <body data-*>).
@@ -13,12 +14,7 @@ import { store } from './modules/store.js';
 
     const CONTACTS_PAGE_SIZE = 10;
 
-    let activeEventSource = null;
-    let activeWebSocket = null;
     let hierarchiesAbort = null;
-    let eventReconnectTimer = null;
-    let eventReconnectDelay = 3000;
-    const EVENT_RECONNECT_MAX = 30000;
 
     // ------------------------------------------------------------------
     // Theme management (system / light / dark) — persisted per browser
@@ -89,6 +85,7 @@ import { store } from './modules/store.js';
       try { mode = localStorage.getItem(THEME_MODE_KEY) || 'system'; } catch (e) { mode = 'system'; }
       applyTheme(mode);
       await loadInitialData();
+      subscribeToEvents(handleLiveEvent);
       initEventStream();
     });
 
@@ -1675,68 +1672,6 @@ import { store } from './modules/store.js';
       document.getElementById('sync-modal').classList.remove('open');
     }
 
-    // 12. Real-Time Streaming (WebSocket with Automatic Reconnect & SSE Fallback)
-    function scheduleEventReconnect() {
-      if (eventReconnectTimer) return;
-      setWsBanner(true);
-      eventReconnectTimer = setTimeout(() => {
-        eventReconnectTimer = null;
-        eventReconnectDelay = Math.min(eventReconnectDelay * 2, EVENT_RECONNECT_MAX);
-        initEventStream();
-      }, eventReconnectDelay);
-    }
-
-    function closeEventTransports() {
-      if (activeWebSocket) {
-        try { activeWebSocket.onclose = null; activeWebSocket.close(); } catch (e) {}
-        activeWebSocket = null;
-      }
-      if (activeEventSource) {
-        try { activeEventSource.close(); } catch (e) {}
-        activeEventSource = null;
-      }
-    }
-
-    function initEventStream() {
-      closeEventTransports();
-
-      try {
-        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${proto}//${window.location.host}/api/events/ws`;
-        const socket = new WebSocket(wsUrl);
-        activeWebSocket = socket;
-
-        socket.onopen = () => {
-          eventReconnectDelay = 3000;
-          setWsBanner(false);
-        };
-
-        socket.onmessage = (e) => {
-          try {
-            handleLiveEvent(JSON.parse(e.data));
-          } catch (err) {}
-        };
-
-        // Only fall back while this socket is still the active transport.
-        socket.onerror = () => {
-          if (activeWebSocket === socket) fallbackToSSE();
-        };
-
-        socket.onclose = () => {
-          if (activeWebSocket !== socket) return;
-          activeWebSocket = null;
-          scheduleEventReconnect();
-        };
-      } catch (e) {
-        fallbackToSSE();
-      }
-    }
-
-    function setWsBanner(visible) {
-      const banner = document.getElementById('ws-banner');
-      if (banner) banner.classList.toggle('visible', !!visible);
-    }
-
     // ---- Initial/background load failure reporting ----
     const loadErrors = new Set();
 
@@ -1771,48 +1706,6 @@ import { store } from './modules/store.js';
         fetchSenders(),
         fetchTemplates(),
       ]);
-    }
-
-    function fallbackToSSE() {
-      if (activeEventSource) return;
-      // Stop the WebSocket so its close handler cannot schedule a competing reconnect.
-      if (activeWebSocket) {
-        try { activeWebSocket.onclose = null; activeWebSocket.onerror = null; activeWebSocket.close(); } catch (e) {}
-        activeWebSocket = null;
-      }
-      activeEventSource = new EventSource('/api/events/stream');
-
-      activeEventSource.onopen = () => {
-        eventReconnectDelay = 3000;
-        setWsBanner(false);
-      };
-
-      activeEventSource.onmessage = (e) => {
-        try {
-          handleLiveEvent(JSON.parse(e.data));
-        } catch (err) {}
-      };
-
-      const eventTypes = [
-        'CAMPAIGN_STARTED', 'CAMPAIGN_PAUSED', 'CAMPAIGN_RESUMED', 'CAMPAIGN_COMPLETED', 'CAMPAIGN_STOPPED', 'CAMPAIGN_FAILED',
-        'OUTREACH_PREPARED', 'OUTREACH_STARTED', 'OUTREACH_SENT', 'OUTREACH_FAILED', 'OUTREACH_RECOVERY_REQUIRED',
-        'MESSAGE_SENT', 'MESSAGE_FAILED', 'CONTACT_UPDATED', 'CRM_STATUS_CHANGED', 'CRM_OUTCOME_UPDATED',
-        'INTERVIEW_STATUS_UPDATED', 'FOLLOW_UP_DUE', 'EXCEL_SYNC_STARTED', 'EXCEL_SYNC_COMPLETED', 'SYNC_COMPLETED', 'EXCEL_SYNC_FAILED',
-        'SENDER_STATUS_CHANGED', 'SENDER_QR_RECEIVED', 'SENDER_AUTH_PROGRESS'
-      ];
-
-      eventTypes.forEach(evt => {
-        activeEventSource.addEventListener(evt, (e) => handleLiveEvent(JSON.parse(e.data)));
-      });
-
-      activeEventSource.onerror = () => {
-        // Tear down SSE and retry the preferred WebSocket transport with backoff.
-        if (activeEventSource) {
-          try { activeEventSource.close(); } catch (e) {}
-          activeEventSource = null;
-        }
-        scheduleEventReconnect();
-      };
     }
 
     // Coalesce bursts of live events into a single refetch so a running
@@ -1863,22 +1756,22 @@ import { store } from './modules/store.js';
         showToast(`QR Code received for ${p.sender_id}. Ready to scan!`, 'info');
       } else if (type === 'SENDER_AUTH_PROGRESS') {
         if (p.message) showToast(`[Auth] ${p.message}`, 'info');
-      } else if (type === 'OUTREACH_SENT' || type === 'MESSAGE_SENT') {
+      } else if (type === 'ATTEMPT_SENT') {
         const dest = p.destination || p.recipient || 'recipient';
         const ch = p.channel || 'Outreach';
         showToast(`Sent ${ch} to ${dest}`, 'success');
         scheduleLiveRefresh({ kpis: true, hierarchies: true, campaigns: true });
-      } else if (type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') {
+      } else if (type === 'ATTEMPT_FAILED') {
         showToast(`Message failed: ${p.failure_detail || p.failure_code || 'Error'}`, 'error');
         scheduleLiveRefresh({ kpis: true, hierarchies: true });
-      } else if (type === 'OUTREACH_RECOVERY_REQUIRED') {
+      } else if (type === 'ATTEMPT_RECOVERY_REQUIRED' || type === 'ATTEMPT_UNKNOWN') {
         showToast(`⚠️ Outreach recovery required for ${p.destination || 'contact'}`, 'error');
         scheduleLiveRefresh({ kpis: true, hierarchies: true });
       } else if (type.startsWith('CAMPAIGN_')) {
         scheduleLiveRefresh({ campaigns: true, kpis: true });
-      } else if (type === 'CRM_STATUS_CHANGED' || type === 'CRM_OUTCOME_UPDATED' || type === 'CONTACT_UPDATED') {
+      } else if (type === 'CRM_STATUS_CHANGED' || type === 'INTERVIEW_STATUS_UPDATED' || type === 'CONTACT_ARCHIVED') {
         scheduleLiveRefresh({ kpis: true, hierarchies: true });
-      } else if (type === 'EXCEL_SYNC_COMPLETED' || type === 'SYNC_COMPLETED') {
+      } else if (type === 'SYNC_COMPLETED') {
         showToast('Source synchronization completed!', 'success');
         scheduleLiveRefresh({ kpis: true, companies: true, hierarchies: true });
       }
@@ -2155,14 +2048,14 @@ import { store } from './modules/store.js';
 
     function describeLiveActivity(type, p) {
       const ch = p.channel || '';
-      if (type === 'OUTREACH_SENT' || type === 'MESSAGE_SENT') return `${ch || 'Message'} sent to ${p.destination || p.recipient || 'recipient'}`;
-      if (type === 'OUTREACH_FAILED' || type === 'MESSAGE_FAILED') return `Send failed: ${p.failure_detail || p.failure_code || 'error'}`;
-      if (type === 'OUTREACH_RECOVERY_REQUIRED') return `Recovery required for ${p.destination || 'contact'}`;
+      if (type === 'ATTEMPT_SENT') return `${ch || 'Message'} sent to ${p.destination || p.recipient || 'recipient'}`;
+      if (type === 'ATTEMPT_FAILED') return `Send failed: ${p.failure_detail || p.failure_code || 'error'}`;
+      if (type === 'ATTEMPT_RECOVERY_REQUIRED' || type === 'ATTEMPT_UNKNOWN') return `Recovery required for ${p.destination || 'contact'}`;
       if (type.startsWith('CAMPAIGN_')) return `Campaign ${type.replace('CAMPAIGN_', '').toLowerCase()}${p.campaign_id ? ' (' + p.campaign_id + ')' : ''}`;
       if (type === 'SENDER_STATUS_CHANGED') return `Sender ${p.sender_id || ''} is now ${p.status || ''}`;
       if (type === 'SENDER_QR_RECEIVED') return `QR code received for ${p.sender_id || ''}`;
-      if (type === 'EXCEL_SYNC_COMPLETED') return `Sync completed: ${p.new_contacts || 0} new, ${p.updated_contacts || 0} updated contacts`;
-      if (type === 'EXCEL_SYNC_STARTED') return `Sync started: ${p.source_file || ''}`;
+      if (type === 'SYNC_COMPLETED') return `Sync completed: ${p.new_contacts || 0} new, ${p.updated_contacts || 0} updated contacts`;
+      if (type === 'SYNC_STARTED') return `Sync started: ${p.source_file || ''}`;
       if (type === 'CRM_STATUS_CHANGED') return `Contact marked ${p.status || ''}`;
       return type;
     }

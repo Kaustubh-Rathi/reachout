@@ -143,7 +143,7 @@ def test_event_bus_bridge_and_event_publishing():
     try:
         # Publish event on the canonical process bus
         event = bus.publish_event(
-            "OUTREACH_SENT",
+            "ATTEMPT_SENT",
             {
                 "contact_id": "cnt_101",
                 "destination": "919876543210",
@@ -151,11 +151,11 @@ def test_event_bus_bridge_and_event_publishing():
             },
         )
 
-        assert event.event_type == "OUTREACH_SENT"
+        assert event.event_type == "ATTEMPT_SENT"
         assert event.payload["destination"] == "919876543210"
 
         bus.publish(event)
         assert len(received) >= 1
-        assert received[-1].event_type == "OUTREACH_SENT"
+        assert received[-1].event_type == "ATTEMPT_SENT"
     finally:
         bus.unsubscribe(subscriber)

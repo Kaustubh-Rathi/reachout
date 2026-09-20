@@ -281,14 +281,13 @@ class OutreachService:
                 "status": "SENT",
                 "timestamp": now.isoformat(),
             }
-            self._publish("MESSAGE_SENT", attempt, contact, channel, recipient, sender, template, **sent_payload)
-            self._publish("OUTREACH_SENT", attempt, contact, channel, recipient, sender, template, **sent_payload)
+            self._publish("ATTEMPT_SENT", attempt, contact, channel, recipient, sender, template, **sent_payload)
         elif res.status == OutreachStatus.RECOVERY_REQUIRED:
             attempt.mark_recovery_required(res.failure_detail or "Unknown recovery condition", now)
             self.outreach_repo.save(attempt)
             self.session.commit()
             self._publish(
-                "OUTREACH_RECOVERY_REQUIRED",
+                "ATTEMPT_RECOVERY_REQUIRED",
                 attempt,
                 contact,
                 channel,
@@ -323,8 +322,7 @@ class OutreachService:
                 "failure_detail": attempt.failure_detail,
                 "timestamp": now.isoformat(),
             }
-            self._publish("MESSAGE_FAILED", attempt, contact, channel, recipient, sender, template, **failed_payload)
-            self._publish("OUTREACH_FAILED", attempt, contact, channel, recipient, sender, template, **failed_payload)
+            self._publish("ATTEMPT_FAILED", attempt, contact, channel, recipient, sender, template, **failed_payload)
 
     # ------------------------------------------------------------------
     # Public API
@@ -421,13 +419,12 @@ class OutreachService:
         )
         self.outreach_repo.save(attempt)
         self.session.commit()
-        self._publish("MESSAGE_PREPARED", attempt, contact, channel, recipient, sender, template)
-        self._publish("OUTREACH_PREPARED", attempt, contact, channel, recipient, sender, template)
+        self._publish("ATTEMPT_PREPARED", attempt, contact, channel, recipient, sender, template)
 
         attempt.mark_sending(now)
         self.outreach_repo.save(attempt)
         self.session.commit()
-        self._publish("OUTREACH_STARTED", attempt, contact, channel, recipient, sender, template)
+        self._publish("ATTEMPT_STARTED", attempt, contact, channel, recipient, sender, template)
 
         attempt, res = self._dispatch(channel, attempt, recipient, subj, body, attachment_ref, sender, now)
         self._finalize_send(attempt, res, contact, channel, recipient, sender, template, now)

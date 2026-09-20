@@ -109,7 +109,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="CampaignStarted",
+                    event_type="CAMPAIGN_STARTED",
                     payload={"campaign_id": campaign_id, "channel": campaign.channel.value},
                 )
             )
@@ -129,7 +129,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="CampaignPaused",
+                    event_type="CAMPAIGN_PAUSED",
                     payload={"campaign_id": campaign_id},
                 )
             )
@@ -165,7 +165,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="CampaignStarted",
+                    event_type="CAMPAIGN_STARTED",
                     payload={"campaign_id": campaign_id, "channel": campaign.channel.value},
                 )
             )
@@ -191,7 +191,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
             self.event_publisher.publish(
                 DomainEvent(
-                    event_type="CampaignStopped",
+                    event_type="CAMPAIGN_STOPPED",
                     payload={"campaign_id": campaign_id},
                 )
             )
@@ -221,7 +221,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                         session.commit()
                         self.event_publisher.publish(
                             DomainEvent(
-                                event_type="CampaignCompleted",
+                                event_type="CAMPAIGN_COMPLETED",
                                 payload={"campaign_id": campaign.id, "reason": "Max count reached"},
                             )
                         )
@@ -252,7 +252,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     session.commit()
                     self.event_publisher.publish(
                         DomainEvent(
-                            event_type="CampaignCompleted",
+                            event_type="CAMPAIGN_COMPLETED",
                             payload={"campaign_id": campaign.id, "reason": "Automatic quota reached"},
                         )
                     )
@@ -277,7 +277,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     session.commit()
                     self.event_publisher.publish(
                         DomainEvent(
-                            event_type="CampaignFailed",
+                            event_type="CAMPAIGN_FAILED",
                             payload={"campaign_id": campaign.id, "reason": "No active senders"},
                         )
                     )
@@ -319,7 +319,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                         session.commit()
                         self.event_publisher.publish(
                             DomainEvent(
-                                event_type="CampaignCompleted",
+                                event_type="CAMPAIGN_COMPLETED",
                                 payload={"campaign_id": campaign.id},
                             )
                         )
@@ -366,7 +366,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     session.commit()
                     self.event_publisher.publish(
                         DomainEvent(
-                            event_type="CampaignFailed",
+                            event_type="CAMPAIGN_FAILED",
                             payload={
                                 "campaign_id": campaign.id,
                                 "reason": f"Missing {effective_channel.value} templates",

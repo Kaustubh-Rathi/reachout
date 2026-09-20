@@ -163,7 +163,7 @@ class CrmService:
 
         # Check and publish event
         self.event_publisher.publish_event(
-            "CRM_OUTCOME_UPDATED",
+            "CRM_STATUS_CHANGED",
             {
                 "contact_id": contact.contact_id,
                 "name": contact.name,
@@ -196,7 +196,7 @@ class CrmService:
         self.session.commit()
 
         self.event_publisher.publish_event(
-            "CRM_OUTCOME_UPDATED",
+            "CRM_STATUS_CHANGED",
             {
                 "contact_id": contact.contact_id,
                 "name": contact.name,
