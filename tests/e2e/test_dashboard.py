@@ -74,6 +74,7 @@ def test_theme_toggle_switches_modes(browser_page: Page):
     """The theme control must resolve and switch between light, dark, and system."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
     page.wait_for_selector("header h1", timeout=30000)
 
     html = page.locator("html")
@@ -273,6 +274,7 @@ def test_source_synchronization_modal(browser_page: Page):
     """Test source synchronization summary modal opens and displays metrics."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
 
     sync_btn = page.locator("#sync-btn")
     sync_btn.click()

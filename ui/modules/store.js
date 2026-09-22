@@ -55,3 +55,6 @@ export const store = createStore({
   selectedPriorityFilter: 'ALL',
   contactsPage: 1,
 });
+
+// Convenience accessor for modules that only need the observable state object.
+export const state = store.state;
