@@ -371,3 +371,95 @@ class TestArchitecturalBoundaries:
                     violations.append(f"VIOLATION: Production file {file_path.name} references test double '{token}'")
 
         assert not violations, "\n".join(violations)
+
+    def test_all_ui_js_fetches_only_through_api_module(self):
+        """Every UI JS file must route HTTP through modules/api.js; no direct fetch() calls."""
+        ui_js_files = list((ROOT_DIR / "ui").rglob("*.js"))
+        assert len(ui_js_files) > 0, "No UI JS files found to inspect"
+
+        fetch_violations = []
+        for file_path in ui_js_files:
+            if file_path.name == "api.js" or "api.js" in str(file_path.relative_to(ROOT_DIR)):
+                continue
+            content = file_path.read_text(encoding="utf-8")
+            if "fetch(" in content:
+                fetch_violations.append(f"{file_path.relative_to(ROOT_DIR)}: contains direct fetch() call")
+
+        assert not fetch_violations, (
+            "Direct fetch() calls found (must use apiFetch from modules/api.js):\n" + "\n".join(fetch_violations)
+        )
+
+    def test_ui_js_has_no_inline_event_handlers(self):
+        """UI markup and scripts must use delegated data-* actions, not inline on* handlers."""
+        pattern = re.compile(r"\son(?:click|change|input|keydown|keyup|focus|blur|submit|load|error)\s*=", re.I)
+        violations = []
+
+        html_file = ROOT_DIR / "ui" / "crm_dashboard.html"
+        if html_file.exists():
+            for lineno, line in enumerate(html_file.read_text(encoding="utf-8").splitlines(), 1):
+                if pattern.search(line):
+                    violations.append(f"ui/crm_dashboard.html:{lineno}: {line.strip()[:80]}")
+
+        for js_file in (ROOT_DIR / "ui").rglob("*.js"):
+            if js_file.name.startswith("__pycache__"):
+                continue
+            for lineno, line in enumerate(js_file.read_text(encoding="utf-8").splitlines(), 1):
+                if pattern.search(line):
+                    violations.append(f"{js_file.relative_to(ROOT_DIR)}:{lineno}: {line.strip()[:80]}")
+
+        assert not violations, "Inline event handlers found:\n" + "\n".join(violations)
+
+    def test_ui_action_references_are_registered(self):
+        """Every action name referenced in HTML/JS must be registered; no duplicate registrations."""
+        ui_js_files = list((ROOT_DIR / "ui").rglob("*.js"))
+        assert len(ui_js_files) > 0, "No UI JS files found to inspect"
+
+        registered_names: List[str] = []
+        for file_path in ui_js_files:
+            content = file_path.read_text(encoding="utf-8")
+            for block in re.findall(r"registerActions\(\{([\s\S]*?)\}\)", content):
+                for name in block.split(","):
+                    name = name.strip().strip("\"'")
+                    if name:
+                        registered_names.append(name)
+
+        duplicate_names = [name for name in set(registered_names) if registered_names.count(name) > 1]
+        assert not duplicate_names, f"Duplicate action registrations: {duplicate_names}"
+
+        registered_set = set(registered_names)
+
+        referenced_names: Set[str] = set()
+
+        html_file = ROOT_DIR / "ui" / "crm_dashboard.html"
+        if html_file.exists():
+            content = html_file.read_text(encoding="utf-8")
+            for _, value in re.findall(r'data-(?:action|change|input)\s*=\s*(["\'])(.*?)\1', content, re.S):
+                for name in value.split():
+                    referenced_names.add(name)
+
+        for file_path in ui_js_files:
+            content = file_path.read_text(encoding="utf-8")
+            for _, value in re.findall(r'data-(?:action|change|input)\s*=\s*(["\'])(.*?)\1', content, re.S):
+                for name in value.split():
+                    referenced_names.add(name)
+            for name in re.findall(r"getAction\(\s*['\"]([^'\"]+)['\"]\s*\)", content):
+                referenced_names.add(name)
+
+        missing = sorted(name for name in referenced_names if name not in registered_set)
+        assert not missing, f"Referenced actions not registered: {missing}"
+
+    def test_ui_dispatcher_throws_on_unknown_action(self):
+        """actions.js getAction must throw on unknown action; dispatch.js must call getAction."""
+        actions_js = ROOT_DIR / "ui" / "modules" / "actions.js"
+        dispatch_js = ROOT_DIR / "ui" / "modules" / "dispatch.js"
+
+        assert actions_js.exists(), "ui/modules/actions.js not found"
+        assert dispatch_js.exists(), "ui/modules/dispatch.js not found"
+
+        actions_content = actions_js.read_text(encoding="utf-8")
+        dispatch_content = dispatch_js.read_text(encoding="utf-8")
+
+        assert "throw new Error" in actions_content and "Unknown action" in actions_content, (
+            "actions.js getAction must throw Error for unknown action"
+        )
+        assert "getAction(" in dispatch_content, "dispatch.js must call getAction to resolve action names"
