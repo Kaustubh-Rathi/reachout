@@ -77,7 +77,7 @@ function updateCampaignControls(camp) {
     statusPill.classList.add('status-running');
     actionBtn.className = 'btn btn-amber btn-sm';
     actionLabel.innerText = '⏸ Pause';
-    actionBtn.dataset.action = 'pause';
+    actionBtn.dataset.intent = 'pause';
     actionBtn.disabled = false;
     if (stopBtn) { stopBtn.hidden = false; stopBtn.disabled = false; }
     if (limitWrap) limitWrap.style.display = 'none';
@@ -86,7 +86,7 @@ function updateCampaignControls(camp) {
     statusPill.classList.add('status-paused');
     actionBtn.className = 'btn btn-primary btn-sm';
     actionLabel.innerText = '▶ Resume';
-    actionBtn.dataset.action = 'resume';
+    actionBtn.dataset.intent = 'resume';
     actionBtn.disabled = false;
     if (stopBtn) { stopBtn.hidden = false; stopBtn.disabled = false; }
     if (limitWrap) limitWrap.style.display = 'none';
@@ -96,7 +96,7 @@ function updateCampaignControls(camp) {
     else if (st === 'FAILED') statusPill.classList.add('status-failed');
     actionBtn.className = 'btn btn-secondary btn-sm';
     actionLabel.innerText = '▶ New Run';
-    actionBtn.dataset.action = 'start';
+    actionBtn.dataset.intent = 'start';
     actionBtn.disabled = false;
     if (stopBtn) { stopBtn.hidden = true; stopBtn.disabled = true; }
     if (limitWrap) limitWrap.style.display = 'flex';
@@ -122,7 +122,7 @@ function updateCampaignControls(camp) {
 
 function onCampaignAction() {
   const btn = document.getElementById('campaign-action-btn');
-  const action = btn ? btn.dataset.action : 'start';
+  const action = btn ? btn.dataset.intent : 'start';
   if (action === 'pause') return pauseCampaign();
   if (action === 'resume') return resumeCampaign();
   return startCampaign();
