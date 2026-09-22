@@ -1,4 +1,4 @@
-import { apiErrorText, apiFetch } from './modules/api.js';
+import { api, apiErrorText } from './modules/api.js';
 import { renderCompanyCard } from './components/company_card.js';
 import { appendTimelineItem, buildTimelineEvents, isRecoveryAttempt } from './components/timeline.js';
 import { renderSenderCard, senderActionsHtml } from './components/sender_card.js';
@@ -110,7 +110,7 @@ import { store } from './modules/store.js';
     // 1. Fetch & Render KPIs
     async function fetchKpis() {
       try {
-        const res = await apiFetch('/api/crm/kpis');
+        const res = await api.getKpis();
         if (res.ok) {
           const data = await res.json();
           renderKpis(data);
@@ -141,7 +141,7 @@ import { store } from './modules/store.js';
     // 2. Fetch Companies
     async function fetchCompanies() {
       try {
-        const res = await apiFetch('/api/companies');
+        const res = await api.getCompanies();
         if (res.ok) {
           state.companies = await res.json();
           const select = document.getElementById('company-filter');
@@ -193,7 +193,7 @@ import { store } from './modules/store.js';
         // cannot overwrite the results of a newer search/filter.
         if (hierarchiesAbort) hierarchiesAbort.abort();
         hierarchiesAbort = new AbortController();
-        const res = await apiFetch(`/api/companies/hierarchy?${params.toString()}`, { signal: hierarchiesAbort.signal });
+        const res = await api.fetchHierarchy(params.toString(), { signal: hierarchiesAbort.signal });
         if (res.ok) {
           state.hierarchies = await res.json();
           renderHierarchyView(state.hierarchies);
@@ -291,10 +291,7 @@ import { store } from './modules/store.js';
     async function updateContactStatus(contactId, status, selectEl) {
       if (selectEl) selectEl.dataset.prev = selectEl.dataset.prev || selectEl.value;
       try {
-        const res = await apiFetch('/api/crm/status', {
-          method: 'POST',
-          body: JSON.stringify({ contact_id: contactId, status: status })
-        });
+        const res = await api.updateContactStatus(contactId, status);
         if (res.ok) {
           showToast(`Contact status updated to ${status}`, 'success');
           await fetchHierarchies();
@@ -315,7 +312,7 @@ import { store } from './modules/store.js';
         return;
       }
       try {
-        const res = await apiFetch(`/api/contacts/${contactId}`, { method: 'DELETE' });
+        const res = await api.archiveContact(contactId);
         if (res.ok) {
           showToast('Contact archived and suppressed.', 'info');
           await fetchHierarchies();
@@ -332,7 +329,7 @@ import { store } from './modules/store.js';
     // 6. Campaign Control Plane
     async function fetchCampaigns() {
       try {
-        const res = await apiFetch('/api/campaigns');
+        const res = await api.listCampaigns();
         if (res.ok) {
           const list = await res.json();
           if (list && list.length > 0) {
@@ -437,10 +434,7 @@ import { store } from './modules/store.js';
       }
 
       try {
-        const res = await apiFetch('/api/campaigns/quick-start', {
-          method: 'POST',
-          body: JSON.stringify({ channel: 'WHATSAPP', max_count: maxCount })
-        });
+        const res = await api.quickStartCampaign('WHATSAPP', maxCount);
         const data = await res.json();
         if (res.ok) {
           showToast(`Campaign started for up to ${maxCount} contacts!`, 'success');
@@ -464,7 +458,7 @@ import { store } from './modules/store.js';
     async function pauseCampaign() {
       if (!state.activeCampaign) return;
       try {
-        const res = await apiFetch(`/api/campaigns/${state.activeCampaign.id}/pause`, { method: 'POST' });
+        const res = await api.campaignAction(state.activeCampaign.id, 'pause');
         if (res.ok) {
           const camp = await res.json();
           showToast('Campaign paused.', 'info');
@@ -480,7 +474,7 @@ import { store } from './modules/store.js';
     async function resumeCampaign() {
       if (!state.activeCampaign) return;
       try {
-        const res = await apiFetch(`/api/campaigns/${state.activeCampaign.id}/resume`, { method: 'POST' });
+        const res = await api.campaignAction(state.activeCampaign.id, 'resume');
         if (res.ok) {
           const camp = await res.json();
           showToast('Campaign resumed.', 'success');
@@ -497,7 +491,7 @@ import { store } from './modules/store.js';
       if (!state.activeCampaign) return;
       if (!(await appConfirm('Are you sure you want to permanently stop the campaign?', { title: 'Stop campaign', confirmLabel: 'Stop' }))) return;
       try {
-        const res = await apiFetch(`/api/campaigns/${state.activeCampaign.id}/stop`, { method: 'POST' });
+        const res = await api.campaignAction(state.activeCampaign.id, 'stop');
         if (res.ok) {
           const camp = await res.json();
           showToast('Campaign stopped.', 'info');
@@ -622,14 +616,11 @@ import { store } from './modules/store.js';
 
       // Rendering is owned by the backend so the preview matches the dispatched message.
       try {
-        const res = await apiFetch('/api/outreach/preview', {
-          method: 'POST',
-          body: JSON.stringify({
-            contact_id: contactId,
-            channel: channel,
-            template_id: tplId,
-            is_resend: isResend,
-          }),
+        const res = await api.previewMessage({
+          contact_id: contactId,
+          channel: channel,
+          template_id: tplId,
+          is_resend: isResend,
         });
         if (!res.ok) {
           showToast('Failed to render template: ' + (await apiErrorText(res)), 'error');
@@ -674,13 +665,6 @@ import { store } from './modules/store.js';
         }
       }
 
-      let endpoint = '';
-      if (channel === 'WHATSAPP') {
-        endpoint = isResend ? '/api/outreach/resend-whatsapp' : '/api/outreach/send-whatsapp';
-      } else {
-        endpoint = isResend ? '/api/outreach/resend-email' : '/api/outreach/send-email';
-      }
-
       const payload = {
         contact_id: contactId,
         destination: destination,
@@ -697,10 +681,7 @@ import { store } from './modules/store.js';
       submitBtn.innerHTML = '<span class="spinner"></span> Dispatching...';
 
       try {
-        const res = await apiFetch(endpoint, {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
+        const res = await api.sendMessage(channel, isResend, payload);
         const data = await res.json();
         if (res.ok && data.success) {
           showToast(`${channel} message dispatched to ${destination || 'contact'}!`, 'success');
@@ -728,7 +709,7 @@ import { store } from './modules/store.js';
       timelineList.innerHTML = '<div style="color: var(--text-muted);">Loading activity history...</div>';
 
       try {
-        const res = await apiFetch(`/api/contacts/${contactId}`);
+        const res = await api.getContact(contactId);
         if (res.ok) {
           const detail = await res.json();
           summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml(((detail.phones && detail.phones.length ? detail.phones : (detail.phone ? [detail.phone] : [])).join(', ') || '-'))} &bull; Email(s): ${escapeHtml(((detail.emails && detail.emails.length ? detail.emails : (detail.email ? [detail.email] : [])).join(', ') || '-'))}`;
@@ -760,7 +741,7 @@ import { store } from './modules/store.js';
 
     async function fetchSenders() {
       try {
-        const res = await apiFetch('/api/senders');
+        const res = await api.listSenders();
         if (res.ok) {
           state.senders = await res.json();
           updateHeaderSendersIndicator();
@@ -877,10 +858,7 @@ import { store } from './modules/store.js';
     async function addWhatsAppSession() {
       try {
         showToast('Launching WhatsApp authentication...', 'info');
-        const res = await apiFetch('/api/senders/whatsapp/add', {
-          method: 'POST',
-          body: JSON.stringify({}),
-        });
+        const res = await api.addWhatsAppSession();
         if (res.ok) {
           const data = await res.json();
           const tempId = data.id;
@@ -928,7 +906,7 @@ import { store } from './modules/store.js';
 
       let res;
       try {
-        res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/status`);
+        res = await api.whatsappAuthStatus(senderId);
       } catch (err) {
         // Network error: keep polling.
         setTimeout(() => pollWhatsAppAuth(senderId, existingName), 2000);
@@ -1004,7 +982,7 @@ import { store } from './modules/store.js';
 
     async function deactivateSender(senderId) {
       try {
-        const res = await apiFetch(`/api/senders/${senderId}/deactivate`, { method: 'POST' });
+        const res = await api.deactivateSender(senderId);
         if (res.ok) {
           showToast(`Sender ${senderId} deactivated (paused from rotation).`, 'info');
           await fetchSenders();
@@ -1019,7 +997,7 @@ import { store } from './modules/store.js';
 
     async function reactivateSender(senderId) {
       try {
-        const res = await apiFetch(`/api/senders/${senderId}/reactivate`, { method: 'POST' });
+        const res = await api.reactivateSender(senderId);
         if (res.ok) {
           showToast(`Sender ${senderId} reactivated.`, 'success');
           await fetchSenders();
@@ -1035,9 +1013,7 @@ import { store } from './modules/store.js';
     async function startWhatsAppAuth(senderId) {
       try {
         showToast(`Starting authentication for ${senderId}...`, 'info');
-        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/start`, {
-          method: 'POST',
-        });
+        const res = await api.whatsappAuthStart(senderId, {});
         if (res.ok) {
           const existing = state.senders.find(s => s.id === senderId);
           openWhatsAppQrModal(senderId, existing ? existing.display_name : senderId);
@@ -1053,7 +1029,7 @@ import { store } from './modules/store.js';
     async function checkWhatsAppAuthStatus(senderId) {
       try {
         showToast(`Probing live session ${senderId}...`, 'info');
-        const res = await apiFetch(`/api/senders/whatsapp/${senderId}/auth/check`, { method: 'POST' });
+        const res = await api.whatsappAuthCheck(senderId);
         if (res.ok) {
           const data = await res.json();
           if (data.status_changed) {
@@ -1106,18 +1082,15 @@ import { store } from './modules/store.js';
       saveBtn.innerHTML = '<span class="spinner"></span> Verifying...';
 
       try {
-        const res = await apiFetch('/api/senders/email/configure', {
-          method: 'POST',
-          body: JSON.stringify({
-            id: id,
-            identity: addr,
-            display_name: name,
-            host: host,
-            port: port,
-            user: user,
-            password: pwd,
-            verify_now: true,
-          })
+        const res = await api.configureEmailSender({
+          id: id,
+          identity: addr,
+          display_name: name,
+          host: host,
+          port: port,
+          user: user,
+          password: pwd,
+          verify_now: true,
         });
         const data = await res.json();
         if (res.ok) {
@@ -1139,7 +1112,7 @@ import { store } from './modules/store.js';
     async function verifyEmailSender(senderId) {
       try {
         showToast(`Testing connection for ${senderId}...`, 'info');
-        const res = await apiFetch(`/api/senders/email/${senderId}/verify`, { method: 'POST' });
+        const res = await api.verifyEmailSender(senderId);
         const data = await res.json();
         if (res.ok && data.verified) {
           showToast(`Email sender ${senderId} verified successfully!`, 'success');
@@ -1167,7 +1140,7 @@ import { store } from './modules/store.js';
     // 10. Templates Management Drawer
     async function fetchTemplates() {
       try {
-        const res = await apiFetch('/api/templates');
+        const res = await api.listTemplates();
         if (res.ok) {
           state.templates = await res.json();
           clearLoadError('templates');
@@ -1277,10 +1250,7 @@ import { store } from './modules/store.js';
 
       try {
         showToast(isEdit ? `Saving template ${id}...` : 'Creating template...', 'info');
-        const res = await apiFetch(isEdit ? `/api/templates/${encodeURIComponent(editingTemplate.id)}` : '/api/templates', {
-          method: isEdit ? 'PUT' : 'POST',
-          body: JSON.stringify(payload),
-        });
+        const res = await api.saveTemplate(isEdit ? editingTemplate.id : null, payload);
         if (res.ok) {
           showToast(`Template ${id} saved.`, 'success');
           closeTemplateForm();
@@ -1302,7 +1272,7 @@ import { store } from './modules/store.js';
       syncBtn.innerText = 'Syncing...';
 
       try {
-        const res = await apiFetch('/api/sync', { method: 'POST', body: '{}' });
+        const res = await api.syncSource();
         if (!res.ok) {
           showToast('Sync failed: ' + (await apiErrorText(res)), 'error');
           return;
@@ -1601,7 +1571,7 @@ import { store } from './modules/store.js';
       const container = document.getElementById('recovery-list-container');
       container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem;">Loading recovery queue...</div>';
       try {
-        const res = await apiFetch('/api/outreach/recovery');
+        const res = await api.recoveryQueue();
         if (!res.ok) {
           container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading recovery queue: ' + escapeHtml(await apiErrorText(res)) + '</div>';
           return;
@@ -1628,10 +1598,7 @@ import { store } from './modules/store.js';
     }
     async function resolveRecoveryAttempt(attemptId, action) {
       try {
-        const res = await apiFetch('/api/outreach/recovery/' + encodeURIComponent(attemptId) + '/resolve', {
-          method: 'POST',
-          body: JSON.stringify({ action: action })
-        });
+        const res = await api.resolveRecovery(attemptId, { action: action });
         if (res.ok) {
           showToast('Recovery item ' + action.replace('_', ' ') + '.', 'success');
           await fetchRecoveryQueue();
@@ -1656,7 +1623,7 @@ import { store } from './modules/store.js';
       const container = document.getElementById('discrepancies-list-container');
       container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Loading discrepancies...</div>';
       try {
-        const res = await apiFetch('/api/contacts/discrepancies');
+        const res = await api.getContactDiscrepancies();
         const data = await res.json();
         if (!data || !data.groups || data.groups.length === 0) {
           container.innerHTML = '<div style="color:var(--accent-emerald);font-size:0.85rem;">&#10003; No data discrepancies found.</div>';
@@ -1739,7 +1706,7 @@ import { store } from './modules/store.js';
 
     async function fetchActivity() {
       try {
-        const res = await apiFetch('/api/events/history?limit=15');
+        const res = await api.eventHistory(15);
         if (!res.ok) return;
         const events = await res.json();
         const list = document.getElementById('activity-list');
