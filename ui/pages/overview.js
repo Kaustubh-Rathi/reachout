@@ -1,5 +1,5 @@
 import { api, apiErrorText } from '../modules/api.js';
-import { showToast, appConfirm } from '../modules/toast.js';
+import { showToast } from '../modules/toast.js';
 import { state } from '../modules/store.js';
 import { registerActions, getAction } from '../modules/actions.js';
 import { APP_CONFIG } from '../modules/config.js';
@@ -62,7 +62,6 @@ function updateCampaignControls(camp) {
   const statusPill = document.getElementById('campaign-status-pill');
   const actionBtn = document.getElementById('campaign-action-btn');
   const actionLabel = document.getElementById('campaign-action-label');
-  const stopBtn = document.getElementById('stop-campaign-btn');
   const limitWrap = document.getElementById('campaign-limit-wrap');
   const limitInput = document.getElementById('campaign-limit-input');
 
@@ -79,7 +78,6 @@ function updateCampaignControls(camp) {
     actionLabel.innerText = '⏸ Pause';
     actionBtn.dataset.intent = 'pause';
     actionBtn.disabled = false;
-    if (stopBtn) { stopBtn.hidden = false; stopBtn.disabled = false; }
     if (limitWrap) limitWrap.style.display = 'none';
     if (banner) banner.style.display = 'none';
   } else if (st === 'PAUSED') {
@@ -88,7 +86,6 @@ function updateCampaignControls(camp) {
     actionLabel.innerText = '▶ Resume';
     actionBtn.dataset.intent = 'resume';
     actionBtn.disabled = false;
-    if (stopBtn) { stopBtn.hidden = false; stopBtn.disabled = false; }
     if (limitWrap) limitWrap.style.display = 'none';
     if (banner) banner.style.display = 'flex';
   } else {
@@ -98,7 +95,6 @@ function updateCampaignControls(camp) {
     actionLabel.innerText = '▶ New Run';
     actionBtn.dataset.intent = 'start';
     actionBtn.disabled = false;
-    if (stopBtn) { stopBtn.hidden = true; stopBtn.disabled = true; }
     if (limitWrap) limitWrap.style.display = 'flex';
     if (limitInput) limitInput.disabled = false;
     if (banner) banner.style.display = 'none';
@@ -199,23 +195,6 @@ async function resumeCampaign() {
   }
 }
 
-async function stopCampaign() {
-  if (!state.activeCampaign) return;
-  if (!(await appConfirm('Are you sure you want to permanently stop the campaign?', { title: 'Stop campaign', confirmLabel: 'Stop' }))) return;
-  try {
-    const res = await api.campaignAction(state.activeCampaign.id, 'stop');
-    if (res.ok) {
-      const camp = await res.json();
-      showToast('Campaign stopped.', 'info');
-      updateCampaignControls(camp);
-    } else {
-      showToast('Failed to stop campaign: ' + await apiErrorText(res), 'error');
-    }
-  } catch (err) {
-    showToast('Error stopping campaign: ' + err.message, 'error');
-  }
-}
-
 // ------------------------------------------------------------------
 // Overview live activity feed
 // ------------------------------------------------------------------
@@ -289,5 +268,5 @@ function dismissOnboarding() {
   if (card) card.hidden = true;
 }
 
-registerActions({ fetchKpis, renderKpis, fetchCampaigns, updateCampaignControls, onCampaignAction, startCampaign, pauseCampaign, resumeCampaign, stopCampaign, describeLiveActivity, addActivityItem, fetchActivity, updateOnboarding, dismissOnboarding });
-export { fetchKpis, renderKpis, fetchCampaigns, updateCampaignControls, onCampaignAction, startCampaign, pauseCampaign, resumeCampaign, stopCampaign, describeLiveActivity, addActivityItem, fetchActivity, updateOnboarding, dismissOnboarding };
+registerActions({ fetchKpis, renderKpis, fetchCampaigns, updateCampaignControls, onCampaignAction, startCampaign, pauseCampaign, resumeCampaign, describeLiveActivity, addActivityItem, fetchActivity, updateOnboarding, dismissOnboarding });
+export { fetchKpis, renderKpis, fetchCampaigns, updateCampaignControls, onCampaignAction, startCampaign, pauseCampaign, resumeCampaign, describeLiveActivity, addActivityItem, fetchActivity, updateOnboarding, dismissOnboarding };
