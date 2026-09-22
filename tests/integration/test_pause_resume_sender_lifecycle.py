@@ -316,8 +316,6 @@ class TestPauseModifyResumeLifecycle:
             camp = camp_repo.get_by_id(campaign_id)
             assert camp.automatic_used == len([a for a in all_attempts if a.status == OutreachStatus.SENT])
 
-        scheduler.stop_campaign(campaign_id)
-
 
 class TestDynamicNSendersAndCooldown:
     """Test suite for Sections 6, 7, 8, 9, 10, 11, 26, 27: Dynamic N senders and independent cooldowns."""
@@ -526,8 +524,6 @@ class TestPauseResumeMatrixAndRestart:
             assert len(all_attempts) == 4
             contact_ids = [a.contact_id for a in all_attempts]
             assert len(set(contact_ids)) == 4, "Duplicate attempts detected after crash recovery resume!"
-
-        scheduler2.stop_campaign(campaign_id)
 
     def test_resume_blocked_when_quota_exhausted(self, test_db_setup):
         """Test Section 24 & 25: Resume is blocked with OUTREACH_NOT_READY when automatic quota is exhausted."""

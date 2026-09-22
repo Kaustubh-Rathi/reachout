@@ -3,7 +3,7 @@
 Verifies:
 1. P0 Bug Fix: `provider_reference` parameter passing and database persistence in manual send & resend.
 2. Explicit Provider Configuration & Factory: Mock vs Live mode resolution, no accidental live dispatch.
-3. Unified Persistent Scheduler: Delegation from CampaignService, rate limiting, and pause/resume/stop lifecycle.
+3. Unified Persistent Scheduler: Delegation from CampaignService, rate limiting, and pause/resume lifecycle.
 4. Application Startup Crash Recovery: Lifespan audit of stale in-flight attempts and auto-pause.
 """
 

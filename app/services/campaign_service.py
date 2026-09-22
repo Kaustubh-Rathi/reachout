@@ -1,7 +1,7 @@
 """Campaign execution & control plane application service.
 
 Coordinates dynamic calculation of eligible contacts, company-first round robin,
-campaign lifecycle (Start, Pause, Resume, Stop) delegating directly to the canonical
+campaign lifecycle (Start, Pause, Resume) delegating directly to the canonical
 PersistentCampaignScheduler, and real-time progress & round metrics.
 """
 
@@ -274,13 +274,4 @@ class CampaignService:
             raise OutreachNotReadyError(readiness["reason"], readiness["detail"])
 
         self.scheduler.resume_campaign(campaign_id)
-        return self.get_campaign_progress(campaign_id)
-
-    def stop_campaign(self, campaign_id: str) -> Dict[str, Any]:
-        """Stop/cancel a campaign permanently via canonical PersistentCampaignScheduler."""
-        campaign = self.campaign_repo.get_by_id(campaign_id)
-        if not campaign:
-            raise NotFoundError(f"Campaign not found: {campaign_id}")
-
-        self.scheduler.stop_campaign(campaign_id)
         return self.get_campaign_progress(campaign_id)

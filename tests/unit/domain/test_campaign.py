@@ -50,13 +50,6 @@ class TestCampaignModel:
         assert camp.ended_at == t1
         assert camp.status.is_terminal
 
-    def test_campaign_stop(self):
-        camp = Campaign.create(name="Batch B", channel=Channel.WHATSAPP)
-        camp.start()
-        camp.stop()
-        assert camp.status == CampaignStatus.STOPPED
-        assert camp.status.is_terminal
-
     def test_campaign_failure(self):
         camp = Campaign.create(name="Batch C", channel=Channel.EMAIL)
         camp.start()
@@ -82,7 +75,3 @@ class TestCampaignModel:
         # Cannot restart completed campaign
         with pytest.raises(ValueError, match="Cannot start"):
             camp.start()
-
-        # Cannot stop already completed campaign
-        with pytest.raises(ValueError, match="already in terminal"):
-            camp.stop()

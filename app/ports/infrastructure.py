@@ -213,10 +213,6 @@ class CampaignScheduler(Protocol):
         """Resume a paused campaign."""
         ...
 
-    def stop_campaign(self, campaign_id: str) -> None:
-        """Stop a campaign permanently."""
-        ...
-
     def run_crash_recovery_audit(self) -> int:
         """Recover stale in-flight attempts from a previous process and return the count."""
         ...

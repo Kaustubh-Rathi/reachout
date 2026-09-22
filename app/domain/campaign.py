@@ -140,16 +140,9 @@ class Campaign:
             raise ValidationError(f"Cannot resume campaign in status '{self.status}'")
         self.status = CampaignStatus.RUNNING
 
-    def stop(self, timestamp: Optional[datetime] = None) -> None:
-        """Manually abort/stop campaign."""
-        if self.status.is_terminal:
-            raise ValidationError(f"Campaign is already in terminal status '{self.status}'")
-        self.status = CampaignStatus.STOPPED
-        self.ended_at = timestamp or datetime.now(timezone.utc)
-
     def complete(self, timestamp: Optional[datetime] = None) -> None:
         """Mark campaign as successfully completed."""
-        if self.status not in (CampaignStatus.RUNNING, CampaignStatus.STOPPING):
+        if self.status != CampaignStatus.RUNNING:
             raise ValidationError(f"Cannot complete campaign in status '{self.status}'")
         self.status = CampaignStatus.COMPLETED
         self.ended_at = timestamp or datetime.now(timezone.utc)

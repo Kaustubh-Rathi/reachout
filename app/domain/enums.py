@@ -28,8 +28,6 @@ class CampaignStatus(str, Enum):
     STARTING = "STARTING"
     RUNNING = "RUNNING"
     PAUSED = "PAUSED"
-    STOPPING = "STOPPING"
-    STOPPED = "STOPPED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
@@ -42,7 +40,7 @@ class CampaignStatus(str, Enum):
 
     @property
     def is_terminal(self) -> bool:
-        return self in (CampaignStatus.STOPPED, CampaignStatus.COMPLETED, CampaignStatus.FAILED)
+        return self in (CampaignStatus.COMPLETED, CampaignStatus.FAILED)
 
 
 @unique

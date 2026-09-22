@@ -1,7 +1,7 @@
 """Campaigns control plane API endpoints.
 
 Handles campaign creation, starting (with dynamic DB eligibility calculation),
-pausing, resuming, stopping, quota configuration, and progress inspection.
+pausing, resuming, quota configuration, and progress inspection.
 """
 
 from __future__ import annotations
@@ -131,13 +131,6 @@ def resume_campaign(campaign_id: str, session: Session = Depends(get_db_session)
     """Resume a paused campaign with readiness check."""
     svc = CampaignService(session)
     return svc.resume_campaign(campaign_id)
-
-
-@router.post("/{campaign_id}/stop")
-def stop_campaign(campaign_id: str, session: Session = Depends(get_db_session)) -> Dict[str, Any]:
-    """Stop/cancel a campaign."""
-    svc = CampaignService(session)
-    return svc.stop_campaign(campaign_id)
 
 
 @router.get("/{campaign_id}/progress")

@@ -39,7 +39,7 @@ class TestCampaignPersistence:
         assert recovered_campaign.status == CampaignStatus.RUNNING
         assert recovered_campaign.name == "Persistent Campaign"
 
-        # 4. Process B can pause or stop the campaign directly
+        # 4. Process B can pause the campaign directly
         recovered_campaign.pause()
         assert recovered_campaign.status == CampaignStatus.PAUSED
 
