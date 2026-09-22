@@ -173,8 +173,66 @@ function showPage(route) {
 
 async function navigate(route) {
   const page = showPage(route);
+  if (routeFromHash() !== page) location.hash = '#/' + page;
   if (page === 'senders') await getAction('openSendersDrawer')();
   if (page === 'templates') await getAction('openTemplatesDrawer')();
+}
+
+// ------------------------------------------------------------------
+// Hash routing: #/overview | #/contacts | #/senders | #/templates
+// ------------------------------------------------------------------
+const ROUTES = ['overview', 'contacts', 'senders', 'templates'];
+
+function routeFromHash() {
+  const name = (window.location.hash || '').replace(/^#\/?/, '');
+  return ROUTES.includes(name) ? name : 'overview';
+}
+
+function activePage() {
+  const el = document.querySelector('.page.active');
+  return el ? el.id.replace('page-', '') : 'overview';
+}
+
+function handleHashChange() {
+  const route = routeFromHash();
+  if (route !== activePage()) navigate(route);
+}
+
+// ------------------------------------------------------------------
+// Sidebar collapse (persisted per browser)
+// ------------------------------------------------------------------
+const SIDEBAR_KEY = 'reachout-sidebar-collapsed';
+
+function applySidebarCollapsed(collapsed) {
+  const shell = document.querySelector('.app-shell');
+  if (shell) shell.classList.toggle('sidebar-collapsed', collapsed);
+  const btn = document.getElementById('sidebar-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+  }
+}
+
+function toggleSidebar() {
+  const shell = document.querySelector('.app-shell');
+  if (!shell) return;
+  const collapsed = !shell.classList.contains('sidebar-collapsed');
+  try {
+    localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0');
+  } catch (e) {
+    /* storage unavailable; the state just does not persist */
+  }
+  applySidebarCollapsed(collapsed);
+}
+
+function initSidebar() {
+  let collapsed = false;
+  try {
+    collapsed = localStorage.getItem(SIDEBAR_KEY) === '1';
+  } catch (e) {
+    collapsed = false;
+  }
+  applySidebarCollapsed(collapsed);
 }
 
 // ------------------------------------------------------------------
@@ -206,6 +264,7 @@ registerActions({
   setActiveNav,
   showPage,
   navigate,
+  toggleSidebar,
   loadInitialData,
   setThemeMode,
   resolveConfirm,
@@ -213,10 +272,14 @@ registerActions({
 
 initDispatch();
 initModalAccessibility();
+window.addEventListener('hashchange', handleHashChange);
 
 window.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  initSidebar();
   await loadInitialData();
   subscribeToEvents(handleLiveEvent);
   initEventStream();
+  const initial = routeFromHash();
+  if (initial !== 'overview') await navigate(initial);
 });

@@ -1510,6 +1510,46 @@
       }
     }
 
+    /* Manual sidebar collapse (persisted per browser) */
+    .sidebar-toggle {
+      margin-left: auto;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 0.25rem 0.35rem;
+      border-radius: var(--radius-sm);
+    }
+    .sidebar-toggle:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
+    }
+    .app-shell.sidebar-collapsed .sidebar {
+      width: 60px;
+      padding: 0.75rem 0.4rem;
+    }
+    .app-shell.sidebar-collapsed .sidebar-brand-text,
+    .app-shell.sidebar-collapsed .nav-item > span:not(.nav-icon) {
+      display: none;
+    }
+    .app-shell.sidebar-collapsed .nav-item {
+      justify-content: center;
+    }
+    .app-shell.sidebar-collapsed .sidebar-brand {
+      justify-content: center;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .app-shell.sidebar-collapsed .sidebar-toggle {
+      margin-left: 0;
+    }
+    .app-shell.sidebar-collapsed .sidebar-toggle span {
+      display: inline-block;
+      transform: rotate(180deg);
+    }
+
     /* ===================================================================
        Overview: grouped KPI clusters, activity feed, quick actions
        =================================================================== */

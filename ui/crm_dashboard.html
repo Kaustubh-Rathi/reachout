@@ -18,18 +18,21 @@
       <div class="sidebar-brand">
         <div class="brand-badge">R</div>
         <span class="sidebar-brand-text">Reachout</span>
+        <button type="button" class="sidebar-toggle" id="sidebar-toggle" data-action="toggleSidebar" aria-label="Collapse sidebar" aria-expanded="true" title="Toggle sidebar">
+          <span aria-hidden="true">&laquo;</span>
+        </button>
       </div>
       <nav class="sidebar-nav">
-        <button type="button" class="nav-item active" data-nav="overview" data-action="navigate" data-args='["overview"]'>
+        <button type="button" class="nav-item active" data-nav="overview" data-action="navigate" data-args='["overview"]' title="Overview">
           <span class="nav-icon" aria-hidden="true">◉</span><span>Overview</span>
         </button>
-        <button type="button" class="nav-item" data-nav="contacts" data-action="navigate" data-args='["contacts"]'>
+        <button type="button" class="nav-item" data-nav="contacts" data-action="navigate" data-args='["contacts"]' title="Contacts">
           <span class="nav-icon" aria-hidden="true">☰</span><span>Contacts</span>
         </button>
-        <button type="button" class="nav-item" data-nav="senders" data-action="navigate" data-args='["senders"]'>
+        <button type="button" class="nav-item" data-nav="senders" data-action="navigate" data-args='["senders"]' title="Senders">
           <span class="nav-icon" aria-hidden="true">👥</span><span>Senders</span>
         </button>
-        <button type="button" class="nav-item" data-nav="templates" data-action="navigate" data-args='["templates"]'>
+        <button type="button" class="nav-item" data-nav="templates" data-action="navigate" data-args='["templates"]' title="Templates">
           <span class="nav-icon" aria-hidden="true">📝</span><span>Templates</span>
         </button>
       </nav>
