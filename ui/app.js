@@ -158,7 +158,10 @@ async function handleLiveEvent(ev) {
 // ------------------------------------------------------------------
 function setActiveNav(route) {
   document.querySelectorAll('.nav-item').forEach(function (el) {
-    el.classList.toggle('active', el.dataset.nav === route);
+    const isActive = el.dataset.nav === route;
+    el.classList.toggle('active', isActive);
+    if (isActive) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
   });
 }
 

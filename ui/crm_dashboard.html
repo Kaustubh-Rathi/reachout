@@ -23,7 +23,7 @@
         </button>
       </div>
       <nav class="sidebar-nav">
-        <button type="button" class="nav-item active" data-nav="overview" data-action="navigate" data-args='["overview"]' title="Overview">
+        <button type="button" class="nav-item active" data-nav="overview" data-action="navigate" data-args='["overview"]' title="Overview" aria-current="page">
           <span class="nav-icon" aria-hidden="true">◉</span><span>Overview</span>
         </button>
         <button type="button" class="nav-item" data-nav="contacts" data-action="navigate" data-args='["contacts"]' title="Contacts">
@@ -718,7 +718,7 @@
   </div>
 
   <!-- Toast Container -->
-  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+  <div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
 
   <!-- Application Logic (Vanilla JS) -->
   <script type="module" src="/ui/app.js"></script>
