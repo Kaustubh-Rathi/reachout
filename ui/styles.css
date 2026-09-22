@@ -14,7 +14,7 @@
       --border-subtle: #e8eaed;
       --border-medium: #d1d5db;
       --border-color: #d1d5db;
-      --border-focus: #2563eb;
+      --border-focus: #0284c7;
 
       --text-primary: #111827;
       --text-secondary: #4b5563;
@@ -24,9 +24,10 @@
       --accent-emerald-bg: rgba(5, 150, 105, 0.10);
       --accent-emerald-border: rgba(5, 150, 105, 0.28);
 
-      --accent-blue: #1d4ed8;
-      --accent-blue-bg: rgba(37, 99, 235, 0.10);
-      --accent-blue-border: rgba(37, 99, 235, 0.28);
+      --accent-blue: #0284c7;
+      --accent-blue-strong: #0369a1;
+      --accent-blue-bg: rgba(2, 132, 199, 0.10);
+      --accent-blue-border: rgba(2, 132, 199, 0.28);
 
       --accent-amber: #b45309;
       --accent-amber-bg: rgba(217, 119, 6, 0.12);
@@ -92,6 +93,7 @@
       --accent-emerald-border: rgba(16, 185, 129, 0.30);
 
       --accent-blue: #38bdf8;
+      --accent-blue-strong: #0ea5e9;
       --accent-blue-bg: rgba(56, 189, 248, 0.12);
       --accent-blue-border: rgba(56, 189, 248, 0.30);
 
@@ -210,7 +212,7 @@
     }
 
     .brand-badge {
-      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue-strong) 100%);
       color: white;
       font-weight: 800;
       font-size: 1rem;
@@ -295,14 +297,14 @@
     }
 
     .btn-primary {
-      background: #0284c7;
-      color: #ffffff;
-      border-color: #0284c7;
+      background: var(--accent-blue);
+      color: var(--on-blue);
+      border-color: var(--accent-blue);
       box-shadow: var(--shadow-sm);
     }
     .btn-primary:hover:not(:disabled) {
-      background: #0369a1;
-      border-color: #0369a1;
+      background: var(--accent-blue-strong);
+      border-color: var(--accent-blue-strong);
     }
 
     .btn-emerald {
@@ -663,7 +665,7 @@
 
     .progress-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #0284c7, #10b981);
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-emerald));
       transition: width 0.3s ease;
     }
 
@@ -760,14 +762,14 @@
     }
 
     .pill-btn.active {
-      background: #0284c7;
-      color: white;
-      border-color: #0284c7;
+      background: var(--accent-blue);
+      color: var(--on-blue);
+      border-color: var(--accent-blue);
     }
 
     .pill-btn.pill-followup.active {
       background: var(--accent-amber);
-      color: #451a03;
+      color: var(--on-amber);
       border-color: var(--accent-amber);
     }
 
@@ -895,7 +897,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(30, 41, 59, 0.3);
+      background: var(--bg-surface-raised);
     }
 
     .modal-header h3 {
@@ -933,7 +935,7 @@
       align-items: center;
       justify-content: flex-end;
       gap: 0.5rem;
-      background: rgba(30, 41, 59, 0.3);
+      background: var(--bg-surface-raised);
     }
 
     /* Timeline in Modal */
@@ -970,11 +972,11 @@
       height: 14px;
       border-radius: 50%;
       background: var(--bg-surface-raised);
-      border: 2px solid #0284c7;
+      border: 2px solid var(--accent-blue);
     }
 
     .timeline-dot.dot-sent { border-color: var(--accent-emerald); background: var(--accent-emerald-bg); }
-    .timeline-dot.dot-interested { border-color: #34d399; background: var(--accent-emerald); }
+    .timeline-dot.dot-interested { border-color: var(--accent-emerald); background: var(--accent-emerald); }
     .timeline-dot.dot-followup { border-color: var(--accent-amber); background: var(--accent-amber); }
     .timeline-dot.dot-failed { border-color: var(--accent-rose); background: var(--accent-rose); }
 
@@ -1316,7 +1318,7 @@
 
     .pill-btn.pill-recovery.active {
       background: var(--accent-rose);
-      color: #fff;
+      color: var(--on-rose);
       border-color: var(--accent-rose);
     }
 
