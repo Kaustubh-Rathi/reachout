@@ -4,7 +4,7 @@ Tests complete administrative workflows in headless Camoufox (Firefox), the
 same browser engine the application uses for WhatsApp automation:
 - Dashboard loading & KPI metrics
 - Contact table rendering & direct email visibility
-- Campaign lifecycle (Start, Pause, Resume, Stop)
+- Campaign lifecycle (Start, Pause, Resume)
 - Manual WhatsApp & Email dispatches & resends
 - Interested & Not-Interested state transitions
 - Interview & Not-Interview workflows
@@ -120,21 +120,19 @@ def test_contact_display_and_email_visibility(browser_page: Page):
 
 
 def test_campaign_lifecycle_controls(browser_page: Page):
-    """Test the consolidated campaign control: one context-aware action + contextual stop."""
+    """Test the consolidated campaign control: one context-aware Start/Pause/Resume action."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
     page.wait_for_selector("#campaign-action-btn", timeout=30000)
 
     action_btn = page.locator("#campaign-action-btn")
-    stop_btn = page.locator("#stop-campaign-btn")
     assert action_btn.count() == 1
-    assert stop_btn.count() == 1
 
     # Idle/terminal state exposes a single "New Run" action.
     page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=30000)
     assert "New Run" in action_btn.inner_text()
 
-    if action_btn.get_attribute("data-action") == "start":
+    if "New Run" in action_btn.inner_text():
         action_btn.click()
         page.wait_for_timeout(500)
 
@@ -359,3 +357,46 @@ def test_sidebar_navigation_and_pagination(browser_page: Page):
     page.click('[data-nav="overview"]')
     page.wait_for_selector("#campaign-control-card", timeout=30000)
     assert page.eval_on_selector("#page-overview", "el => el.classList.contains('active')")
+
+
+def test_campaign_resume_flow(browser_page: Page):
+    """A seeded PAUSED campaign exposes Resume on the primary control and resumes to RUNNING."""
+    _activate_sender("WA_E2E_SMOKE")
+    with SessionFactory() as session:
+        from app.domain.campaign import Campaign
+        from app.domain.enums import CampaignStatus, Channel
+        from app.services.campaign_service import CampaignService
+
+        camp_svc = CampaignService(session)
+        camp = Campaign.create("E2E Resume Flow Campaign", Channel.WHATSAPP)
+        camp.status = CampaignStatus.PAUSED
+        camp_svc.campaign_repo.save(camp)
+        session.commit()
+
+    page = browser_page
+    page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+
+    action_btn = page.locator("#campaign-action-btn")
+    assert "Resume" in action_btn.inner_text()
+    assert action_btn.get_attribute("data-action") == "onCampaignAction"
+
+    action_btn.click()
+    try:
+        page.wait_for_function(
+            "() => (document.getElementById('campaign-status-pill')?.innerText || '').trim() === 'RUNNING'",
+            timeout=30000,
+        )
+    except Exception as exc:
+        toasts = page.locator(".toast")
+        toast_text = toasts.first.inner_text() if toasts.count() else "(no toast shown)"
+        pytest.fail(f"Campaign did not reach RUNNING after Resume. Toast: {toast_text!r}. Error: {exc}")
+
+    status = page.locator("#campaign-status-pill").inner_text().strip()
+    if status == "RUNNING":
+        assert "Pause" in action_btn.inner_text()
+        action_btn.click()
+        page.wait_for_function(
+            "() => (document.getElementById('campaign-status-pill')?.innerText || '').trim() !== 'RUNNING'",
+            timeout=30000,
+        )
