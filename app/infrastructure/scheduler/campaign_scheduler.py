@@ -1,6 +1,6 @@
 """Persistent Campaign Scheduler and Execution Manager.
 
-Manages background campaign lifecycle (START, PAUSE, RESUME, STOP), contact
+Manages background campaign lifecycle (START, PAUSE, RESUME), contact
 selection with company-first prioritization, deterministic template rotation,
 N-scale sender distribution, quota enforcement, channel fallback, and crash recovery.
 """
@@ -59,7 +59,6 @@ class PersistentCampaignScheduler(CampaignScheduler):
         self._lock = threading.RLock()
         self._active_threads: Dict[str, threading.Thread] = {}
         self._pause_flags: Dict[str, threading.Event] = {}
-        self._stop_flags: Dict[str, threading.Event] = {}
 
     def is_running(self, campaign_id: str) -> bool:
         """Check if background worker thread is actively executing for campaign."""
@@ -96,7 +95,6 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     session.commit()
 
             self._pause_flags[campaign_id] = threading.Event()
-            self._stop_flags[campaign_id] = threading.Event()
 
             t = threading.Thread(
                 target=self._run_campaign_loop,
@@ -153,7 +151,6 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     self._pause_flags[campaign_id].clear()
             else:
                 self._pause_flags[campaign_id] = threading.Event()
-                self._stop_flags[campaign_id] = threading.Event()
                 new_t = threading.Thread(
                     target=self._run_campaign_loop,
                     args=(campaign_id, None),
@@ -170,42 +167,12 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 )
             )
 
-    def stop_campaign(self, campaign_id: str) -> None:
-        """Stop an active or paused campaign permanently."""
-        with self._lock:
-            if campaign_id in self._stop_flags:
-                self._stop_flags[campaign_id].set()
-            if campaign_id in self._pause_flags:
-                self._pause_flags[campaign_id].clear()
-
-            with self.session_factory() as session:
-                campaign_repo = self.repository_factory(session).campaign
-                campaign = campaign_repo.get_by_id(campaign_id)
-                if campaign and not campaign.status.is_terminal:
-                    campaign_repo.set_status(
-                        campaign_id,
-                        CampaignStatus.STOPPED,
-                        ended_at=self.clock.now(),
-                    )
-                    session.commit()
-
-            self.event_publisher.publish(
-                DomainEvent(
-                    event_type="CAMPAIGN_STOPPED",
-                    payload={"campaign_id": campaign_id},
-                )
-            )
-
     def _run_campaign_loop(self, campaign_id: str, max_count: Optional[int] = None) -> None:
         """Background loop executing campaign attempts using OutreachWorker and RateLimiter."""
-        stop_flag = self._stop_flags.get(campaign_id)
         pause_flag = self._pause_flags.get(campaign_id)
         dispatched_count = 0
 
         while True:
-            if stop_flag and stop_flag.is_set():
-                break
-
             if pause_flag and pause_flag.is_set():
                 time.sleep(0.1)
                 continue
@@ -496,7 +463,6 @@ class PersistentCampaignScheduler(CampaignScheduler):
         with self._lock:
             self._active_threads.pop(campaign_id, None)
             self._pause_flags.pop(campaign_id, None)
-            self._stop_flags.pop(campaign_id, None)
 
 
 # Canonical singleton instance & registry

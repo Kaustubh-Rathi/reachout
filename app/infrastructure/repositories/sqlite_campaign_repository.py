@@ -96,7 +96,7 @@ class SqliteCampaignRepository(CampaignRepository):
         """Atomically update only the status (and optional ended_at) columns.
 
         Does not touch metadata_json, so control-plane status changes (pause /
-        resume / stop) can never clobber the worker's quota counters.
+        resume) can never clobber the worker's quota counters.
         """
         self.session.execute(
             update(CampaignModel)

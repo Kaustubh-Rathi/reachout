@@ -20,7 +20,6 @@ class TestStateTransitionsAndEnums:
         assert not CampaignStatus.PAUSED.is_active
 
         assert CampaignStatus.COMPLETED.is_terminal
-        assert CampaignStatus.STOPPED.is_terminal
         assert CampaignStatus.FAILED.is_terminal
         assert not CampaignStatus.RUNNING.is_terminal
 

@@ -193,7 +193,7 @@ class TestSchedulerAndRateLimiterIntegration:
 
 
 # ==============================================================================
-# 5. CAMPAIGN FULL LIFECYCLE (START -> PAUSE -> RESUME -> STOP -> COMPLETED)
+# 5. CAMPAIGN FULL LIFECYCLE (START -> PAUSE -> RESUME -> COMPLETED)
 # ==============================================================================
 
 
@@ -265,19 +265,12 @@ class TestCampaignFullLifecycle:
                 resumed = camp_svc.resume_campaign(camp_id)
                 assert resumed["status"] in ("RUNNING", "COMPLETED", "PAUSED")
 
-        # 4. STOP
-        with SessionFactory() as session:
-            camp_svc = CampaignService(session, scheduler=scheduler)
-            stopped = camp_svc.stop_campaign(camp_id)
-            assert stopped["status"] in ("STOPPED", "COMPLETED", "PAUSED")
-
         # Verify DB persistence
         with SessionFactory() as session:
             camp_repo = SqliteCampaignRepository(session)
             camp_in_db = camp_repo.get_by_id(camp_id)
             assert camp_in_db is not None
             assert camp_in_db.status in (
-                CampaignStatus.STOPPED,
                 CampaignStatus.COMPLETED,
                 CampaignStatus.PAUSED,
                 CampaignStatus.RUNNING,
