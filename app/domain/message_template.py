@@ -21,7 +21,23 @@ from app.domain.contact import Contact
 from app.domain.enums import Channel
 from app.domain.template_rendering import RenderedMessage, render_template, validate_template
 
-__all__ = ["MessageTemplate", "RenderedMessage"]
+__all__ = ["MessageTemplate", "RenderedMessage", "normalize_attachment_ref"]
+
+
+def normalize_attachment_ref(ref: Optional[str]) -> Optional[str]:
+    """Normalize a user-supplied attachment reference without touching the filesystem.
+
+    Strips surrounding whitespace and one pair of matching surrounding quotes
+    (template refs are often pasted from spreadsheet cells as
+    ``"D:\\Resume\\cv.pdf"``). Pure string handling, so it is safe to call
+    from the domain layer and from validators.
+    """
+    if ref is None:
+        return None
+    text = ref.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in ('"', "'"):
+        text = text[1:-1].strip()
+    return text
 
 
 @dataclass
@@ -57,6 +73,7 @@ class MessageTemplate:
             self.id = f"tmpl_{self.channel.value.lower()}_{uuid.uuid4().hex[:8]}"
         if self.channel == Channel.EMAIL and not self.subject:
             self.subject = "Exploring opportunities at [Company Name]"
+        self.attachment_ref = normalize_attachment_ref(self.attachment_ref)
 
     @classmethod
     def create(

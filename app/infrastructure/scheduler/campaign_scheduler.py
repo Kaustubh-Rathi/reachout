@@ -24,6 +24,7 @@ from app.domain.policies.sender_rotation import SenderRotationPolicy
 from app.domain.policies.template_rotation import select_template_round_robin
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
+from app.infrastructure.providers.attachments import resolve_attachment_path
 from app.infrastructure.providers.factory import get_email_provider, get_whatsapp_provider
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.candidate_selector import CandidateSelector
@@ -70,6 +71,32 @@ class PersistentCampaignScheduler(CampaignScheduler):
         """Scan for orphaned in-flight attempts after a restart and recover them."""
         return self.crash_recovery.run()
 
+    def _validate_template_attachments(self, session, campaign, operation: str) -> None:
+        """Refuse to run when a template attachment cannot be resolved.
+
+        Raises ValidationError before any worker spawns or status flips, so a
+        bad attachment path surfaces once instead of failing every candidate
+        in the run. The campaign keeps its status and can start/resume after
+        the template path is fixed.
+        """
+        template_repo = self.repository_factory(session).template
+        templates = template_repo.list_by_channel(campaign.channel, active_only=True)
+        if not templates:
+            templates = template_repo.list_by_channel(campaign.channel, active_only=False)
+        offenders = []
+        for tmpl in templates:
+            ref = tmpl.attachment_ref
+            if ref:
+                resolved = resolve_attachment_path(ref)
+                if resolved is None or not resolved.exists():
+                    offenders.append(f"{tmpl.id} ({ref})")
+        if offenders:
+            raise ValidationError(
+                f"Cannot {operation} campaign '{campaign.id}': "
+                f"template attachment(s) not found: {', '.join(offenders)}. "
+                "Fix the template attachment path and retry."
+            )
+
     def start_campaign(self, campaign_id: str, max_count: Optional[int] = None) -> None:
         """Start execution of a campaign in the background."""
         with self._lock:
@@ -81,6 +108,8 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
                 if self.is_running(campaign_id):
                     return
+
+                self._validate_template_attachments(session, campaign, operation="start")
 
                 if campaign.status == CampaignStatus.PAUSED:
                     self.resume_campaign(campaign_id)
@@ -140,6 +169,8 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 campaign = campaign_repo.get_by_id(campaign_id)
                 if not campaign:
                     raise NotFoundError(f"Campaign '{campaign_id}' not found")
+
+                self._validate_template_attachments(session, campaign, operation="resume")
 
                 if campaign.status == CampaignStatus.PAUSED:
                     campaign_repo.set_status(campaign_id, CampaignStatus.RUNNING)
