@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -10,7 +11,10 @@ from sqlalchemy.orm import Session
 from app.domain.enums import Channel
 from app.domain.message_template import MessageTemplate
 from app.infrastructure.models import MessageTemplateModel
+from app.infrastructure.providers.attachments import resolve_attachment_path
 from app.ports.repositories import TemplateRepository
+
+logger = logging.getLogger(__name__)
 
 
 class SqliteTemplateRepository(TemplateRepository):
@@ -41,6 +45,16 @@ class SqliteTemplateRepository(TemplateRepository):
         return [m.to_domain() for m in models]
 
     def save(self, template: MessageTemplate) -> MessageTemplate:
+        ref = template.attachment_ref
+        if ref:
+            resolved = resolve_attachment_path(ref)
+            if resolved is None or not resolved.exists():
+                logger.warning(
+                    "Saving template '%s' with unresolvable attachment ref %r; "
+                    "dispatches using it will fail until the file exists.",
+                    template.id,
+                    ref,
+                )
         existing = self.session.get(MessageTemplateModel, template.id)
         if existing:
             existing.name = template.name

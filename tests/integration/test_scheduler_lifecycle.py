@@ -11,6 +11,7 @@ from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import CampaignStatus, Channel, OutreachStatus
+from app.domain.errors import ValidationError
 from app.domain.message_template import MessageTemplate
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
@@ -221,3 +222,60 @@ class TestSchedulerLifecycle:
             camp_repo = SqliteCampaignRepository(session)
             camp = camp_repo.get_by_id("cmp_pause_01")
             assert camp.status in (CampaignStatus.RUNNING, CampaignStatus.COMPLETED)
+
+    def test_start_and_resume_refuse_unresolvable_template_attachment(self, scheduler_env, tmp_path):
+        """A bad template attachment path fails fast once instead of failing every candidate."""
+        session_factory = scheduler_env["session_factory"]
+        scheduler = scheduler_env["scheduler"]
+        missing = str(tmp_path / "no-such-resume.pdf")
+
+        with session_factory() as session:
+            SqliteTemplateRepository(session).save(
+                MessageTemplate.create(
+                    template_id="tmpl_wa_bad",
+                    name="Bad attachment",
+                    channel=Channel.WHATSAPP,
+                    body="Hello {name}",
+                    attachment_ref=f'"{missing}"',
+                )
+            )
+            camp_repo = SqliteCampaignRepository(session)
+            camp_repo.save(
+                Campaign.create(
+                    name="Bad Attachment Campaign",
+                    channel=Channel.WHATSAPP,
+                    template_ids=["tmpl_wa_bad"],
+                    sender_account_ids=["snd_wa_1"],
+                    campaign_id="cmp_bad_attach_01",
+                )
+            )
+            session.commit()
+
+        with pytest.raises(ValidationError, match="not found"):
+            scheduler.start_campaign("cmp_bad_attach_01")
+
+        with session_factory() as session:
+            camp = SqliteCampaignRepository(session).get_by_id("cmp_bad_attach_01")
+            assert camp.status == CampaignStatus.IDLE
+        assert not scheduler.is_running("cmp_bad_attach_01")
+
+        with session_factory() as session:
+            camp_repo = SqliteCampaignRepository(session)
+            camp_repo.save(
+                Campaign.create(
+                    name="Bad Attachment Resume Campaign",
+                    channel=Channel.WHATSAPP,
+                    template_ids=["tmpl_wa_bad"],
+                    sender_account_ids=["snd_wa_1"],
+                    campaign_id="cmp_bad_attach_02",
+                )
+            )
+            camp_repo.set_status("cmp_bad_attach_02", CampaignStatus.PAUSED)
+            session.commit()
+
+        with pytest.raises(ValidationError, match="not found"):
+            scheduler.resume_campaign("cmp_bad_attach_02")
+
+        with session_factory() as session:
+            camp = SqliteCampaignRepository(session).get_by_id("cmp_bad_attach_02")
+            assert camp.status == CampaignStatus.PAUSED

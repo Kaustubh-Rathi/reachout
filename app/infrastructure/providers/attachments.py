@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.config import ROOT_DIR
+from app.domain.message_template import normalize_attachment_ref
 
 
 def resolve_attachment_path(ref: Optional[str]) -> Optional[Path]:
@@ -19,9 +20,14 @@ def resolve_attachment_path(ref: Optional[str]) -> Optional[Path]:
     Returns the resolved path whether or not it exists, or ``None`` when no
     reference was supplied. Callers decide how to handle a missing file.
     """
-    if not ref or not str(ref).strip():
+    text = normalize_attachment_ref(ref)
+    if not text:
         return None
-    path = Path(str(ref).strip()).expanduser()
+    # Template refs are user-supplied and sometimes arrive wrapped in literal
+    # quotes (e.g. pasted from a spreadsheet cell as `"D:\\Resume\\cv.pdf"`).
+    # Normalization strips one pair of matching surrounding quotes so the
+    # path can resolve instead of failing every dispatch.
+    path = Path(text).expanduser()
     if not path.is_absolute():
         path = ROOT_DIR / path
     return path
