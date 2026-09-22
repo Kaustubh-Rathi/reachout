@@ -5,9 +5,6 @@ import { state } from '../modules/store.js';
 import { registerActions, getAction } from '../modules/actions.js';
 import { renderSenderCard, senderActionsHtml } from '../components/sender_card.js';
 
-// Shared QR polling timer id for open/close/poll WhatsApp auth functions.
-let waQrPollTimer = null;
-
 // 9. Senders & Authentication Control Plane (Phase 8.2 & 8.3)
 async function openSendersDrawer() {
   getAction('showPage')('senders');
