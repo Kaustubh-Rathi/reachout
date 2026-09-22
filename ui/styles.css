@@ -147,6 +147,22 @@
       --radius-md: 10px;
       --radius-lg: 14px;
       --radius-full: 9999px;
+
+      /* Spacing scale */
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.5rem;
+      --space-6: 2rem;
+
+      /* Type scale */
+      --text-xs: 0.725rem;
+      --text-sm: 0.775rem;
+      --text-base: 0.825rem;
+      --text-md: 0.85rem;
+      --text-lg: 1.05rem;
+      --text-xl: 1.5rem;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -277,10 +293,10 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.45rem;
-      font-size: 0.825rem;
+      gap: var(--space-2);
+      font-size: var(--text-base);
       font-weight: 600;
-      padding: 0.45rem 0.85rem;
+      padding: var(--space-2) var(--space-3);
       border-radius: var(--radius-sm);
       cursor: pointer;
       border: 1px solid transparent;
@@ -356,22 +372,22 @@
     }
 
     .btn-icon {
-      padding: 0.4rem;
+      padding: var(--space-1);
       width: 2rem;
       height: 2rem;
-      font-size: 0.95rem;
+      font-size: var(--text-lg);
       line-height: 1;
     }
 
     .btn-xs {
-      font-size: 0.725rem;
-      padding: 0.25rem 0.5rem;
+      font-size: var(--text-xs);
+      padding: var(--space-1) var(--space-2);
       border-radius: var(--radius-xs);
     }
 
     .btn-sm {
-      font-size: 0.775rem;
-      padding: 0.35rem 0.65rem;
+      font-size: var(--text-sm);
+      padding: var(--space-1) var(--space-3);
     }
 
     /* Visible keyboard focus for every interactive control */
@@ -527,10 +543,10 @@
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 0.85rem 1rem;
+      padding: var(--space-3) var(--space-4);
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
+      gap: var(--space-1);
       position: relative;
       overflow: hidden;
       transition: transform 0.15s ease, border-color 0.15s ease;
@@ -892,7 +908,7 @@
     }
 
     .modal-header {
-      padding: 1rem 1.25rem;
+      padding: var(--space-4) var(--space-5);
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
@@ -921,20 +937,20 @@
     }
 
     .modal-body {
-      padding: 1.25rem;
+      padding: var(--space-5);
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 0.9rem;
+      gap: var(--space-4);
     }
 
     .modal-footer {
-      padding: 0.85rem 1.25rem;
+      padding: var(--space-3) var(--space-5);
       border-top: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 0.5rem;
+      gap: var(--space-2);
       background: var(--bg-surface-raised);
     }
 
@@ -1458,14 +1474,14 @@
     .nav-item {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
+      gap: var(--space-2);
       width: 100%;
-      padding: 0.5rem 0.65rem;
+      padding: var(--space-2) var(--space-3);
       border: none;
       border-radius: var(--radius-sm);
       background: transparent;
       color: var(--text-secondary);
-      font-size: 0.85rem;
+      font-size: var(--text-md);
       font-weight: 600;
       cursor: pointer;
       text-align: left;
