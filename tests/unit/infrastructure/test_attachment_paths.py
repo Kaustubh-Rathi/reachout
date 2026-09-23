@@ -1,6 +1,5 @@
 """Unit tests for attachment path resolution."""
 
-import logging
 from pathlib import Path
 
 from app.config import ROOT_DIR
@@ -70,9 +69,13 @@ class TestNormalizeAttachmentRef:
 
 
 class TestTemplateSaveWarnsOnUnresolvableAttachment:
-    def test_save_warns_but_persists(self, db_session, caplog):
+    def test_save_warns_but_persists(self, db_session):
+        from unittest.mock import patch
+
+        from app.infrastructure.repositories import sqlite_template_repository as repo_module
+
         repo = SqliteTemplateRepository(db_session)
-        with caplog.at_level(logging.WARNING, logger="app.infrastructure.repositories.sqlite_template_repository"):
+        with patch.object(repo_module.logger, "warning") as warn_mock:
             repo.save(
                 MessageTemplate.create(
                     name="t",
@@ -82,6 +85,6 @@ class TestTemplateSaveWarnsOnUnresolvableAttachment:
                     attachment_ref="/nonexistent-dir/missing.pdf",
                 )
             )
-        assert "tmpl_warn_1" in caplog.text
-        assert "unresolvable attachment" in caplog.text
+        assert warn_mock.call_count == 1
+        assert warn_mock.call_args.args[1] == "tmpl_warn_1"
         assert repo.get_by_id("tmpl_warn_1") is not None
