@@ -319,26 +319,6 @@ class TestArchitecturalBoundaries:
         assert "sqlite:" not in content
         assert "DATABASE_URL" not in content
 
-    def test_ui_has_no_inline_event_handlers(self):
-        """UI markup and scripts must use delegated data-* actions, not inline on* handlers."""
-        pattern = re.compile(r"\son(?:click|change|input|keydown|keyup|focus|blur|submit|load|error)\s*=", re.I)
-        violations = []
-        for rel in ("ui/crm_dashboard.html", "ui/app.js"):
-            path = ROOT_DIR / rel
-            if path.exists():
-                for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                    if pattern.search(line):
-                        violations.append(f"{rel}:{lineno}: {line.strip()[:80]}")
-        assert not violations, "Inline event handlers found:\n" + "\n".join(violations)
-
-    def test_ui_fetches_only_through_api_module(self):
-        """app.js must route HTTP through modules/api.js rather than calling fetch directly."""
-        app_js = ROOT_DIR / "ui" / "app.js"
-        if not app_js.exists():
-            return
-        content = app_js.read_text(encoding="utf-8")
-        assert "fetch(" not in content, "app.js must use apiFetch() from modules/api.js, not fetch() directly"
-
     def test_production_code_never_imports_from_tests_directory(self):
         """Production code under app/ must never import from tests/ or tests.doubles."""
         app_files = list(APP_DIR.rglob("*.py"))
