@@ -16,21 +16,21 @@ class TestResolveAttachmentPath:
         assert resolve_attachment_path("   ") is None
 
     def test_absolute_path_passes_through(self):
-        assert resolve_attachment_path(r"D:\Resume\Kaustubh.pdf") == Path(r"D:\Resume\Kaustubh.pdf")
+        assert resolve_attachment_path(r"D:\Resume\cv.pdf") == Path(r"D:\Resume\cv.pdf")
 
     def test_surrounding_double_quotes_are_stripped(self):
-        assert resolve_attachment_path(r'"D:\Resume\Kaustubh.pdf"') == Path(r"D:\Resume\Kaustubh.pdf")
+        assert resolve_attachment_path(r'"D:\Resume\cv.pdf"') == Path(r"D:\Resume\cv.pdf")
 
     def test_surrounding_single_quotes_are_stripped(self):
-        assert resolve_attachment_path(r"'D:\Resume\Kaustubh.pdf'") == Path(r"D:\Resume\Kaustubh.pdf")
+        assert resolve_attachment_path(r"'D:\Resume\cv.pdf'") == Path(r"D:\Resume\cv.pdf")
 
     def test_quoted_path_with_inner_whitespace(self):
-        assert resolve_attachment_path('  "D:\\Resume\\Kaustubh.pdf"  ') == Path(r"D:\Resume\Kaustubh.pdf")
+        assert resolve_attachment_path('  "D:\\Resume\\cv.pdf"  ') == Path(r"D:\Resume\cv.pdf")
 
     def test_mismatched_quotes_are_not_stripped(self):
         # A leading quote makes the path relative, so normal repo-root
         # resolution applies; only matching pairs are unwrapped.
-        assert resolve_attachment_path(r'"D:\Resume\Kaustubh.pdf') == ROOT_DIR / r'"D:\Resume\Kaustubh.pdf'
+        assert resolve_attachment_path(r'"D:\Resume\cv.pdf') == ROOT_DIR / r'"D:\Resume\cv.pdf'
 
     def test_interior_quotes_are_preserved(self):
         assert resolve_attachment_path(r'D:\Resume\my "final" cv.pdf') == Path(r'D:\Resume\my "final" cv.pdf')
@@ -52,7 +52,7 @@ class TestNormalizeAttachmentRef:
         assert normalize_attachment_ref(None) is None
 
     def test_quoted_ref_is_unwrapped(self):
-        assert normalize_attachment_ref('"D:\\Resume\\Kaustubh.pdf"') == r"D:\Resume\Kaustubh.pdf"
+        assert normalize_attachment_ref('"D:\\Resume\\cv.pdf"') == r"D:\Resume\cv.pdf"
 
     def test_plain_ref_is_only_stripped(self):
         assert normalize_attachment_ref("  data/resume.pdf  ") == "data/resume.pdf"
@@ -63,9 +63,9 @@ class TestNormalizeAttachmentRef:
             channel=Channel.WHATSAPP,
             body="hi",
             template_id="tmpl_norm_1",
-            attachment_ref='"D:\\Resume\\Kaustubh.pdf"',
+            attachment_ref='"D:\\Resume\\cv.pdf"',
         )
-        assert tmpl.attachment_ref == r"D:\Resume\Kaustubh.pdf"
+        assert tmpl.attachment_ref == r"D:\Resume\cv.pdf"
 
 
 class TestTemplateSaveWarnsOnUnresolvableAttachment:
