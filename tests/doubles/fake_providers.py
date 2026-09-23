@@ -9,12 +9,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.ports.providers import (
     EmailProvider,
     ProviderSendResult,
-    ProviderStatusResult,
     WhatsAppProvider,
 )
 
@@ -73,9 +71,6 @@ class FakeWhatsAppProvider(WhatsAppProvider):
             ref = f"wa_ref_{int(datetime.now().timestamp() * 1000)}_{len(self.sent_calls)}"
             return ProviderSendResult.sent(provider_reference=ref)
         return ProviderSendResult.failed("ERR_SEND_FAILED", "Default fake failure")
-
-    def check_status(self, provider_reference: str) -> ProviderStatusResult:
-        return ProviderStatusResult(status=OutreachStatus.SENT, detail="Fake status check passed")
 
 
 class FakeEmailProvider(EmailProvider):
@@ -155,9 +150,6 @@ class FakeEmailProvider(EmailProvider):
             ref = f"em_ref_{int(datetime.now().timestamp() * 1000)}_{len(self.sent_calls)}"
             return ProviderSendResult.sent(provider_reference=ref)
         return ProviderSendResult.failed("ERR_SMTP_AUTH", "SMTP Auth Failed")
-
-    def check_status(self, provider_reference: str) -> ProviderStatusResult:
-        return ProviderStatusResult(status=OutreachStatus.SENT, detail="Fake email status check passed")
 
 
 # Backward compatible aliases for test suites

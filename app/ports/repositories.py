@@ -153,10 +153,6 @@ class TemplateRepository(Protocol):
         """List message templates for a given channel, optionally only active ones."""
         ...
 
-    def list_all(self, active_only: bool = False) -> List[MessageTemplate]:
-        """List all message templates, optionally only active ones."""
-        ...
-
     def save(self, template: MessageTemplate) -> MessageTemplate:
         """Upsert a message template."""
         ...

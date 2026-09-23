@@ -36,14 +36,6 @@ class SqliteTemplateRepository(TemplateRepository):
         models = self.session.scalars(stmt).all()
         return [m.to_domain() for m in models]
 
-    def list_all(self, active_only: bool = False) -> List[MessageTemplate]:
-        stmt = select(MessageTemplateModel)
-        if active_only:
-            stmt = stmt.where(MessageTemplateModel.active)
-        stmt = stmt.order_by(MessageTemplateModel.id)
-        models = self.session.scalars(stmt).all()
-        return [m.to_domain() for m in models]
-
     def save(self, template: MessageTemplate) -> MessageTemplate:
         ref = template.attachment_ref
         if ref:

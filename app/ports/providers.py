@@ -81,10 +81,6 @@ class WhatsAppProvider(Protocol):
         """Dispatch a single WhatsApp text/attachment message."""
         ...
 
-    def check_status(self, provider_reference: str) -> ProviderStatusResult:
-        """Query delivery status from provider if supported."""
-        ...
-
 
 @runtime_checkable
 class EmailProvider(Protocol):
