@@ -203,7 +203,7 @@ class OutreachWorker:
                 if existing_attempt.status == OutreachStatus.PREPARED:
                     attempt = existing_attempt
                 else:
-                    # Previous attempt reached a terminal non-sent status (FAILED, CANCELLED, etc.).
+                    # Previous attempt reached a terminal non-sent status (FAILED, UNKNOWN, RECOVERY_REQUIRED).
                     # A retry must generate a distinct idempotency key and create a fresh PREPARED attempt.
                     retry_key = generate_idempotency_key(
                         contact_id=contact.contact_id,

@@ -18,7 +18,7 @@ from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.infrastructure.providers.attachments import resolve_attachment_path
 from app.infrastructure.providers.session_manager import WhatsAppSessionManager
-from app.ports.providers import ProviderSendResult, ProviderStatusResult
+from app.ports.providers import ProviderSendResult
 
 logger = logging.getLogger(__name__)
 
@@ -322,15 +322,3 @@ class PlaywrightWhatsAppProvider:
 
         except Exception as exc:
             return ProviderSendResult.unknown(reason=f"Camoufox automation encountered unexpected exception: {exc}")
-
-    def check_status(self, provider_reference: str) -> ProviderStatusResult:
-        """Report delivery status.
-
-        WhatsApp Web exposes no read receipt for arbitrary references, so this
-        adapter cannot confirm delivery. It reports ``UNKNOWN`` rather than
-        falsely claiming success.
-        """
-        return ProviderStatusResult(
-            status=OutreachStatus.UNKNOWN,
-            detail="WhatsApp Web does not expose delivery confirmation for this reference",
-        )

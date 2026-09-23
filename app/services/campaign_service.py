@@ -69,10 +69,6 @@ class CampaignService:
         campaigns = self.campaign_repo.list_all()
         return [self.get_campaign_progress(c.id) for c in campaigns]
 
-    def get_campaign(self, campaign_id: str) -> Optional[Campaign]:
-        """Get campaign entity by ID."""
-        return self.campaign_repo.get_by_id(campaign_id)
-
     def get_campaign_progress(self, campaign_id: str) -> Dict[str, Any]:
         """Aggregate real-time campaign statistics, round metrics, and quotas from database state."""
         campaign = self.campaign_repo.get_by_id(campaign_id)

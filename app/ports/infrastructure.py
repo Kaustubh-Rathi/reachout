@@ -42,9 +42,6 @@ class FrozenClock:
     def now(self) -> datetime:
         return self._current_time
 
-    def set_time(self, new_time: datetime) -> None:
-        self._current_time = new_time
-
     def advance(self, **delta_kwargs: Any) -> None:
         from datetime import timedelta
 
