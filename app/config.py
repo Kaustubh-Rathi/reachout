@@ -40,6 +40,14 @@ def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
+def _env_int(name: str, default: int) -> int:
+    """Read an integer environment variable, falling back to a configured default."""
+    try:
+        return int(os.environ.get(name, str(default)).strip())
+    except (ValueError, AttributeError):
+        return default
+
+
 # ---------------------------------------------------------------------------
 # Outreach limits (configurable; UI must never default above DEFAULT).
 # ---------------------------------------------------------------------------
@@ -47,6 +55,12 @@ def _env(name: str, default: str = "") -> str:
 DEFAULT_OUTREACH_LIMIT = 100
 # Absolute ceiling enforced by the UI limit input.
 MAX_OUTREACH_LIMIT = 1000
+
+# Per-send WhatsApp Web chat-sync ceiling (seconds). Slow machines and large
+# chat histories need room to finish syncing; when exceeded the send fails
+# fast with ERR_SYNC_TIMEOUT instead of hanging. Applies to the chat-list
+# readiness wait only, not the other per-stage timeouts.
+WHATSAPP_SYNC_TIMEOUT_SECONDS = _env_int("OUTREACH_WHATSAPP_SYNC_TIMEOUT", 120)
 
 # Default follow-up reminder threshold (days) for interested contacts is defined in
 # app.domain.policies.reminder_policy (single source of truth) and imported above.
@@ -85,3 +99,5 @@ SENDER_PROFILE = {
 # reads configuration from this module instead of duplicating magic numbers.
 HTML_DEFAULT_LIMIT_TOKEN = "__DEFAULT_OUTREACH_LIMIT__"
 HTML_MAX_LIMIT_TOKEN = "__MAX_OUTREACH_LIMIT__"
+# Bumped on every deploy so browsers never serve a stale cached UI shell.
+HTML_ASSET_VERSION_TOKEN = "__ASSET_VERSION__"

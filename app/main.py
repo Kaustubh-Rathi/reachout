@@ -7,6 +7,7 @@ serving the operational dashboard UI, and managing startup/shutdown lifecycle.
 from __future__ import annotations
 
 import logging
+import subprocess
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,6 +21,7 @@ from app.api import api_router
 from app.api.error_handlers import register_exception_handlers
 from app.config import (
     DEFAULT_OUTREACH_LIMIT,
+    HTML_ASSET_VERSION_TOKEN,
     HTML_DEFAULT_LIMIT_TOKEN,
     HTML_MAX_LIMIT_TOKEN,
     MAX_OUTREACH_LIMIT,
@@ -37,6 +39,28 @@ UI_DIR = ROOT_DIR / "ui"
 DATA_DIR = ROOT_DIR / "data"
 
 logger = logging.getLogger(__name__)
+
+
+def _asset_version() -> str:
+    """Short git SHA used to version /ui asset URLs so browsers never serve
+    a stale cached shell after a deploy. Falls back to "dev" outside git."""
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=ROOT_DIR,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        sha = out.stdout.strip()
+        if out.returncode == 0 and sha:
+            return sha
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return "dev"
+
+
+ASSET_VERSION = _asset_version()
 
 
 @asynccontextmanager
@@ -134,7 +158,10 @@ def index():
     # Inject configured limits so the frontend never hardcodes magic numbers.
     html = html.replace(HTML_DEFAULT_LIMIT_TOKEN, str(DEFAULT_OUTREACH_LIMIT))
     html = html.replace(HTML_MAX_LIMIT_TOKEN, str(MAX_OUTREACH_LIMIT))
-    return html
+    # Version asset URLs + force revalidation so a deploy can never leave a
+    # stale cached shell (e.g. a removed button) behind in the browser.
+    html = html.replace(HTML_ASSET_VERSION_TOKEN, ASSET_VERSION)
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-cache"})
 
 
 def main():

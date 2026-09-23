@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from app.config import WHATSAPP_SYNC_TIMEOUT_SECONDS
 from app.domain.enums import OutreachStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.infrastructure.providers.attachments import resolve_attachment_path
@@ -43,11 +44,15 @@ class PlaywrightWhatsAppProvider:
         headless: bool = False,
         timeout_seconds: int = 60,
         expected_identity: Optional[str] = None,
+        sync_timeout_seconds: Optional[int] = None,
     ) -> None:
         self.session_manager = session_manager
         self.headless = headless
         self.timeout_seconds = timeout_seconds
         self.expected_identity = expected_identity
+        self.sync_timeout_seconds = (
+            sync_timeout_seconds if sync_timeout_seconds is not None else WHATSAPP_SYNC_TIMEOUT_SECONDS
+        )
 
     def send_message(
         self,
@@ -89,6 +94,7 @@ class PlaywrightWhatsAppProvider:
 
         session_dir = self.session_manager.get_session_dir(attempt.sender_account_id)
         timeout_ms = self.timeout_seconds * 1000
+        sync_timeout_ms = self.sync_timeout_seconds * 1000
 
         session_dir.mkdir(parents=True, exist_ok=True)
         # Overwrite (not append): append mode accumulated hundreds of duplicate
@@ -141,9 +147,9 @@ class PlaywrightWhatsAppProvider:
 
                 # Wait for the chat list (#side) to prove the app is fully synced and ready.
                 # Large histories can take over a minute to download ("Loading your
-                # chats"), so honor the configured timeout instead of a fixed 30s.
+                # chats"), so honor the configured sync ceiling instead of a fixed 30s.
                 try:
-                    page.wait_for_selector("#side", timeout=timeout_ms)
+                    page.wait_for_selector("#side", timeout=sync_timeout_ms)
                 except Exception:
                     # Re-check QR last: a session that expired mid-sync shows the
                     # login screen instead of the chat list.
