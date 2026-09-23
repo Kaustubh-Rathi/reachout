@@ -17,7 +17,6 @@ const SSE_EVENT_TYPES = [
   'SENDER_STATUS_CHANGED', 'SENDER_QR_RECEIVED', 'SENDER_AUTH_PROGRESS',
 ];
 
-let subscriber = null;
 const subscribers = new Set();
 
 function subscribeToEvents(listener) {
@@ -72,7 +71,10 @@ function handleRaw(data) {
   // The WebSocket transport sets `type` to the dot-notation name
   // (e.g. "sender.status.changed") while SSE sets `event_type` to the
   // canonical snake_case name. Normalize both to one uppercase snake_case key.
+  // Transport control messages (connect handshakes) carry no event and must
+  // not reach the activity feed.
   const rawType = parsed.event_type || parsed.type || '';
+  if (!rawType || rawType.toLowerCase() === 'connected') return;
   emit({
     type: String(rawType).toUpperCase().replace(/\./g, '_'),
     payload: parsed.payload || {},

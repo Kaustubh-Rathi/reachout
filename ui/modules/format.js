@@ -16,3 +16,21 @@ export function formatDate(dateStr) {
     return '';
   }
 }
+
+export function formatTime(dateStr) {
+  if (!dateStr) return '';
+  try {
+    let s = String(dateStr).trim();
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s) && !/([Zz]|[+-]\d{2}:?\d{2}(:\d{2})?)$/.test(s)) {
+      s += 'Z';
+    }
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return '';
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  } catch (err) {
+    return '';
+  }
+}

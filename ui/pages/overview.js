@@ -1,4 +1,5 @@
 import { api, apiErrorText } from '../modules/api.js';
+import { formatTime } from '../modules/format.js';
 import { showToast } from '../modules/toast.js';
 import { state } from '../modules/store.js';
 import { registerActions, getAction } from '../modules/actions.js';
@@ -221,7 +222,7 @@ function addActivityItem(text, occurredAt) {
   item.className = 'activity-item';
   const time = document.createElement('span');
   time.className = 'activity-time';
-  time.textContent = occurredAt ? String(occurredAt).slice(11, 16) : '';
+  time.textContent = formatTime(occurredAt);
   const body = document.createElement('span');
   body.className = 'activity-text';
   body.textContent = text;
