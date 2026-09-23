@@ -210,7 +210,7 @@ class WhatsAppSessionManager:
             self.set_auth_state(sender_id, SenderStatus.AUTHENTICATING)
             if on_event_callback:
                 on_event_callback(
-                    "sender.auth_progress",
+                    "SENDER_AUTH_PROGRESS",
                     {
                         "sender_id": sender_id,
                         "channel": "WHATSAPP",
@@ -349,7 +349,7 @@ class WhatsAppSessionManager:
                             _auth_log(f"[auth] sender={sender_id} QR_CAPTURED len={len(qr_data_url)}")
                             if callback:
                                 callback(
-                                    "sender.qr_received",
+                                    "SENDER_QR_RECEIVED",
                                     {
                                         "sender_id": sender_id,
                                         "channel": "WHATSAPP",
