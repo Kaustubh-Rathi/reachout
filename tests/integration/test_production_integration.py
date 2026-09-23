@@ -46,7 +46,7 @@ from app.infrastructure.scheduler.campaign_scheduler import (
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import SystemClock
-from app.ports.providers import ProviderSendResult, ProviderStatusResult
+from app.ports.providers import ProviderSendResult
 from app.services.campaign_service import CampaignService
 from app.services.outreach_service import OutreachService
 from tests.doubles.builders import build_worker
@@ -486,6 +486,3 @@ class MockFastWhatsAppProvider:
     def send_message(self, attempt, recipient_phone, message_body, attachment_path=None):
         self.dispatched.append(attempt.id)
         return ProviderSendResult.sent(provider_reference=f"fast_wa_{len(self.dispatched)}")
-
-    def check_status(self, provider_reference):
-        return ProviderStatusResult(status=OutreachStatus.SENT)

@@ -1,3 +1,5 @@
+> ARCHIVE NOTE (2026-09-23): historical report written before the campaign-Stop removal and the ui/pages/* split. Control/lifecycle descriptions mentioning Stop/STOPPED, `stopCampaign`, or a monolithic app.js are outdated; see git history for current behavior.
+
 # Comprehensive Architecture & SOLID Audit Report
 
 **Project:** Reachout CRM & Automated Outreach Engine  

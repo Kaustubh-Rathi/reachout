@@ -48,11 +48,6 @@ class MockFastWhatsAppProvider:
         )
         return ProviderSendResult.sent(provider_reference=f"mock_ref_{len(self.dispatched)}")
 
-    def check_status(self, provider_reference):
-        from app.ports.providers import ProviderStatusResult
-
-        return ProviderStatusResult(status=OutreachStatus.SENT)
-
 
 @pytest.fixture
 def scheduler_env(tmp_path):

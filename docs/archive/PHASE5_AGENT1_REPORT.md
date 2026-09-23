@@ -1,3 +1,5 @@
+> ARCHIVE NOTE (2026-09-23): historical report written before the campaign-Stop removal and the ui/pages/* split. Control/lifecycle descriptions mentioning Stop/STOPPED, `stopCampaign`, or a monolithic app.js are outdated; see git history for current behavior.
+
 # Phase 5 — Production Integration Report
 
 **Date:** August 18, 2026  

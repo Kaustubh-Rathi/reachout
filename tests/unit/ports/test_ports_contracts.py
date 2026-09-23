@@ -21,7 +21,6 @@ from app.ports import (
     FrozenClock,
     OutreachRepository,
     ProviderSendResult,
-    ProviderStatusResult,
     SystemClock,
     WhatsAppProvider,
 )
@@ -118,9 +117,6 @@ class MockWhatsAppProvider:
         if not recipient_phone:
             return ProviderSendResult.failed("ERR_INVALID_PHONE", "Missing phone number")
         return ProviderSendResult.sent(provider_reference="wa_mock_ref_123")
-
-    def check_status(self, provider_reference: str) -> ProviderStatusResult:
-        return ProviderStatusResult(status=OutreachStatus.SENT, detail="Delivered to recipient")
 
 
 class MockEmailProvider:

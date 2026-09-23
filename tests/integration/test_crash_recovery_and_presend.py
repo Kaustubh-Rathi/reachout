@@ -44,11 +44,6 @@ class MockFailingOrAmbiguousProvider:
         else:
             raise RuntimeError("Process crashed mid-send!")
 
-    def check_status(self, provider_reference):
-        from app.ports.providers import ProviderStatusResult
-
-        return ProviderStatusResult(status=OutreachStatus.UNKNOWN)
-
 
 @pytest.fixture
 def recovery_env(tmp_path):
