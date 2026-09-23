@@ -37,10 +37,6 @@
       --accent-rose-bg: rgba(225, 29, 72, 0.10);
       --accent-rose-border: rgba(225, 29, 72, 0.28);
 
-      --accent-indigo: #4338ca;
-      --accent-indigo-bg: rgba(99, 102, 241, 0.10);
-      --accent-indigo-border: rgba(99, 102, 241, 0.28);
-
       --on-emerald: #ffffff;
       --on-blue: #ffffff;
       --on-amber: #ffffff;
@@ -68,7 +64,6 @@
       --status-closed-border: rgba(71, 85, 105, 0.30);
 
       --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-      --shadow-md: 0 4px 10px -2px rgba(15, 23, 42, 0.10), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
       --shadow-lg: 0 12px 24px -6px rgba(15, 23, 42, 0.14), 0 4px 8px -4px rgba(15, 23, 42, 0.08);
       --shadow-xl: 0 24px 48px -12px rgba(15, 23, 42, 0.20), 0 8px 16px -8px rgba(15, 23, 42, 0.10);
     }
@@ -105,10 +100,6 @@
       --accent-rose-bg: rgba(244, 63, 94, 0.12);
       --accent-rose-border: rgba(244, 63, 94, 0.30);
 
-      --accent-indigo: #818cf8;
-      --accent-indigo-bg: rgba(129, 140, 248, 0.12);
-      --accent-indigo-border: rgba(129, 140, 248, 0.30);
-
       --on-emerald: #022c22;
       --on-blue: #082f49;
       --on-amber: #451a03;
@@ -136,7 +127,6 @@
       --status-closed-border: rgba(100, 116, 139, 0.40);
 
       --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.40), 0 2px 4px -2px rgba(0, 0, 0, 0.30);
       --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.50), 0 4px 6px -4px rgba(0, 0, 0, 0.40);
       --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.60), 0 8px 10px -6px rgba(0, 0, 0, 0.50);
     }
@@ -154,7 +144,6 @@
       --space-3: 0.75rem;
       --space-4: 1rem;
       --space-5: 1.5rem;
-      --space-6: 2rem;
 
       /* Type scale */
       --text-xs: 0.725rem;
@@ -162,7 +151,6 @@
       --text-base: 0.825rem;
       --text-md: 0.85rem;
       --text-lg: 1.05rem;
-      --text-xl: 1.5rem;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -400,8 +388,7 @@
     /* Pressed feedback that does not shift layout (keeps hit-testing stable). */
     .btn:active:not(:disabled),
     .pill-btn:active,
-    .theme-toggle button:active,
-    .menu-item:active {
+    .theme-toggle button:active {
       filter: brightness(0.94);
     }
 
@@ -655,12 +642,6 @@
       background: var(--accent-rose-bg);
       color: var(--accent-rose);
       border-color: var(--accent-rose-border);
-    }
-
-    .campaign-status-badge.status-stopped {
-      background: var(--bg-surface-hover);
-      color: var(--text-secondary);
-      border-color: var(--border-medium);
     }
 
     .campaign-progress-box {
