@@ -35,6 +35,29 @@ from app.ports.infrastructure import CampaignScheduler, Clock, DomainEvent, Even
 logger = logging.getLogger(__name__)
 
 
+# No forward progress (no dispatch attempt completing) for this long, while
+# uncovered work remains, means the loop is wedged (e.g. every remaining
+# contact is blocked awaiting recovery triage). Pause loudly instead of
+# spinning forever. Healthy cadence is minutes per dispatch, so 30 minutes
+# can only be reached by a genuinely stuck loop.
+STALL_NO_PROGRESS_PAUSE_SECONDS = 30 * 60
+
+
+def should_pause_on_stall(
+    *,
+    last_progress_mono: float,
+    now_mono: float,
+    has_uncovered_remaining: bool,
+    threshold_seconds: float = STALL_NO_PROGRESS_PAUSE_SECONDS,
+) -> bool:
+    """True when a running loop made no forward progress for the threshold.
+
+    Pure predicate (monotonic clocks injected) so it is unit-testable without
+    running a worker thread.
+    """
+    return bool(has_uncovered_remaining) and (now_mono - last_progress_mono) >= threshold_seconds
+
+
 class PersistentCampaignScheduler(CampaignScheduler):
     """Persistent scheduler executing campaigns against database state in the background."""
 
@@ -202,6 +225,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
         """Background loop executing campaign attempts using OutreachWorker and RateLimiter."""
         pause_flag = self._pause_flags.get(campaign_id)
         dispatched_count = 0
+        last_progress_mono = time.monotonic()
 
         while True:
             if pause_flag and pause_flag.is_set():
@@ -323,6 +347,26 @@ class PersistentCampaignScheduler(CampaignScheduler):
                         )
                         break
                     else:
+                        if should_pause_on_stall(
+                            last_progress_mono=last_progress_mono,
+                            now_mono=time.monotonic(),
+                            has_uncovered_remaining=True,
+                        ):
+                            reason = (
+                                "No dispatchable candidates for 30m while uncovered "
+                                "contacts remain (likely all blocked awaiting recovery "
+                                "triage). Resolve recovery items, then resume."
+                            )
+                            logger.warning("Auto-pausing stalled campaign %s: %s", campaign_id, reason)
+                            campaign_repo.set_status(campaign_id, CampaignStatus.PAUSED)
+                            session.commit()
+                            self.event_publisher.publish(
+                                DomainEvent(
+                                    event_type="CAMPAIGN_PAUSED",
+                                    payload={"campaign_id": campaign_id, "reason": "STALL_NO_PROGRESS"},
+                                )
+                            )
+                            break
                         # Advance channel cursor if preferred channel has no targets in this step
                         rot_state["channel_cursor"] = next_channel_cursor
                         campaign_repo.set_rotation_state(campaign_id, rot_state)
@@ -403,6 +447,25 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     rot_state["channel_cursor"] = next_channel_cursor
                     campaign_repo.set_rotation_state(campaign_id, rot_state)
                     session.commit()
+                    if should_pause_on_stall(
+                        last_progress_mono=last_progress_mono,
+                        now_mono=time.monotonic(),
+                        has_uncovered_remaining=True,
+                    ):
+                        reason = (
+                            "No available senders for 30m while uncovered "
+                            "contacts remain. Re-activate a sender, then resume."
+                        )
+                        logger.warning("Auto-pausing stalled campaign %s: %s", campaign_id, reason)
+                        campaign_repo.set_status(campaign_id, CampaignStatus.PAUSED)
+                        session.commit()
+                        self.event_publisher.publish(
+                            DomainEvent(
+                                event_type="CAMPAIGN_PAUSED",
+                                payload={"campaign_id": campaign_id, "reason": "STALL_NO_SENDERS"},
+                            )
+                        )
+                        break
                     time.sleep(0.2)
                     continue
 
@@ -490,6 +553,10 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 except Exception:
                     logger.exception("Failed to record attempt failure for contact %s", contact_id)
                 time.sleep(1.0)
+
+            # Any completed dispatch (success or recorded failure) is forward
+            # motion; only a total absence of dispatches can wedge the loop.
+            last_progress_mono = time.monotonic()
 
         with self._lock:
             self._active_threads.pop(campaign_id, None)
