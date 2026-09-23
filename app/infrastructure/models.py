@@ -20,6 +20,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    TypeDecorator,
     UniqueConstraint,
     text,
 )
@@ -47,6 +48,30 @@ from app.domain.source_record import SourceRecord
 from app.infrastructure.database import Base
 
 logger = logging.getLogger(__name__)
+
+
+class TZDateTime(TypeDecorator):
+    """Timezone-aware datetimes on SQLite.
+
+    SQLite stores no zone info, so plain ``TZDateTime()`` columns
+    come back naive — and naive values serialize without an offset, which the
+    UI then misrenders as local time. This type persists naive UTC (on-disk
+    format unchanged) and re-attaches UTC on load, so every API timestamp
+    carries ``+00:00``.
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None and value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value
 
 
 def _coerce_enum(enum_cls, raw, field: str):
@@ -80,10 +105,10 @@ class CompanyModel(Base):
     normalized_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     domain: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        TZDateTime(),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
@@ -128,21 +153,21 @@ class ContactModel(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        TZDateTime(),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
-    last_whatsapp_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_email_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_activity_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_whatsapp_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
+    last_email_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
+    last_activity_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
     crm_outcome: Mapped[str] = mapped_column(String(32), default="NONE", nullable=False)
     interview_status: Mapped[str] = mapped_column(String(32), default="NOT_APPLICABLE", nullable=False)
-    interested_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    interview_status_changed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    interested_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
+    interview_status_changed_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     tags_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
 
@@ -234,10 +259,10 @@ class SourceRecordModel(Base):
     source_row: Mapped[int] = mapped_column(Integer, nullable=False)
     source_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     raw_payload_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
@@ -285,9 +310,9 @@ class SenderAccountModel(Base):
     credential_ref: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     session_ref: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
     daily_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     hourly_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
@@ -349,10 +374,10 @@ class CampaignModel(Base):
     template_ids_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     sender_account_ids_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
+    ended_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
     metadata_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
 
     # Relationships
@@ -407,10 +432,10 @@ class MessageTemplateModel(Base):
     phone_number: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        TZDateTime(),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
@@ -471,10 +496,10 @@ class OutreachAttemptModel(Base):
     subject_snapshot: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     attachment_snapshot: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     prepared_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
     failure_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     failure_detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     provider_reference: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -543,13 +568,13 @@ class FollowUpReminderModel(Base):
     contact_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("contacts.contact_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    due_at: Mapped[datetime] = mapped_column(TZDateTime(), nullable=False, index=True)
     reason: Mapped[str] = mapped_column(String(500), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="PENDING", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(TZDateTime(), nullable=True)
 
     # Relationships
     contact: Mapped[ContactModel] = relationship("ContactModel", back_populates="reminders")
@@ -589,7 +614,7 @@ class CRMEventModel(Base):
     previous_state_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     new_state_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
     actor: Mapped[str] = mapped_column(String(64), default="system", nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -605,7 +630,7 @@ class SuppressionRecordModel(Base):
     identifier: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     reason: Mapped[str] = mapped_column(String(500), default="MANUAL_CRM_DELETION", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        TZDateTime(), default=lambda: datetime.now(timezone.utc), nullable=False
     )
 
     __table_args__ = (UniqueConstraint("suppression_type", "identifier", name="uq_suppression_type_identifier"),)
