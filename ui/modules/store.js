@@ -30,16 +30,7 @@ export function createStore(initialState = {}) {
     });
   }
 
-  function getState() {
-    return state;
-  }
-
-  function subscribe(subscriber) {
-    subscribers.add(subscriber);
-    return () => subscribers.delete(subscriber);
-  }
-
-  return { state, getState, subscribe };
+  return { state };
 }
 
 export const store = createStore({

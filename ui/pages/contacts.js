@@ -35,17 +35,6 @@ async function fetchCompanies() {
   }
 }
 
-function renderHierarchySkeleton() {
-  const container = document.getElementById('hierarchy-cards-list');
-  container.innerHTML = [1, 2, 3].map(() => `
-    <div class="skeleton-card" aria-hidden="true">
-      <div class="skeleton-line" style="width: 38%;"></div>
-      <div class="skeleton-line" style="width: 92%;"></div>
-      <div class="skeleton-line" style="width: 71%;"></div>
-    </div>
-  `).join('');
-}
-
 // 3. Fetch & Render Hierarchies (Company -> HR -> Endpoints -> History)
 async function fetchHierarchies() {
   const summary = document.getElementById('hierarchy-summary-text');
@@ -262,5 +251,5 @@ function closeHistoryModal() {
   document.getElementById('history-modal').classList.remove('open');
 }
 
-registerActions({ fetchCompanies, renderHierarchySkeleton, fetchHierarchies, renderHierarchyView, renderContactsPagination, changeContactsPage, toggleCompany, updateContactStatus, archiveContact, handleSearchChange, applyFilters, setPriorityFilter, openHistoryModal, closeHistoryModal });
-export { fetchCompanies, renderHierarchySkeleton, fetchHierarchies, renderHierarchyView, renderContactsPagination, changeContactsPage, toggleCompany, updateContactStatus, archiveContact, handleSearchChange, applyFilters, setPriorityFilter, openHistoryModal, closeHistoryModal };
+registerActions({ fetchCompanies, fetchHierarchies, renderHierarchyView, renderContactsPagination, changeContactsPage, toggleCompany, updateContactStatus, archiveContact, handleSearchChange, applyFilters, setPriorityFilter, openHistoryModal, closeHistoryModal });
+export { fetchCompanies, fetchHierarchies, renderHierarchyView, renderContactsPagination, changeContactsPage, toggleCompany, updateContactStatus, archiveContact, handleSearchChange, applyFilters, setPriorityFilter, openHistoryModal, closeHistoryModal };

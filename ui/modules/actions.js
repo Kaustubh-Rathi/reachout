@@ -26,11 +26,3 @@ export function getAction(name) {
   }
   return fn;
 }
-
-export function hasAction(name) {
-  return registry.has(name);
-}
-
-export function actionNames() {
-  return Array.from(registry.keys());
-}
