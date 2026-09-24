@@ -136,3 +136,33 @@ def test_evaluate_contact_dispatch():
     )
     assert not decision4.is_eligible
     assert decision4.reason == "CONTACT_FULLY_COVERED"
+
+
+def test_blocked_whatsapp_attempt_falls_back_to_email():
+    contact = Contact(
+        contact_id="c2",
+        company_id="comp1",
+        name="HR Leader",
+        phone="+919876543210",
+        email="hr@comp.com",
+    )
+    blocked = OutreachAttempt.prepare(
+        contact_id=contact.contact_id,
+        sender_account_id="wa1",
+        attempt_type=AttemptType.AUTOMATIC,
+        channel=Channel.WHATSAPP,
+        destination="919876543210",
+        message_body="Hi",
+    )
+    blocked.mark_unknown("Provider status unavailable")
+
+    decision = ChannelRotationPolicy.evaluate_contact_dispatch(
+        contact=contact,
+        preferred_channel=Channel.WHATSAPP,
+        historical_attempts=[blocked],
+    )
+
+    assert decision.is_eligible
+    assert decision.channel == Channel.EMAIL
+    assert decision.endpoint.normalized_address == "hr@comp.com"
+    assert decision.is_fallback

@@ -225,6 +225,31 @@ def test_endpoint_coverage_states_match_dispatch_policy():
     assert blocked_metrics["retryable_failed_endpoints"] == 0
 
 
+def test_endpoint_metrics_scope_blockers_to_matching_channel():
+    contact = _make_contact(phones="+919876543210", emails="hr@c.com")
+    blocked = OutreachAttempt.prepare(
+        contact_id=contact.contact_id,
+        sender_account_id="wa_sender",
+        attempt_type=AttemptType.AUTOMATIC,
+        channel=Channel.WHATSAPP,
+        destination="919876543210",
+        message_body="Test",
+    )
+    blocked.mark_recovery_required("Provider outcome requires recovery")
+
+    metrics = get_contact_endpoint_metrics(contact, [blocked])
+    whatsapp = metrics["whatsapp_endpoints"][0]
+    email = metrics["email_endpoints"][0]
+
+    assert whatsapp["coverage_state"] == "BLOCKED"
+    assert whatsapp["is_blocked"] is True
+    assert whatsapp["is_ready"] is False
+    assert email["coverage_state"] == "NEVER_ATTEMPTED"
+    assert email["status"] == "NOT_CONTACTED"
+    assert email["is_ready"] is True
+    assert email["is_blocked"] is False
+
+
 def test_get_contact_endpoint_metrics():
     contact = _make_contact(phones="+919876543210, +919876543211", emails="hr1@c.com")
     att = OutreachAttempt.prepare(
