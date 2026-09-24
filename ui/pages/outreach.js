@@ -184,7 +184,7 @@ async function submitSendMessage() {
     const res = await api.sendMessage(channel, isResend, payload);
     const data = await res.json();
     if (res.ok && data.success) {
-      showToast(`${channel} message dispatched to ${destination || 'contact'}!`, 'success');
+       showToast(`Sent: ${channel} message dispatched to ${destination || 'contact'}!`, 'success');
       closeSendModal();
       await getAction('fetchHierarchies')();
       await getAction('fetchKpis')();
