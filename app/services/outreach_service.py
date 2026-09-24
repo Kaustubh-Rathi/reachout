@@ -296,6 +296,21 @@ class OutreachService:
                 template,
                 reason=attempt.failure_detail,
             )
+        elif res.status == OutreachStatus.UNKNOWN:
+            attempt.mark_unknown(res.failure_detail or "Unknown provider delivery state", now)
+            self.outreach_repo.save(attempt)
+            self.session.commit()
+            self._publish(
+                "ATTEMPT_UNKNOWN",
+                attempt,
+                contact,
+                channel,
+                recipient,
+                sender,
+                template,
+                status=attempt.status.value,
+                reason=attempt.failure_detail,
+            )
         else:
             attempt.mark_failed(res.failure_code or "ERR_SEND_FAILED", res.failure_detail or "Dispatch error", now)
             self.outreach_repo.save(attempt)

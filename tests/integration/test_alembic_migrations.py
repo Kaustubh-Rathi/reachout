@@ -3,9 +3,14 @@
 import json
 from pathlib import Path
 
+import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
+
+from app.infrastructure.database import Base
+from app.infrastructure.models import SenderAccountModel
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -115,3 +120,68 @@ class TestAlembicMigrations:
         running_status, running_meta = rows["cmp_running_01"]
         assert running_status == "RUNNING"
         assert json.loads(running_meta) == {}
+
+    def test_configured_database_url_is_used_without_ini_override(self, tmp_path, monkeypatch):
+        db_file = tmp_path / "configured_url.db"
+        db_url = f"sqlite:///{db_file.as_posix()}"
+        monkeypatch.setenv("DATABASE_URL", db_url)
+
+        alembic_cfg = Config(str(ROOT_DIR / "alembic.ini"))
+        alembic_cfg.set_main_option("script_location", str(ROOT_DIR / "migrations"))
+        command.upgrade(alembic_cfg, "head")
+
+        assert "alembic_version" in inspect(create_engine(db_url)).get_table_names()
+
+    def test_sender_identity_uniqueness_matches_orm(self, tmp_path):
+        db_file = tmp_path / "sender_identity_parity.db"
+        db_url = f"sqlite:///{db_file.as_posix()}"
+        alembic_cfg = Config(str(ROOT_DIR / "alembic.ini"))
+        alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+        alembic_cfg.set_main_option("script_location", str(ROOT_DIR / "migrations"))
+        command.upgrade(alembic_cfg, "head")
+
+        engine = create_engine(db_url)
+        migrated_index = next(
+            index
+            for index in inspect(engine).get_indexes("sender_accounts")
+            if index["name"] == "uq_sender_channel_identity"
+        )
+        orm_index = next(
+            index for index in SenderAccountModel.__table__.indexes if index.name == "uq_sender_channel_identity"
+        )
+        assert migrated_index["unique"] == orm_index.unique
+        assert str(migrated_index["dialect_options"]["sqlite_where"]) == str(
+            orm_index.dialect_options["sqlite"]["where"]
+        )
+
+        def insert_sender(connection, sender_id, channel, identity):
+            connection.execute(
+                text(
+                    "INSERT INTO sender_accounts "
+                    "(id, channel, provider, identity, display_name, status, created_at) "
+                    "VALUES (:id, :channel, 'test', :identity, 'Test', 'ACTIVE', '2026-01-01 00:00:00')"
+                ),
+                {"id": sender_id, "channel": channel, "identity": identity},
+            )
+
+        with engine.begin() as connection:
+            insert_sender(connection, "sender_1", "WHATSAPP", "+919999999999")
+        with pytest.raises(IntegrityError):
+            with engine.begin() as connection:
+                insert_sender(connection, "sender_2", "WHATSAPP", "+919999999999")
+        with engine.begin() as connection:
+            insert_sender(connection, "sender_3", "WHATSAPP", "")
+            insert_sender(connection, "sender_4", "WHATSAPP", "")
+            insert_sender(connection, "sender_5", "EMAIL", "+919999999999")
+
+        orm_engine = create_engine(f"sqlite:///{(tmp_path / 'orm_sender_identity.db').as_posix()}")
+        Base.metadata.create_all(bind=orm_engine)
+        with orm_engine.begin() as connection:
+            insert_sender(connection, "orm_sender_1", "WHATSAPP", "+919999999999")
+        with pytest.raises(IntegrityError):
+            with orm_engine.begin() as connection:
+                insert_sender(connection, "orm_sender_2", "WHATSAPP", "+919999999999")
+        with orm_engine.begin() as connection:
+            insert_sender(connection, "orm_sender_3", "WHATSAPP", "")
+            insert_sender(connection, "orm_sender_4", "WHATSAPP", "")
+            insert_sender(connection, "orm_sender_5", "EMAIL", "+919999999999")

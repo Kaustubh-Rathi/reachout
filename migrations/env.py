@@ -1,3 +1,4 @@
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -23,8 +24,9 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+configured_url = os.environ.get("DATABASE_URL", "").strip()
 if not config.get_main_option("sqlalchemy.url"):
-    config.set_main_option("sqlalchemy.url", DB_URL)
+    config.set_main_option("sqlalchemy.url", (configured_url or DB_URL).replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:
