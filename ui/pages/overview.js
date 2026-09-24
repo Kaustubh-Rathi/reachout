@@ -1,5 +1,5 @@
 import { api, apiErrorText } from '../modules/api.js';
-import { formatTime } from '../modules/format.js';
+import { formatDate, formatTime } from '../modules/format.js';
 import { showToast } from '../modules/toast.js';
 import { state } from '../modules/store.js';
 import { registerActions, getAction } from '../modules/actions.js';
@@ -16,27 +16,47 @@ async function fetchKpis() {
       const data = await res.json();
       renderKpis(data);
       getAction('clearLoadError')('KPIs');
-    } else {
-      getAction('reportLoadError')('KPIs');
+      return true;
     }
+    getAction('reportLoadError')('KPIs');
   } catch (err) {
     console.error('Error loading KPIs:', err);
     getAction('reportLoadError')('KPIs');
   }
+  return false;
 }
 
 function renderKpis(k) {
-  document.getElementById('val-total').innerText = k.total_contacts || 0;
-  document.getElementById('val-eligible').innerText = k.eligible || 0;
-  document.getElementById('val-contacted').innerText = k.contacted || 0;
-  document.getElementById('val-wa-sent').innerText = k.whatsapp_sent || 0;
-  document.getElementById('val-email-sent').innerText = k.email_sent || 0;
-  document.getElementById('val-interested').innerText = k.interested || 0;
-  document.getElementById('val-not-interested').innerText = k.not_interested || 0;
-  document.getElementById('val-interview').innerText = k.interview || 0;
-  document.getElementById('val-followup').innerText = k.follow_up_due || 0;
-  document.getElementById('val-failed').innerText = k.failed || 0;
-  document.getElementById('val-recovery').innerText = k.recovery_required || 0;
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.innerText = value;
+  };
+  setText('overview-summary-text', `${k.total_contacts || 0} contacts · ${k.total_endpoints || 0} phone and email endpoints`);
+  setText('val-total', k.total_contacts || 0);
+  setText('val-fully-messaged', k.fully_messaged_contacts || 0);
+  setText('val-dispatch-complete', k.dispatch_complete_contacts || 0);
+  setText('val-with-sends', k.contacts_with_any_send || 0);
+  setText('val-ready-contacts', k.ready_contacts || 0);
+  setText('val-ready-endpoints', k.ready_endpoints || 0);
+  setText('val-total-endpoints', k.total_endpoints || 0);
+  setText('val-covered-endpoints', `${k.covered_endpoints || 0} / ${k.total_endpoints || 0}`);
+  setText('val-covered-endpoints-detail', k.covered_endpoints || 0);
+  setText('val-coverage-percent', k.endpoint_coverage_percent || 0);
+  setText('val-ready-endpoints-detail', k.ready_endpoints || 0);
+  setText('val-blocked-endpoints', k.blocked_endpoints || 0);
+  setText('val-blocked-contacts', k.blocked_contacts || 0);
+  setText('val-never-attempted', k.never_attempted_endpoints || 0);
+  setText('val-permanent-failed', k.permanent_failed_endpoints || 0);
+  setText('val-retryable-failed', k.retryable_failed_endpoints || 0);
+  setText('val-wa-sent', k.whatsapp_sent_endpoints || 0);
+  setText('val-email-sent', k.email_sent_endpoints || 0);
+  setText('val-failed', k.failed_attempts || 0);
+  setText('val-failed-destinations', k.failed_destinations || 0);
+  setText('val-interested', k.interested || 0);
+  setText('val-not-interested', k.not_interested || 0);
+  setText('val-interview', k.interview || 0);
+  setText('val-followup', k.follow_up_due || 0);
+  setText('val-recovery', k.unresolved_attempts || 0);
 }
 
 // 6. Campaign Control Plane
@@ -45,17 +65,56 @@ async function fetchCampaigns() {
     const res = await api.listCampaigns();
     if (res.ok) {
       const list = await res.json();
-      if (list && list.length > 0) {
-        updateCampaignControls(list[0]);
-      }
+      state.campaigns = list || [];
+      const selectedStillExists = state.campaigns.some(campaign => campaign.id === state.selectedCampaignId);
+      if (!selectedStillExists) state.selectedCampaignId = state.campaigns[0]?.id || null;
+      renderCampaignOptions();
+      updateCampaignControls(state.campaigns.find(campaign => campaign.id === state.selectedCampaignId) || null);
       getAction('clearLoadError')('campaigns');
-    } else {
-      getAction('reportLoadError')('campaigns');
+      return true;
     }
+    getAction('reportLoadError')('campaigns');
   } catch (err) {
-    console.error('Error fetching campaigns:', err);
+    console.error('Error fetching campaigns:', err?.name || 'Error', err?.message || String(err), err?.stack || '');
     getAction('reportLoadError')('campaigns');
   }
+  return false;
+}
+
+function renderCampaignOptions() {
+  const selector = document.getElementById('campaign-selector');
+  if (!selector) return;
+  selector.innerHTML = '';
+  if (state.campaigns.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No campaigns';
+    selector.appendChild(option);
+    return;
+  }
+  state.campaigns.forEach(campaign => {
+    const option = document.createElement('option');
+    option.value = campaign.id;
+    option.textContent = `${campaign.name} — ${campaign.status} — ${formatDate(campaign.created_at)}`;
+    option.selected = campaign.id === state.selectedCampaignId;
+    selector.appendChild(option);
+  });
+}
+
+function selectCampaign() {
+  const selector = document.getElementById('campaign-selector');
+  state.selectedCampaignId = selector?.value || null;
+  updateCampaignControls(state.campaigns.find(campaign => campaign.id === state.selectedCampaignId) || null);
+}
+
+function upsertCampaign(campaign) {
+  if (!campaign) return;
+  state.campaigns = [
+    campaign,
+    ...state.campaigns.filter(item => item.id !== campaign.id),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  state.selectedCampaignId = campaign.id;
+  renderCampaignOptions();
 }
 
 function updateCampaignControls(camp) {
@@ -102,18 +161,68 @@ function updateCampaignControls(camp) {
   }
 
   if (camp) {
-    document.getElementById('prog-pct').innerText = `${camp.progress_percent}%`;
-    document.getElementById('prog-completed').innerText = camp.completed;
-    document.getElementById('prog-pending').innerText = camp.pending;
-    document.getElementById('prog-failed').innerText = camp.failed;
-    document.getElementById('campaign-progress-fill').style.width = `${camp.progress_percent}%`;
+    const targetCount = camp.target_count;
+    const targetPercent = Number.isFinite(camp.target_progress_percent) ? camp.target_progress_percent : null;
+    const sentAttempts = camp.attempt_outcomes?.sent || 0;
+    const targetSuccesses = camp.target_progress?.successful_sends || 0;
+    const coverage = camp.global_endpoint_coverage || {};
+    const coveragePercent = Number(coverage.coverage_percent || 0);
+    const setText = (id, value) => {
+      const element = document.getElementById(id);
+      if (element) element.innerText = value;
+    };
 
-    if (document.getElementById('prog-round')) document.getElementById('prog-round').innerText = `Round ${camp.current_round || 1}`;
-    if (document.getElementById('prog-comp-cov')) document.getElementById('prog-comp-cov').innerText = camp.companies_covered || 0;
-    if (document.getElementById('prog-comp-rem')) document.getElementById('prog-comp-rem').innerText = camp.companies_remaining || 0;
-    if (document.getElementById('prog-curr-channel')) document.getElementById('prog-curr-channel').innerText = camp.current_dispatch_channel || camp.channel || 'WHATSAPP';
-    if (document.getElementById('prog-curr-sender')) document.getElementById('prog-curr-sender').innerText = camp.current_sender || 'AUTO';
-    if (document.getElementById('prog-curr-template')) document.getElementById('prog-curr-template').innerText = camp.template_used || 'AUTO';
+    document.getElementById('target-progress-label').innerText = targetCount == null
+      ? 'Target not recorded'
+      : `${targetSuccesses} / ${targetCount} successful sends`;
+    const targetProgressBar = document.getElementById('target-progress-bar');
+    targetProgressBar.setAttribute('aria-valuenow', targetPercent == null ? '0' : targetPercent);
+    targetProgressBar.setAttribute(
+      'aria-valuetext',
+      targetCount == null ? 'Target not recorded' : `${targetSuccesses} of ${targetCount} successful sends`,
+    );
+    document.getElementById('target-progress-fill').style.width = `${targetPercent == null ? 0 : Math.max(0, Math.min(100, targetPercent))}%`;
+    document.getElementById('target-progress-detail').innerText = targetCount == null
+      ? 'This campaign predates target persistence; attempt outcomes remain available below.'
+      : `${targetPercent}% of the configured successful-send target`;
+
+    setText('coverage-progress-label', `${coverage.covered_endpoints || 0} / ${coverage.total_endpoints || 0}`);
+    const coverageProgressBar = document.getElementById('coverage-progress-bar');
+    coverageProgressBar.setAttribute('aria-valuenow', coveragePercent);
+    coverageProgressBar.setAttribute(
+      'aria-valuetext',
+      `${coverage.covered_endpoints || 0} of ${coverage.total_endpoints || 0} endpoints covered`,
+    );
+    document.getElementById('coverage-progress-fill').style.width = `${Math.max(0, Math.min(100, coveragePercent))}%`;
+    setText(
+      'coverage-progress-detail',
+      `${coveragePercent}% covered • ${coverage.ready_endpoints || 0} ready • ${coverage.blocked_endpoints || 0} blocked • ${coverage.never_attempted_endpoints || 0} never attempted`
+    );
+
+    setText('attempt-total', camp.attempt_outcomes?.total_attempts || 0);
+    setText('attempt-sent', sentAttempts);
+    setText('attempt-failed', camp.attempt_outcomes?.failed || 0);
+    setText('attempt-unresolved', camp.attempt_outcomes?.unresolved || 0);
+    setText('attempt-pending', camp.attempt_outcomes?.pending || 0);
+    setText('attempt-success-rate', `${camp.attempt_outcomes?.sent_percent || 0}%`);
+
+    setText('prog-round', `Round ${camp.current_round || 1}`);
+    setText('prog-curr-channel', camp.current_dispatch_channel || camp.channel || 'WHATSAPP');
+    setText('prog-curr-sender', camp.current_sender || 'AUTO');
+    setText('prog-curr-template', camp.template_used || 'AUTO');
+  } else {
+    ['target-progress-label', 'coverage-progress-label', 'target-progress-detail', 'coverage-progress-detail'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.innerText = id.includes('label') ? 'No campaign data' : 'Start or select a campaign to view progress';
+    });
+    document.getElementById('target-progress-bar').setAttribute('aria-valuenow', '0');
+    document.getElementById('coverage-progress-bar').setAttribute('aria-valuenow', '0');
+    document.getElementById('target-progress-fill').style.width = '0%';
+    document.getElementById('coverage-progress-fill').style.width = '0%';
+    ['attempt-total', 'attempt-sent', 'attempt-failed', 'attempt-unresolved', 'attempt-pending', 'attempt-success-rate'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.innerText = id === 'attempt-success-rate' ? '0%' : 0;
+    });
   }
 }
 
@@ -136,31 +245,39 @@ async function startCampaign() {
     showToast(`Limit capped at the maximum of ${APP_CONFIG.maxOutreachLimit}.`, 'info');
   }
   const actionBtn = document.getElementById('campaign-action-btn');
-  const originalHtml = actionBtn ? actionBtn.innerHTML : '';
-  if (actionBtn) {
-    actionBtn.disabled = true;
-    actionBtn.innerHTML = '<span class="spinner"></span> Starting...';
-  }
+  const actionLabel = document.getElementById('campaign-action-label');
+  if (actionBtn) actionBtn.disabled = true;
+  if (actionLabel) actionLabel.innerHTML = '<span class="spinner"></span> Starting...';
+  let accepted = false;
 
   try {
     const res = await api.quickStartCampaign('WHATSAPP', maxCount);
-    const data = await res.json();
     if (res.ok) {
-      showToast(`Campaign started for up to ${maxCount} contacts!`, 'success');
-      updateCampaignControls(data);
+      accepted = true;
+      showToast(`Campaign started with a target of ${maxCount} successful sends.`, 'success');
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (err) {
+        if (err.name !== 'SyntaxError') console.error('Error reading campaign start response:', err);
+      }
+      if (data) {
+        upsertCampaign(data);
+        updateCampaignControls(data);
+      } else {
+        await getAction('fetchCampaigns')();
+      }
     } else {
+      const data = await res.json().catch(() => ({}));
       const detail = data.detail || {};
       const reason = detail.reason || 'OUTREACH_NOT_READY';
       const msg = detail.message || (typeof detail === 'string' ? detail : 'Prerequisites not met');
       getAction('openReadinessModal')(reason, msg);
     }
   } catch (err) {
-    showToast('Failed to start campaign: ' + err.message, 'error');
+    if (!accepted) showToast('Failed to start campaign: ' + err.message, 'error');
   } finally {
-    if (actionBtn) {
-      actionBtn.innerHTML = originalHtml;
-      actionBtn.disabled = false;
-    }
+    if (!accepted) updateCampaignControls(state.activeCampaign);
   }
 }
 
@@ -171,6 +288,7 @@ async function pauseCampaign() {
     if (res.ok) {
       const camp = await res.json();
       showToast('Campaign paused.', 'info');
+      upsertCampaign(camp);
       updateCampaignControls(camp);
     } else {
       showToast('Failed to pause campaign: ' + await apiErrorText(res), 'error');
@@ -187,6 +305,7 @@ async function resumeCampaign() {
     if (res.ok) {
       const camp = await res.json();
       showToast('Campaign resumed.', 'success');
+      upsertCampaign(camp);
       updateCampaignControls(camp);
     } else {
       showToast('Failed to resume campaign: ' + await apiErrorText(res), 'error');
@@ -202,7 +321,11 @@ async function resumeCampaign() {
 function describeLiveActivity(type, p) {
   const ch = p.channel || '';
   if (type === 'ATTEMPT_SENT') return `${ch || 'Message'} sent to ${p.destination || p.recipient || 'recipient'}`;
-  if (type === 'ATTEMPT_FAILED') return `Send failed: ${p.failure_detail || p.failure_code || 'error'}`;
+  if (type === 'ATTEMPT_FAILED') {
+    const destination = p.destination || p.recipient || 'unknown destination';
+    const reason = p.failure_detail || p.failure_code || 'Unknown error';
+    return `${ch || 'Message'} send failed for ${destination}: ${reason}`;
+  }
   if (type === 'ATTEMPT_RECOVERY_REQUIRED' || type === 'ATTEMPT_UNKNOWN') return `Recovery required for ${p.destination || 'contact'}`;
   if (type.startsWith('CAMPAIGN_')) return `Campaign ${type.replace('CAMPAIGN_', '').toLowerCase()}${p.campaign_id ? ' (' + p.campaign_id + ')' : ''}`;
   if (type === 'SENDER_STATUS_CHANGED') return `Sender ${p.sender_id || ''} is now ${p.status || ''}`;
@@ -235,13 +358,15 @@ function addActivityItem(text, occurredAt) {
 async function fetchActivity() {
   try {
     const res = await api.eventHistory(15);
-    if (!res.ok) return;
+    if (!res.ok) return false;
     const events = await res.json();
     const list = document.getElementById('activity-list');
     if (list) list.innerHTML = '';
     (events || []).slice().reverse().forEach((ev) => addActivityItem(describeLiveActivity(ev.event_type, ev.payload || {}), ev.occurred_at));
+    return true;
   } catch (err) {
     console.error('Error loading activity:', err);
+    return false;
   }
 }
 
@@ -269,5 +394,4 @@ function dismissOnboarding() {
   if (card) card.hidden = true;
 }
 
-registerActions({ fetchKpis, renderKpis, fetchCampaigns, updateCampaignControls, onCampaignAction, startCampaign, pauseCampaign, resumeCampaign, describeLiveActivity, addActivityItem, fetchActivity, updateOnboarding, dismissOnboarding });
-export { fetchKpis, renderKpis, fetchCampaigns, updateCampaignControls, onCampaignAction, startCampaign, pauseCampaign, resumeCampaign, describeLiveActivity, addActivityItem, fetchActivity, updateOnboarding, dismissOnboarding };
+registerActions({ fetchKpis, fetchCampaigns, selectCampaign, onCampaignAction, describeLiveActivity, addActivityItem, fetchActivity, updateOnboarding, dismissOnboarding });

@@ -1,4 +1,4 @@
-import { api } from '../modules/api.js';
+import { api, apiErrorText } from '../modules/api.js';
 import { escapeHtml } from '../modules/dom.js';
 import { showToast } from '../modules/toast.js';
 import { state } from '../modules/store.js';
@@ -8,10 +8,11 @@ import { renderSenderCard, senderActionsHtml } from '../components/sender_card.j
 // 9. Senders & Authentication Control Plane (Phase 8.2 & 8.3)
 async function openSendersDrawer() {
   getAction('showPage')('senders');
-  await fetchSenders();
+  return fetchSenders();
 }
 
 async function fetchSenders() {
+  renderSendersLoading();
   try {
     const res = await api.listSenders();
     if (res.ok) {
@@ -20,13 +21,35 @@ async function fetchSenders() {
       renderSendersModal();
       getAction('updateOnboarding')();
       getAction('clearLoadError')('senders');
-    } else {
-      getAction('reportLoadError')('senders');
+      return true;
     }
+    renderSendersLoadError(await apiErrorText(res));
+    getAction('reportLoadError')('senders');
   } catch (err) {
+    renderSendersLoadError(err.message);
     console.error('Error loading senders:', err);
     getAction('reportLoadError')('senders');
   }
+  return false;
+}
+
+function renderSendersLoading() {
+  const waContainer = document.getElementById('wa-senders-list-container');
+  const emContainer = document.getElementById('email-senders-list-container');
+  const readinessText = document.getElementById('overall-readiness-text');
+  if (waContainer) waContainer.innerHTML = '<div class="sender-empty">Loading WhatsApp sessions…</div>';
+  if (emContainer) emContainer.innerHTML = '<div class="sender-empty">Loading Email sessions…</div>';
+  if (readinessText) readinessText.innerText = 'Checking sender availability…';
+}
+
+function renderSendersLoadError(message) {
+  const waContainer = document.getElementById('wa-senders-list-container');
+  const emContainer = document.getElementById('email-senders-list-container');
+  const readinessText = document.getElementById('overall-readiness-text');
+  const errorHtml = `<div class="sender-empty">Unable to load senders: ${escapeHtml(message)}</div>`;
+  if (waContainer) waContainer.innerHTML = errorHtml;
+  if (emContainer) emContainer.innerHTML = errorHtml;
+  if (readinessText) readinessText.innerText = 'Sender data unavailable';
 }
 
 function updateHeaderSendersIndicator() {
@@ -161,7 +184,6 @@ async function openWhatsAppQrModal(senderId, existingName) {
   modal.classList.add('open');
   modal._waPollId = senderId;
   modal._waStopped = false;
-  modal._waLastStatus = null;
   await pollWhatsAppAuth(senderId, existingName);
 }
 
@@ -209,7 +231,6 @@ async function pollWhatsAppAuth(senderId, existingName) {
   }
 
   const data = await res.json();
-  modal._waLastStatus = data.status;
   const statusEl = document.getElementById('wa-qr-status');
   const imgEl = document.getElementById('wa-qr-img');
 
@@ -409,5 +430,4 @@ function closeReadinessModal() {
   document.getElementById('readiness-modal').classList.remove('open');
 }
 
-registerActions({ openSendersDrawer, fetchSenders, updateHeaderSendersIndicator, renderSendersModal, addWhatsAppSession, openWhatsAppQrModal, closeWhatsAppQrModal, pollWhatsAppAuth, addEmailSession, deactivateSender, reactivateSender, startWhatsAppAuth, checkWhatsAppAuthStatus, openEmailConfigModal, closeEmailConfigModal, saveAndVerifyEmailConfig, verifyEmailSender, openReadinessModal, closeReadinessModal });
-export { openSendersDrawer, fetchSenders, updateHeaderSendersIndicator, renderSendersModal, addWhatsAppSession, openWhatsAppQrModal, closeWhatsAppQrModal, pollWhatsAppAuth, addEmailSession, deactivateSender, reactivateSender, startWhatsAppAuth, checkWhatsAppAuthStatus, openEmailConfigModal, closeEmailConfigModal, saveAndVerifyEmailConfig, verifyEmailSender, openReadinessModal, closeReadinessModal };
+registerActions({ openSendersDrawer, fetchSenders, addWhatsAppSession, closeWhatsAppQrModal, addEmailSession, deactivateSender, reactivateSender, startWhatsAppAuth, checkWhatsAppAuthStatus, openEmailConfigModal, closeEmailConfigModal, saveAndVerifyEmailConfig, verifyEmailSender, openReadinessModal, closeReadinessModal });

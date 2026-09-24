@@ -8,7 +8,7 @@ import { escapeHtml, jsonAttr } from '../modules/dom.js';
 import { formatDate } from '../modules/format.js';
 
 // Shared status → badge class map (superset covering both channels).
-export const SENDER_STATUS_BADGES = {
+const SENDER_STATUS_BADGES = {
   ACTIVE: 'badge-sent',
   AUTHENTICATING: 'badge-partial',
   QR_REQUIRED: 'badge-partial',
@@ -17,14 +17,14 @@ export const SENDER_STATUS_BADGES = {
   INACTIVE: 'badge-not-sent',
 };
 
-export function senderBadgeClass(status) {
+function senderBadgeClass(status) {
   return SENDER_STATUS_BADGES[status] || 'badge-failed';
 }
 
 function limitsLine(sender) {
-  const daily = sender.daily_limit == null ? 'Unlimited' : sender.daily_limit;
-  const hourly = sender.hourly_limit == null ? 'Unlimited' : sender.hourly_limit;
-  return `<div class="sender-limits">Limit: ${daily}/day &bull; Rate: ${hourly}/hr</div>`;
+  const daily = sender.daily_limit == null ? 'Unlimited' : String(sender.daily_limit);
+  const hourly = sender.hourly_limit == null ? 'Unlimited' : String(sender.hourly_limit);
+  return `<div class="sender-limits">Limit: ${escapeHtml(daily)}/day &bull; Rate: ${escapeHtml(hourly)}/hr</div>`;
 }
 
 /**

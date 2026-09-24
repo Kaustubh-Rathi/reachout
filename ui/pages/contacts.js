@@ -6,7 +6,7 @@ import { registerActions, getAction } from '../modules/actions.js';
 import { renderCompanyCard } from '../components/company_card.js';
 import { appendTimelineItem, buildTimelineEvents, isRecoveryAttempt } from '../components/timeline.js';
 
-const CONTACTS_PAGE_SIZE = 10;
+const HIERARCHY_PAGE_SIZE = 10;
 
 let hierarchiesAbort = null;
 let searchDebounce = null;
@@ -18,6 +18,7 @@ async function fetchCompanies() {
     if (res.ok) {
       state.companies = await res.json();
       const select = document.getElementById('company-filter');
+      const selectedCompany = state.selectedCompany;
       select.innerHTML = '<option value="ALL">All Companies</option>';
       state.companies.forEach(c => {
         const opt = document.createElement('option');
@@ -25,72 +26,117 @@ async function fetchCompanies() {
         opt.textContent = `${c.name} (${c.contact_count})`;
         select.appendChild(opt);
       });
+      state.selectedCompany = state.companies.some(company => company.id === selectedCompany) ? selectedCompany : 'ALL';
+      select.value = state.selectedCompany;
       getAction('clearLoadError')('companies');
-    } else {
-      getAction('reportLoadError')('companies');
+      return true;
     }
+    getAction('reportLoadError')('companies');
   } catch (err) {
     console.error('Error loading companies:', err);
     getAction('reportLoadError')('companies');
   }
+  return false;
 }
 
 // 3. Fetch & Render Hierarchies (Company -> HR -> Endpoints -> History)
 async function fetchHierarchies() {
   const summary = document.getElementById('hierarchy-summary-text');
-  const defaultSummary = 'Company-First progression &bull; Discrete Endpoint Tracking';
+  let request = null;
   try {
     const params = new URLSearchParams();
     if (state.searchQuery) params.set('search', state.searchQuery);
     if (state.selectedCompany !== 'ALL') params.set('company', state.selectedCompany);
     if (state.selectedCrmStatus !== 'ALL') params.set('crm_status', state.selectedCrmStatus);
-    // RECOVERY is a client-side bucket (the server only knows INTERESTED /
-    // NOT_INTERESTED / FOLLOW_UP_DUE / RECENTLY_ACTIVE / UNCONTACTED), so it
-    // is never sent upstream; renderHierarchyView applies it locally.
-    if (state.selectedPriorityFilter !== 'ALL' && state.selectedPriorityFilter !== 'RECOVERY') params.set('priority_filter', state.selectedPriorityFilter);
-    if (state.selectedChannelStatus !== 'ALL') params.set('channel_status', state.selectedChannelStatus);
 
-    if (summary) summary.innerHTML = 'Refreshing company hierarchies&hellip;';
-    // Cancel any in-flight hierarchy request so a slow earlier response
-    // cannot overwrite the results of a newer search/filter.
+    if (summary) summary.textContent = 'Refreshing company hierarchies…';
     if (hierarchiesAbort) hierarchiesAbort.abort();
-    hierarchiesAbort = new AbortController();
-    const res = await api.fetchHierarchy(params.toString(), { signal: hierarchiesAbort.signal });
+    request = new AbortController();
+    hierarchiesAbort = request;
+    const res = await api.fetchHierarchy(params.toString(), { signal: request.signal });
     if (res.ok) {
-      state.hierarchies = await res.json();
+      const hierarchies = await res.json();
+      if (hierarchiesAbort !== request) return false;
+      state.hierarchies = hierarchies;
       renderHierarchyView(state.hierarchies);
       getAction('clearLoadError')('hierarchies');
-    } else {
-      getAction('reportLoadError')('hierarchies');
-      showToast('Failed to load hierarchies: ' + await apiErrorText(res), 'error');
+      return true;
     }
+    const message = await apiErrorText(res);
+    if (hierarchiesAbort !== request) return false;
+    renderHierarchyLoadError(message);
+    getAction('reportLoadError')('hierarchies');
+    showToast('Failed to load hierarchies: ' + message, 'error');
   } catch (err) {
-    if (err.name === 'AbortError') return;
+    if (err.name === 'AbortError' || hierarchiesAbort !== request) return false;
+    renderHierarchyLoadError(err.message);
     console.error('Error loading hierarchies:', err);
     getAction('reportLoadError')('hierarchies');
     showToast('Failed to load hierarchies: ' + err.message, 'error');
-  } finally {
-    if (summary) summary.innerHTML = defaultSummary;
   }
+  return false;
+}
+
+function renderHierarchyLoadError(message) {
+  const summary = document.getElementById('hierarchy-summary-text');
+  const container = document.getElementById('hierarchy-cards-list');
+  if (summary) summary.textContent = 'Company hierarchies unavailable';
+  if (container) {
+    container.innerHTML = `<div class="hierarchy-empty">Failed to load company hierarchies: ${escapeHtml(message)}</div>`;
+  }
+}
+
+function matchesCoverage(contact, status) {
+  const coverage = contact.coverage || {};
+  if (status === 'WITH_SENDS') return (coverage.covered_endpoints || 0) > 0;
+  if (status === 'FULLY_MESSAGED') return coverage.is_fully_covered === true;
+  if (status === 'READY') return (coverage.ready_endpoints || 0) > 0;
+  if (status === 'NEVER_ATTEMPTED') return (coverage.never_attempted_endpoints || 0) > 0;
+  if (status === 'BLOCKED') return (coverage.blocked_endpoints || 0) > 0;
+  if (status === 'HAS_FAILED') return (
+    (coverage.retryable_failed_endpoints || 0) + (coverage.permanent_failed_endpoints || 0)
+  ) > 0;
+  return true;
+}
+
+function matchesPriority(contact, priority) {
+  if (priority === 'RECOVERY') return (contact.history || []).some(isRecoveryAttempt);
+  if (priority === 'FOLLOW_UP_DUE') return contact.follow_up_due === true;
+  if (priority === 'INTERESTED') return contact.crm_outcome === 'INTERESTED';
+  if (priority === 'NOT_INTERESTED') return contact.crm_outcome === 'NOT_INTERESTED';
+  if (priority === 'RECENTLY_ACTIVE') return Boolean(
+    contact.last_activity_at || contact.last_whatsapp_at || contact.last_email_at
+  );
+  return true;
+}
+
+function filterHierarchyForView(company) {
+  const search = state.searchQuery.trim().toLowerCase();
+  const companyMatches = !search || company.name.toLowerCase().includes(search) || (company.domain || '').toLowerCase().includes(search);
+  const contacts = (company.contacts || []).filter(contact => {
+    if (!companyMatches) {
+      const searchable = [contact.name, contact.phone, contact.email, contact.designation]
+        .some(value => String(value || '').toLowerCase().includes(search));
+      if (!searchable) return false;
+    }
+    if (state.selectedCrmStatus !== 'ALL' && contact.crm_outcome !== state.selectedCrmStatus) return false;
+    if (!matchesPriority(contact, state.selectedPriorityFilter)) return false;
+    return matchesCoverage(contact, state.selectedCoverageStatus);
+  });
+  return contacts.length ? { ...company, contacts } : null;
 }
 
 function renderHierarchyView(hierarchies) {
   const container = document.getElementById('hierarchy-cards-list');
   container.innerHTML = '';
-
-  // Client-side RECOVERY bucket: keep companies with at least one contact
-  // whose history holds a RECOVERY_REQUIRED / UNKNOWN attempt.
-  let visible = hierarchies || [];
-  if (state.selectedPriorityFilter === 'RECOVERY') {
-    visible = visible.filter((comp) =>
-      (comp.contacts || []).some((hr) => (hr.history || []).some(isRecoveryAttempt))
-    );
-  }
+  const visible = (hierarchies || []).map(filterHierarchyForView).filter(Boolean);
 
   if (visible.length === 0) {
+    const summaryTextEl = document.getElementById('hierarchy-summary-text');
+    if (summaryTextEl) summaryTextEl.textContent = 'No matching companies';
     const emptyMsg = state.selectedPriorityFilter === 'RECOVERY'
-      ? 'Recovery queue is clear &mdash; no contacts need operator review.'
-      : 'No companies found matching the selected filter criteria.';
+      ? 'Recovery queue is clear — no contacts need operator review.'
+      : 'No contacts match the selected filters.';
     container.innerHTML = `<div class="hierarchy-empty">${emptyMsg}</div>`;
     renderContactsPagination(0);
     return;
@@ -104,11 +150,11 @@ function renderHierarchyView(hierarchies) {
       `${visible.length} compan${visible.length === 1 ? 'y' : 'ies'} · ` +
       `${contactCount} contact${contactCount === 1 ? '' : 's'}`;
   }
-  const totalPages = Math.max(1, Math.ceil(visible.length / CONTACTS_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(visible.length / HIERARCHY_PAGE_SIZE));
   if (state.contactsPage > totalPages) state.contactsPage = totalPages;
   const pageSlice = visible.slice(
-    (state.contactsPage - 1) * CONTACTS_PAGE_SIZE,
-    state.contactsPage * CONTACTS_PAGE_SIZE
+    (state.contactsPage - 1) * HIERARCHY_PAGE_SIZE,
+    state.contactsPage * HIERARCHY_PAGE_SIZE
   );
 
   pageSlice.forEach((comp) => container.appendChild(renderCompanyCard(comp)));
@@ -119,7 +165,7 @@ function renderHierarchyView(hierarchies) {
 function renderContactsPagination(totalCount) {
   const host = document.getElementById('contacts-pagination');
   if (!host) return;
-  const totalPages = Math.max(1, Math.ceil(totalCount / CONTACTS_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalCount / HIERARCHY_PAGE_SIZE));
   if (totalPages <= 1) {
     host.innerHTML = '';
     return;
@@ -201,7 +247,7 @@ function handleSearchChange() {
 function applyFilters() {
   state.selectedCompany = document.getElementById('company-filter').value;
   state.selectedCrmStatus = document.getElementById('crm-status-filter').value;
-  state.selectedChannelStatus = document.getElementById('channel-filter').value;
+  state.selectedCoverageStatus = document.getElementById('coverage-filter').value;
   state.contactsPage = 1;
   fetchHierarchies();
 }
@@ -224,26 +270,31 @@ async function openHistoryModal(contactId) {
   const summaryBox = document.getElementById('history-contact-summary');
 
   modal.classList.add('open');
+  summaryBox.innerHTML = '';
   timelineList.innerHTML = '<div style="color: var(--text-muted);">Loading activity history...</div>';
 
   try {
     const res = await api.getContact(contactId);
-    if (res.ok) {
-      const detail = await res.json();
-      summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml(((detail.phones && detail.phones.length ? detail.phones : (detail.phone ? [detail.phone] : [])).join(', ') || '-'))} &bull; Email(s): ${escapeHtml(((detail.emails && detail.emails.length ? detail.emails : (detail.email ? [detail.email] : [])).join(', ') || '-'))}`;
-
-      timelineList.innerHTML = '';
-      const events = buildTimelineEvents(detail);
-
-      if (events.length === 0) {
-        timelineList.innerHTML = '<div class="history-empty">No outreach attempts or CRM activities recorded yet.</div>';
-        return;
-      }
-
-      events.forEach((ev) => appendTimelineItem(timelineList, ev));
+    if (!res.ok) {
+      timelineList.innerHTML = `<div style="color: var(--accent-rose);">Failed to load history: ${escapeHtml(await apiErrorText(res))}</div>`;
+      return false;
     }
+    const detail = await res.json();
+    summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml(((detail.phones && detail.phones.length ? detail.phones : (detail.phone ? [detail.phone] : [])).join(', ') || '-'))} &bull; Email(s): ${escapeHtml(((detail.emails && detail.emails.length ? detail.emails : (detail.email ? [detail.email] : [])).join(', ') || '-'))}`;
+
+    timelineList.innerHTML = '';
+    const events = buildTimelineEvents(detail);
+
+    if (events.length === 0) {
+      timelineList.innerHTML = '<div class="history-empty">No outreach attempts or CRM activities recorded yet.</div>';
+      return true;
+    }
+
+    events.forEach((ev) => appendTimelineItem(timelineList, ev));
+    return true;
   } catch (err) {
-    timelineList.innerHTML = `<div style="color: var(--accent-rose);">Failed to load history: ${err.message}</div>`;
+    timelineList.innerHTML = `<div style="color: var(--accent-rose);">Failed to load history: ${escapeHtml(err.message)}</div>`;
+    return false;
   }
 }
 
@@ -251,5 +302,4 @@ function closeHistoryModal() {
   document.getElementById('history-modal').classList.remove('open');
 }
 
-registerActions({ fetchCompanies, fetchHierarchies, renderHierarchyView, renderContactsPagination, changeContactsPage, toggleCompany, updateContactStatus, archiveContact, handleSearchChange, applyFilters, setPriorityFilter, openHistoryModal, closeHistoryModal });
-export { fetchCompanies, fetchHierarchies, renderHierarchyView, renderContactsPagination, changeContactsPage, toggleCompany, updateContactStatus, archiveContact, handleSearchChange, applyFilters, setPriorityFilter, openHistoryModal, closeHistoryModal };
+registerActions({ fetchCompanies, fetchHierarchies, changeContactsPage, toggleCompany, updateContactStatus, archiveContact, handleSearchChange, applyFilters, setPriorityFilter, openHistoryModal, closeHistoryModal });

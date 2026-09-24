@@ -1,4 +1,4 @@
-import { api } from '../modules/api.js';
+import { api, apiErrorText } from '../modules/api.js';
 import { escapeHtml, jsonAttr } from '../modules/dom.js';
 import { showToast } from '../modules/toast.js';
 import { state } from '../modules/store.js';
@@ -6,24 +6,44 @@ import { registerActions, getAction } from '../modules/actions.js';
 
 // 10. Templates Management Drawer
 async function fetchTemplates() {
+  renderTemplatesLoading();
   try {
     const res = await api.listTemplates();
     if (res.ok) {
       state.templates = await res.json();
       getAction('clearLoadError')('templates');
-    } else {
-      getAction('reportLoadError')('templates');
+      return true;
     }
+    renderTemplatesLoadError(await apiErrorText(res));
+    getAction('reportLoadError')('templates');
   } catch (err) {
+    renderTemplatesLoadError(err.message);
     console.error('Error loading templates:', err);
     getAction('reportLoadError')('templates');
   }
+  return false;
 }
 
 async function openTemplatesDrawer() {
   getAction('showPage')('templates');
-  if (!state.templates || state.templates.length === 0) await fetchTemplates();
+  if (!state.templates || state.templates.length === 0) {
+    const loaded = await fetchTemplates();
+    if (!loaded) return false;
+  }
   renderTemplatesList();
+  return true;
+}
+
+function renderTemplatesLoading() {
+  const container = document.getElementById('templates-list-container');
+  if (container) container.innerHTML = '<div style="color:var(--text-muted);">Loading templates…</div>';
+}
+
+function renderTemplatesLoadError(message) {
+  const container = document.getElementById('templates-list-container');
+  if (container) {
+    container.innerHTML = `<div style="color:var(--accent-rose);">Failed to load templates: ${escapeHtml(message)}</div>`;
+  }
 }
 
 function renderTemplatesList() {
@@ -132,5 +152,4 @@ async function saveTemplate() {
   }
 }
 
-registerActions({ fetchTemplates, openTemplatesDrawer, renderTemplatesList, renderTemplateForm, openTemplateFormById, openTemplateForm, closeTemplateForm, saveTemplate });
-export { fetchTemplates, openTemplatesDrawer, renderTemplatesList, renderTemplateForm, openTemplateFormById, openTemplateForm, closeTemplateForm, saveTemplate };
+registerActions({ fetchTemplates, openTemplatesDrawer, openTemplateFormById, openTemplateForm, closeTemplateForm, saveTemplate });

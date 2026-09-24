@@ -4,6 +4,7 @@ import { initModalAccessibility } from './modules/modal.js';
 import { resolveConfirm, showToast } from './modules/toast.js';
 import { getAction, registerActions } from './modules/actions.js';
 import { initDispatch } from './modules/dispatch.js';
+import { allLoadsSucceeded } from './modules/load_state.js';
 
 // Page modules register their own actions as an import side effect.
 import './pages/overview.js';
@@ -86,7 +87,7 @@ async function retryLoad() {
 // ------------------------------------------------------------------
 // Coalesce bursts of live events into a single refetch so a running
 // campaign does not trigger a refetch storm.
-const pendingRefresh = { kpis: false, hierarchies: false, campaigns: false, companies: false };
+const pendingRefresh = { kpis: false, hierarchies: false, campaigns: false, companies: false, failures: false };
 let liveRefreshTimer = null;
 
 function scheduleLiveRefresh(flags) {
@@ -101,11 +102,15 @@ function scheduleLiveRefresh(flags) {
     pendingRefresh.hierarchies = false;
     pendingRefresh.campaigns = false;
     pendingRefresh.companies = false;
+    pendingRefresh.failures = false;
     const tasks = [];
     if (work.kpis) tasks.push(getAction('fetchKpis')());
     if (work.hierarchies) tasks.push(getAction('fetchHierarchies')());
     if (work.campaigns) tasks.push(getAction('fetchCampaigns')());
     if (work.companies) tasks.push(getAction('fetchCompanies')());
+    if (work.failures && document.getElementById('failed-modal')?.classList.contains('open')) {
+      tasks.push(getAction('fetchFailedAttempts')(true));
+    }
     Promise.allSettled(tasks);
   }, 400);
 }
@@ -137,12 +142,16 @@ async function handleLiveEvent(ev) {
     const ch = p.channel || 'Outreach';
     showToast(`Sent ${ch} to ${dest}`, 'success');
     scheduleLiveRefresh({ kpis: true, hierarchies: true, campaigns: true });
+  } else if (type === 'ATTEMPT_PREPARED' || type === 'ATTEMPT_STARTED' || type === 'ATTEMPT_QUEUED') {
+    scheduleLiveRefresh({ campaigns: true, hierarchies: true });
   } else if (type === 'ATTEMPT_FAILED') {
-    showToast(`Message failed: ${p.failure_detail || p.failure_code || 'Error'}`, 'error');
-    scheduleLiveRefresh({ kpis: true, hierarchies: true });
+    const destination = p.destination || p.recipient || 'unknown destination';
+    const reason = p.failure_detail || p.failure_code || 'Error';
+    showToast(`${p.channel || 'Message'} failed for ${destination}: ${reason}`, 'error');
+    scheduleLiveRefresh({ kpis: true, hierarchies: true, campaigns: true, failures: true });
   } else if (type === 'ATTEMPT_RECOVERY_REQUIRED' || type === 'ATTEMPT_UNKNOWN') {
-    showToast(`⚠️ Outreach recovery required for ${p.destination || 'contact'}`, 'error');
-    scheduleLiveRefresh({ kpis: true, hierarchies: true });
+    showToast(`Outreach recovery required for ${p.destination || 'contact'}`, 'error');
+    scheduleLiveRefresh({ kpis: true, hierarchies: true, campaigns: true });
   } else if (type.startsWith('CAMPAIGN_')) {
     scheduleLiveRefresh({ campaigns: true, kpis: true });
   } else if (type === 'CRM_STATUS_CHANGED' || type === 'INTERVIEW_STATUS_UPDATED' || type === 'CONTACT_ARCHIVED') {
@@ -174,11 +183,25 @@ function showPage(route) {
   return page;
 }
 
+let navigationSequence = 0;
+
 async function navigate(route) {
+  const navigation = ++navigationSequence;
+  if (route === 'senders') {
+    await getAction('openSendersDrawer')();
+    if (navigation !== navigationSequence) return route;
+    if (routeFromHash() !== route) location.hash = '#/' + route;
+    return route;
+  }
+  if (route === 'templates') {
+    await getAction('openTemplatesDrawer')();
+    if (navigation !== navigationSequence) return route;
+    if (routeFromHash() !== route) location.hash = '#/' + route;
+    return route;
+  }
   const page = showPage(route);
-  if (routeFromHash() !== page) location.hash = '#/' + page;
-  if (page === 'senders') await getAction('openSendersDrawer')();
-  if (page === 'templates') await getAction('openTemplatesDrawer')();
+  if (navigation === navigationSequence && routeFromHash() !== page) location.hash = '#/' + page;
+  return page;
 }
 
 // ------------------------------------------------------------------
@@ -242,29 +265,26 @@ function initSidebar() {
 // Initial load + bootstrap
 // ------------------------------------------------------------------
 async function loadInitialData() {
-  await Promise.all([
+  const results = await Promise.allSettled([
     getAction('fetchKpis')(),
     getAction('fetchCompanies')(),
     getAction('fetchSenders')(),
     getAction('fetchTemplates')(),
     getAction('fetchCampaigns')(),
   ]);
-  await getAction('fetchHierarchies')();
-  await getAction('fetchActivity')();
-  // Signal for E2E tests that initial data has rendered.
-  window.__dashboardReady = true;
+  const hierarchyResult = await Promise.allSettled([getAction('fetchHierarchies')()]);
+  const activityResult = await Promise.allSettled([getAction('fetchActivity')()]);
+  const ready = allLoadsSucceeded([...results, ...hierarchyResult, ...activityResult]);
+  window.__dashboardReady = ready;
+  return ready;
 }
 
 registerActions({
   toggleMoreMenu,
   closeMoreMenu,
-  renderLoadErrors,
   reportLoadError,
   clearLoadError,
   retryLoad,
-  scheduleLiveRefresh,
-  handleLiveEvent,
-  setActiveNav,
   showPage,
   navigate,
   toggleSidebar,

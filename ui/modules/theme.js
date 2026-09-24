@@ -8,7 +8,7 @@
 const THEME_MODE_KEY = 'reachout-theme-mode';
 const themeMedia = window.matchMedia('(prefers-color-scheme: dark)');
 
-export function readThemeMode() {
+function readThemeMode() {
   try {
     const mode = localStorage.getItem(THEME_MODE_KEY) || 'system';
     return mode === 'light' || mode === 'dark' ? mode : 'system';
@@ -17,12 +17,12 @@ export function readThemeMode() {
   }
 }
 
-export function resolveTheme(mode) {
+function resolveTheme(mode) {
   if (mode === 'light' || mode === 'dark') return mode;
   return themeMedia.matches ? 'dark' : 'light';
 }
 
-export function applyTheme(mode) {
+function applyTheme(mode) {
   const resolved = resolveTheme(mode);
   document.documentElement.setAttribute('data-theme-mode', mode);
   document.documentElement.setAttribute('data-theme', resolved);

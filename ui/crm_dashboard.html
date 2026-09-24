@@ -114,97 +114,100 @@
       </div>
     </div>
 
-    <!-- Section 4: Operational KPI Metrics Dashboard -->
-    <section class="kpi-sections" id="kpi-grid" aria-label="Dashboard KPI metrics">
-      <div class="kpi-section">
-        <h2 class="section-title">Pipeline</h2>
-        <div class="kpi-grid">
-          <div class="kpi-card" id="kpi-total">
-            <div class="kpi-label">Total Contacts</div>
-            <div class="kpi-value" id="val-total">0</div>
-            <div class="kpi-sub">Total database prospects</div>
-          </div>
-          <div class="kpi-card kpi-eligible" id="kpi-eligible">
-            <div class="kpi-label">Eligible</div>
-            <div class="kpi-value" id="val-eligible">0</div>
-            <div class="kpi-sub">Ready for outreach</div>
-          </div>
-          <div class="kpi-card kpi-contacted" id="kpi-contacted">
-            <div class="kpi-label">Contacted</div>
-            <div class="kpi-value" id="val-contacted">0</div>
-            <div class="kpi-sub">Outreached via WA/Email</div>
-          </div>
+    <section class="kpi-sections compact-overview" id="kpi-grid" aria-label="Dashboard KPI metrics">
+      <div class="overview-snapshot">
+        <div>
+          <span class="overview-snapshot-label">Live outreach snapshot</span>
+          <strong id="overview-summary-text">0 contacts · 0 phone and email endpoints</strong>
+        </div>
+        <span class="overview-snapshot-status">Real-time metrics</span>
+      </div>
+
+      <div class="primary-kpi-grid">
+        <div class="kpi-card kpi-eligible primary-kpi" id="kpi-ready">
+          <div class="kpi-label">Ready Now</div>
+          <div class="kpi-value" id="val-ready-contacts">0</div>
+          <div class="kpi-sub"><span id="val-ready-endpoints">0</span> dispatchable endpoints</div>
+        </div>
+        <div class="kpi-card kpi-contacted primary-kpi" id="kpi-covered-endpoints">
+          <div class="kpi-label">Endpoint Coverage</div>
+          <div class="kpi-value" id="val-covered-endpoints">0 / 0</div>
+          <div class="kpi-sub"><span id="val-coverage-percent">0</span>% successfully sent</div>
+        </div>
+        <div class="kpi-card kpi-failed primary-kpi" id="kpi-failed" role="button" tabindex="0" title="Open failed dispatches" aria-label="Open failed dispatches" data-action="openFailedDrawer">
+          <div class="kpi-label">Failed Attempts</div>
+          <div class="kpi-value" id="val-failed">0</div>
+          <div class="kpi-sub"><span id="val-failed-destinations">0</span> failed destinations · review</div>
+        </div>
+        <div class="kpi-card kpi-recovery primary-kpi" id="kpi-recovery" role="button" tabindex="0" title="Open unresolved attempts" aria-label="Open unresolved attempts" data-action="openRecoveryDrawer">
+          <div class="kpi-label">Unresolved Attempts</div>
+          <div class="kpi-value" id="val-recovery">0</div>
+          <div class="kpi-sub">Unknown or recovery-required · review</div>
         </div>
       </div>
 
-      <div class="kpi-section">
-        <h2 class="section-title">Outreach</h2>
-        <div class="kpi-grid">
-          <div class="kpi-card kpi-wa" id="kpi-wa-sent">
-            <div class="kpi-label">WhatsApp Sent</div>
-            <div class="kpi-value" id="val-wa-sent">0</div>
-            <div class="kpi-sub">Delivered on WA</div>
-          </div>
-          <div class="kpi-card kpi-email" id="kpi-email-sent">
-            <div class="kpi-label">Email Sent</div>
-            <div class="kpi-value" id="val-email-sent">0</div>
-            <div class="kpi-sub">Dispatched via SMTP</div>
-          </div>
-          <div class="kpi-card kpi-failed" id="kpi-failed">
-            <div class="kpi-label">Failed</div>
-            <div class="kpi-value" id="val-failed">0</div>
-            <div class="kpi-sub">Failed dispatches</div>
-          </div>
-        </div>
+      <div class="compact-metric-row" aria-label="Responses and follow-up metrics">
+        <span class="compact-metric-heading">Responses</span>
+        <div class="compact-metric"><span>Interested</span><strong id="val-interested">0</strong></div>
+        <div class="compact-metric"><span>Not Interested</span><strong id="val-not-interested">0</strong></div>
+        <div class="compact-metric"><span>Interview</span><strong id="val-interview">0</strong></div>
+        <div class="compact-metric compact-metric-action"><span>Follow-up Due</span><strong id="val-followup">0</strong></div>
       </div>
 
-      <div class="kpi-section">
-        <h2 class="section-title">Responses</h2>
-        <div class="kpi-grid">
-          <div class="kpi-card kpi-interested" id="kpi-interested">
-            <div class="kpi-label">Interested</div>
-            <div class="kpi-value" id="val-interested">0</div>
-            <div class="kpi-sub">Positive responses</div>
+      <details class="coverage-details" id="coverage-details">
+        <summary>
+          <span>Coverage Details</span>
+          <span class="coverage-details-summary">Contacts, endpoint states, and channel breakdown</span>
+        </summary>
+        <div class="coverage-details-grid">
+          <div class="coverage-detail-group">
+            <h3>Contacts</h3>
+            <dl class="coverage-detail-list">
+              <div><dt>Total Contacts</dt><dd id="val-total">0</dd></div>
+              <div><dt>Fully Messaged</dt><dd id="val-fully-messaged">0</dd></div>
+              <div><dt>Policy Complete</dt><dd id="val-dispatch-complete">0</dd></div>
+              <div><dt>Contacts With Sends</dt><dd id="val-with-sends">0</dd></div>
+            </dl>
           </div>
-          <div class="kpi-card kpi-not-interested" id="kpi-not-interested">
-            <div class="kpi-label">Not Interested</div>
-            <div class="kpi-value" id="val-not-interested">0</div>
-            <div class="kpi-sub">No hiring / Declined</div>
+          <div class="coverage-detail-group">
+            <h3>Endpoints</h3>
+            <dl class="coverage-detail-list">
+              <div><dt>Total Endpoints</dt><dd id="val-total-endpoints">0</dd></div>
+              <div><dt>Covered Endpoints</dt><dd id="val-covered-endpoints-detail">0</dd></div>
+              <div><dt>Ready Endpoints</dt><dd id="val-ready-endpoints-detail">0</dd></div>
+              <div><dt>Blocked Endpoints</dt><dd id="val-blocked-endpoints">0</dd></div>
+              <div><dt>Blocked Contacts</dt><dd id="val-blocked-contacts">0</dd></div>
+              <div><dt>Never Attempted</dt><dd id="val-never-attempted">0</dd></div>
+              <div><dt>Permanent Failed</dt><dd id="val-permanent-failed">0</dd></div>
+              <div><dt>Retryable Failed</dt><dd id="val-retryable-failed">0</dd></div>
+            </dl>
           </div>
-          <div class="kpi-card kpi-interview" id="kpi-interview">
-            <div class="kpi-label">Interview</div>
-            <div class="kpi-value" id="val-interview">0</div>
-            <div class="kpi-sub">Interviews scheduled</div>
+          <div class="coverage-detail-group">
+            <h3>Channels</h3>
+            <dl class="coverage-detail-list">
+              <div><dt>WhatsApp Covered Endpoints</dt><dd id="val-wa-sent">0</dd></div>
+              <div><dt>Email Covered Endpoints</dt><dd id="val-email-sent">0</dd></div>
+            </dl>
           </div>
         </div>
-      </div>
-
-      <div class="kpi-section kpi-section-action">
-        <h2 class="section-title">Action Needed</h2>
-        <div class="kpi-grid">
-          <div class="kpi-card kpi-followup" id="kpi-followup">
-            <div class="kpi-label">Follow-up Due</div>
-            <div class="kpi-value" id="val-followup">0</div>
-            <div class="kpi-sub">Pending 7-day milestone</div>
-          </div>
-          <div class="kpi-card kpi-recovery" id="kpi-recovery" role="button" tabindex="0" title="Open the recovery queue" aria-label="Open the recovery queue" data-action="openRecoveryDrawer">
-            <div class="kpi-label">Recovery Required</div>
-            <div class="kpi-value" id="val-recovery">0</div>
-            <div class="kpi-sub">Blocked in recovery queue &bull; click to review</div>
-          </div>
-        </div>
-      </div>
+      </details>
     </section>
 
     <!-- Section 7: Campaign Control Plane -->
     <section class="control-plane" id="campaign-control-card">
       <div class="campaign-control-group">
+        <div class="campaign-selector-wrap">
+          <label for="campaign-selector">Campaign</label>
+          <select id="campaign-selector" class="select-input" data-change="selectCampaign">
+            <option value="">No campaigns</option>
+          </select>
+        </div>
         <div>
           <span class="campaign-status-badge" id="campaign-status-pill">IDLE</span>
         </div>
         <div id="campaign-limit-wrap" class="c-inline-9">
-          <label for="campaign-limit-input" class="c-inline-10">Limit:</label>
-          <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Max contacts to outreach in this run" class="c-inline-11">
+          <label for="campaign-limit-input" class="c-inline-10">Send target:</label>
+          <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Maximum successful sends in this run" class="c-inline-11">
         </div>
         <button class="btn btn-secondary btn-sm" id="campaign-action-btn" data-action="onCampaignAction">
           <span id="campaign-action-label">▶ New Run</span>
@@ -219,23 +222,40 @@
 
       <!-- Policy, Quota & Round Info Grid -->
       <div class="c-inline-13">
-
         <div>Round: <strong id="prog-round" class="c-inline-14">Round 1</strong></div>
-        <div>Companies: <strong id="prog-comp-cov" class="c-inline-15">0</strong> covered / <strong id="prog-comp-rem" class="c-inline-15">0</strong> remaining</div>
         <div>Channel: <strong id="prog-curr-channel" class="c-inline-14">WHATSAPP</strong></div>
         <div>Sender: <strong id="prog-curr-sender">AUTO</strong></div>
         <div>Template: <strong id="prog-curr-template">AUTO</strong></div>
       </div>
 
-      <div class="campaign-progress-box">
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill c-inline-16" id="campaign-progress-fill"></div>
+      <div class="progress-stack">
+        <div class="progress-metric">
+          <div class="progress-metric-header">
+            <strong>Run target progress</strong>
+            <span id="target-progress-label">Target not recorded</span>
+          </div>
+          <div class="progress-bar-container" id="target-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Run target progress">
+            <div class="progress-bar-fill" id="target-progress-fill"></div>
+          </div>
+          <div class="progress-metric-detail" id="target-progress-detail">Successful sends: 0 / target not recorded</div>
         </div>
-        <div class="progress-stats">
-          <span>Progress: <strong id="prog-pct">0%</strong></span>
-          <span>Completed: <strong id="prog-completed">0</strong></span>
-          <span>Pending: <strong id="prog-pending">0</strong></span>
-          <span>Failed: <strong id="prog-failed">0</strong></span>
+        <div class="progress-metric">
+          <div class="progress-metric-header">
+            <strong>Global endpoint coverage</strong>
+            <span id="coverage-progress-label">0 / 0</span>
+          </div>
+          <div class="progress-bar-container" id="coverage-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Global endpoint coverage">
+            <div class="progress-bar-fill progress-bar-coverage" id="coverage-progress-fill"></div>
+          </div>
+          <div class="progress-metric-detail" id="coverage-progress-detail">0% of valid phone and email endpoints covered</div>
+        </div>
+        <div class="attempt-outcome-grid">
+          <span>Attempts: <strong id="attempt-total">0</strong></span>
+          <span>Sent: <strong id="attempt-sent">0</strong></span>
+          <span>Failed: <strong id="attempt-failed">0</strong></span>
+          <span>Unresolved: <strong id="attempt-unresolved">0</strong></span>
+          <span>In flight/prepared: <strong id="attempt-pending">0</strong></span>
+          <span>Sent rate: <strong id="attempt-success-rate">0%</strong></span>
         </div>
       </div>
     </section>
@@ -279,15 +299,17 @@
         <option value="INTERESTED">Interested</option>
         <option value="NOT_INTERESTED">Not Interested</option>
         <option value="PENDING_REPLY">Pending Reply</option>
-        <option value="NONE">No Status / Uncontacted</option>
+        <option value="NONE">No CRM status</option>
       </select>
 
-      <select class="select-input" id="channel-filter" aria-label="Filter by outreach status" data-change="applyFilters">
-        <option value="ALL">All Outreach Statuses</option>
-        <option value="SENT">Any Contacted</option>
-        <option value="NOT_SENT">Uncontacted</option>
-        <option value="WHATSAPP_SENT">WhatsApp Sent</option>
-        <option value="EMAIL_SENT">Email Sent</option>
+      <select class="select-input" id="coverage-filter" aria-label="Filter by endpoint coverage state" data-change="applyFilters">
+        <option value="ALL">All Delivery States</option>
+        <option value="WITH_SENDS">Has successful sends</option>
+        <option value="FULLY_MESSAGED">Fully messaged</option>
+        <option value="READY">Ready now</option>
+        <option value="NEVER_ATTEMPTED">Has never-attempted endpoint</option>
+        <option value="BLOCKED">Blocked</option>
+        <option value="HAS_FAILED">Has failed endpoint</option>
       </select>
 
       <div class="priority-pills" role="group" aria-label="Priority filters">
@@ -296,14 +318,13 @@
         <button class="pill-btn pill-recovery" data-filter="RECOVERY" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECOVERY"]'><span aria-hidden="true">⏱</span> Recovery Queue</button>
         <button class="pill-btn" data-filter="INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["INTERESTED"]'><span aria-hidden="true">★</span> Interested</button>
         <button class="pill-btn" data-filter="RECENTLY_ACTIVE" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECENTLY_ACTIVE"]'><span aria-hidden="true">⚡</span> Recently Active</button>
-        <button class="pill-btn" data-filter="UNCONTACTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["UNCONTACTED"]'>Uncontacted</button>
         <button class="pill-btn" data-filter="NOT_INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["NOT_INTERESTED"]'>Not Interested</button>
       </div>
     </section>
 
     <!-- Company Hierarchy View (single view) -->
     <div id="hierarchy-summary-text" class="c-inline-17">
-      Company-First progression &bull; Discrete Endpoint Tracking
+      Companies &rarr; Contacts &rarr; Phones &amp; Emails
     </div>
     <section class="hierarchy-container" id="hierarchy-view-section">
       <div id="hierarchy-cards-list" role="status" aria-label="Loading company hierarchies" class="c-inline-18">
@@ -672,6 +693,44 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="failed-modal" role="dialog" aria-modal="true" aria-labelledby="failed-modal-title">
+    <div class="modal-content failed-modal-content">
+      <div class="modal-header">
+        <h3 id="failed-modal-title">Failed Dispatches</h3>
+        <button class="modal-close-btn" aria-label="Close dialog" data-action="closeFailedDrawer">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="failed-filters">
+          <select class="select-input" id="failed-campaign-filter" aria-label="Filter failed attempts by campaign" data-change="fetchFailedAttempts">
+            <option value="">All campaigns</option>
+          </select>
+          <select class="select-input" id="failed-channel-filter" aria-label="Filter failed attempts by channel" data-change="fetchFailedAttempts">
+            <option value="">All channels</option>
+            <option value="WHATSAPP">WhatsApp</option>
+            <option value="EMAIL">Email</option>
+          </select>
+          <select class="select-input" id="failed-code-filter" aria-label="Filter failed attempts by reason" data-change="fetchFailedAttempts">
+            <option value="">All failure reasons</option>
+          </select>
+          <input class="search-input" id="failed-search-input" type="search" placeholder="Search contact, company, phone, email, or reason" aria-label="Search failed attempts">
+          <button class="btn btn-secondary btn-sm" data-action="fetchFailedAttempts">Apply</button>
+          <button class="btn btn-outline btn-sm" data-action="resetFailedFilters">Reset</button>
+        </div>
+        <div id="failed-list-summary" class="failed-list-summary" role="status" aria-live="polite">Loading failed dispatches...</div>
+        <div id="failed-list-container" class="failed-table-wrap">
+          <div class="history-empty">Loading failed dispatches...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="failed-page-prev" data-action="changeFailedPage" data-args='[-50]'>Previous</button>
+        <button class="btn btn-secondary" id="failed-page-next" data-action="changeFailedPage" data-args='[50]'>Next</button>
+        <button class="btn btn-secondary" data-action="exportFailedCsv">Export CSV</button>
+        <button class="btn btn-secondary" data-action="fetchFailedAttempts">Refresh</button>
+        <button class="btn btn-primary" data-action="closeFailedDrawer">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 8. Recovery Queue Drawer -->
   <div class="modal-overlay" id="recovery-modal" role="dialog" aria-modal="true" aria-labelledby="recovery-modal-title">
     <div class="modal-content c-inline-59">
@@ -683,8 +742,7 @@
       </div>
       <div class="modal-body">
         <div class="c-inline-45">
-          Attempts stuck in <strong>RECOVERY_REQUIRED</strong> or <strong>UNKNOWN</strong> state (e.g. text delivered but the attachment failed).
-          Resolve each item: confirm it as sent, retry it, or cancel it.
+          Attempts with an uncertain provider outcome. Confirm a send that succeeded, allow a fresh retry, or cancel it. Allowing a retry closes the uncertain row as failed so a resumed campaign can create a new attempt.
         </div>
         <div id="recovery-list-container" role="status" aria-live="polite" class="c-inline-36">
           <div class="c-inline-60">Loading recovery queue...</div>
