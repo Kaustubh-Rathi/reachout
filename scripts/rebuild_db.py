@@ -18,15 +18,28 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy.engine import make_url
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
-DB_PATH = DATA_DIR / "reachout.db"
 LOG_PATH = ROOT / "logs" / "mnc_whatsapp_send_log.csv"
 SOURCE = DATA_DIR / "MNC_Final.xlsx"
 SHEET = "MNC_Cleaned"
 
 
-def parse_ts(raw: str) -> datetime:
+def resolve_database_path(database_url: str) -> Path:
+    url = make_url(database_url)
+    if url.get_backend_name() != "sqlite":
+        raise ValueError("rebuild_db.py supports SQLite database URLs only")
+    if not url.database or url.database == ":memory:":
+        raise ValueError("rebuild_db.py requires a persistent SQLite database URL")
+    path = Path(url.database).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    return path.resolve()
+
+
+def parse_ts(raw: str | None) -> datetime:
     """Parse log timestamp (naive ISO) as UTC-aware."""
     if not raw:
         return datetime.now(timezone.utc)
@@ -47,28 +60,33 @@ def main() -> None:
         print(f"[rebuild] Missing log: {LOG_PATH}")
         sys.exit(1)
 
+    sys.path.insert(0, str(ROOT))
+    from app.composition import build_repositories
+    from app.domain.enums import AttemptType, Channel, OutreachStatus
+    from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
+    from app.infrastructure.database import DB_URL, SessionFactory, init_db
+    from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
+    from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
+    from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
+
+    database_path = resolve_database_path(DB_URL)
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"[rebuild] Target database: {database_path}")
+
     # 1. Backup + delete old DB
-    if DB_PATH.exists():
-        backup_dir = DATA_DIR / "backups"
+    if database_path.exists():
+        backup_dir = database_path.parent / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         for suffix in ("", "-wal", "-shm"):
-            p = Path(str(DB_PATH) + suffix)
+            p = Path(str(database_path) + suffix)
             if p.exists():
                 shutil.copy2(p, backup_dir / f"reachout_pre_rebuild_{stamp}{suffix}")
         print(f"[rebuild] Backed up old DB to {backup_dir}")
         for suffix in ("", "-wal", "-shm"):
-            p = Path(str(DB_PATH) + suffix)
+            p = Path(str(database_path) + suffix)
             if p.exists():
                 p.unlink()
-
-    sys.path.insert(0, str(ROOT))
-    from app.domain.enums import AttemptType, Channel, OutreachStatus
-    from app.domain.outreach_attempt import OutreachAttempt, generate_idempotency_key
-    from app.infrastructure.database import SessionFactory, init_db
-    from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
-    from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOutreachRepository
-    from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 
     # 2. Create schema from corrected models
     init_db()
@@ -76,7 +94,7 @@ def main() -> None:
 
     # 3. Sync contacts from Excel
     with SessionFactory() as session:
-        syncer = DatabaseSourceSynchronizer(session)
+        syncer = DatabaseSourceSynchronizer(session, repository_factory=build_repositories)
         summary = syncer.sync_source(str(SOURCE), SHEET)
         print(
             f"[rebuild] Sync done: new={summary.new_contacts} updated={summary.updated_contacts} "

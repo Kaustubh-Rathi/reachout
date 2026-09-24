@@ -18,6 +18,7 @@ from app.infrastructure.repositories.sqlite_outreach_repository import SqliteOut
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.infrastructure.repositories.sqlite_template_repository import SqliteTemplateRepository
 from app.services.outreach_service import OutreachService
+from tests.doubles.fake_providers import MockWhatsAppProvider
 
 
 @pytest.fixture
@@ -118,6 +119,29 @@ def test_manual_whatsapp_dispatch_records_manual_attempt(manual_dispatch_session
         assert att.channel == Channel.WHATSAPP
         assert att.destination == "919876500002"
         assert att.status == OutreachStatus.SENT
+
+
+def test_manual_send_unknown_outcome_requires_recovery(manual_dispatch_session_factory):
+    provider = MockWhatsAppProvider()
+    provider.unknown_next = True
+
+    with manual_dispatch_session_factory() as session:
+        service = OutreachService(session, whatsapp_provider=provider)
+        result = service.send_whatsapp(
+            contact_id="cnt_stripe_hr1",
+            custom_body="Custom personalized WhatsApp note",
+            sender_id="WA_MANUAL_1",
+        )
+
+        assert result["success"] is False
+        assert result["status"] == OutreachStatus.UNKNOWN.value
+        assert result["failure_code"] == "ERR_EXTERNAL_STATUS_UNKNOWN"
+        assert result["failure_detail"] == "Simulated network drop before ACK"
+
+        attempts = service.outreach_repo.list_by_contact("cnt_stripe_hr1")
+        assert len(attempts) == 1
+        assert attempts[0].status == OutreachStatus.UNKNOWN
+        assert service.get_recovery_queue()[0]["id"] == attempts[0].id
 
 
 def test_manual_email_dispatch_records_manual_attempt(manual_dispatch_session_factory):
