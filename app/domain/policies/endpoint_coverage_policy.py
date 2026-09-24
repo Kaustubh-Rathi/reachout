@@ -269,7 +269,6 @@ def get_contact_endpoint_metrics(
     """Generate detailed per-endpoint coverage audit metrics for UI, API, and dashboards."""
     all_endpoints = contact.endpoints
     suppressed = suppressed_identifiers or set()
-    contact_blocked = has_ambiguous_or_inflight_blocker(contact, historical_attempts)
     opt_out_tags = {"dnc", "opt_out", "opt-out", "do_not_contact", "unsubscribed"}
     contact_excluded = contact.contact_id in suppressed or bool(
         {tag.strip().lower() for tag in (contact.tags or [])} & opt_out_tags
@@ -279,6 +278,11 @@ def get_contact_endpoint_metrics(
     em_endpoints = []
 
     for ep in all_endpoints:
+        channel_blocked = has_ambiguous_or_inflight_blocker(
+            contact,
+            historical_attempts,
+            channel=ep.channel,
+        )
         matching_attempts = _matching_endpoint_attempts(ep, contact.contact_id, historical_attempts)
         matching_attempts.sort(key=lambda a: a.completed_at or a.prepared_at, reverse=True)
         attempt = matching_attempts[0] if matching_attempts else None
@@ -294,7 +298,7 @@ def get_contact_endpoint_metrics(
             coverage_state = "PERMANENT_FAILED"
         elif is_excluded:
             coverage_state = "SUPPRESSED"
-        elif contact_blocked:
+        elif channel_blocked:
             coverage_state = "BLOCKED"
         elif not matching_attempts:
             coverage_state = "NEVER_ATTEMPTED"
