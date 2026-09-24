@@ -43,6 +43,29 @@ logger = logging.getLogger(__name__)
 STALL_NO_PROGRESS_PAUSE_SECONDS = 30 * 60
 
 
+def _list_campaign_templates(template_repo, channel: Channel, allowed_template_ids):
+    templates = [
+        template
+        for template in template_repo.list_by_channel(channel, active_only=True)
+        if not allowed_template_ids or template.id in allowed_template_ids
+    ]
+    if not templates:
+        templates = [
+            template
+            for template in template_repo.list_by_channel(channel, active_only=False)
+            if not allowed_template_ids or template.id in allowed_template_ids
+        ]
+    return templates
+
+
+def _list_campaign_senders(sender_repo, channel: Channel, allowed_sender_ids):
+    return [
+        sender
+        for sender in sender_repo.list_active(channel=channel)
+        if not allowed_sender_ids or sender.id in allowed_sender_ids
+    ]
+
+
 def should_pause_on_stall(
     *,
     last_progress_mono: float,
@@ -288,9 +311,12 @@ class PersistentCampaignScheduler(CampaignScheduler):
 
                 suppressed_set = {s.identifier for s in suppression_repo.list_all()}
 
+                campaign_template_ids = set(campaign.template_ids or ())
+                campaign_sender_account_ids = set(campaign.sender_account_ids or ())
+
                 # Resolve all active sender accounts across both channels
-                active_wa_senders = sender_repo.list_active(channel=Channel.WHATSAPP)
-                active_em_senders = sender_repo.list_active(channel=Channel.EMAIL)
+                active_wa_senders = _list_campaign_senders(sender_repo, Channel.WHATSAPP, campaign_sender_account_ids)
+                active_em_senders = _list_campaign_senders(sender_repo, Channel.EMAIL, campaign_sender_account_ids)
                 all_active_senders = active_wa_senders + active_em_senders
 
                 if not all_active_senders:
@@ -305,8 +331,27 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     )
                     break
 
+                available_senders = [sender for sender in all_active_senders if sender.is_available()]
+                available_channels = {
+                    sender.channel
+                    for sender in available_senders
+                    if _list_campaign_templates(template_repo, sender.channel, campaign_template_ids)
+                }
+                if not available_channels:
+                    campaign.fail(reason="No active sender and template pairing is available")
+                    campaign_repo.save(campaign)
+                    session.commit()
+                    self.event_publisher.publish(
+                        DomainEvent(
+                            event_type="CAMPAIGN_FAILED",
+                            payload={"campaign_id": campaign.id, "reason": "No ready sender/template channel"},
+                        )
+                    )
+                    break
+
                 # Build dynamic channel rotation sequence
-                rotation_sequence = ChannelRotationPolicy.build_dynamic_channel_sequence(all_active_senders)
+                available_senders = [sender for sender in available_senders if sender.channel in available_channels]
+                rotation_sequence = ChannelRotationPolicy.build_dynamic_channel_sequence(available_senders)
                 preferred_channel, next_channel_cursor = ChannelRotationPolicy.get_preferred_channel(
                     cursor=channel_cursor,
                     sequence=rotation_sequence,
@@ -323,6 +368,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     attempts=all_attempts,
                     suppressed_identifiers=suppressed_set,
                     preferred_channel=preferred_channel,
+                    available_channels=available_channels,
                 )
 
                 if not prioritized_candidates:
@@ -383,6 +429,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                     preferred_channel=preferred_channel,
                     historical_attempts=contact_hist,
                     suppressed_identifiers=suppressed_set,
+                    available_channels=available_channels,
                 )
 
                 if not decision.is_eligible or decision.channel is None:
@@ -398,9 +445,7 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 target_destination = target_endpoint.normalized_address if target_endpoint else None
 
                 # Resolve active message templates for effective channel
-                channel_templates = template_repo.list_by_channel(effective_channel, active_only=True)
-                if not channel_templates:
-                    channel_templates = template_repo.list_by_channel(effective_channel, active_only=False)
+                channel_templates = _list_campaign_templates(template_repo, effective_channel, campaign_template_ids)
 
                 if not channel_templates:
                     campaign.fail(reason=f"No message templates found for channel {effective_channel.value}")
@@ -420,7 +465,9 @@ class PersistentCampaignScheduler(CampaignScheduler):
                 # Resolve active senders for effective channel
                 channel_senders = [s for s in all_active_senders if s.channel == effective_channel and s.is_available()]
                 if not channel_senders:
-                    channel_senders = sender_repo.list_active(channel=effective_channel)
+                    channel_senders = _list_campaign_senders(
+                        sender_repo, effective_channel, campaign_sender_account_ids
+                    )
 
                 if not channel_senders:
                     # No ACTIVE sender exists for this channel. Surface it once per
