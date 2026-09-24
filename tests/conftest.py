@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import datetime
+import atexit
 import hashlib
+import shutil
 import os
 import tempfile
 from datetime import timezone
@@ -38,28 +40,29 @@ def _calculate_file_sha256(path: Path) -> Optional[str]:
     return h.hexdigest()
 
 
-def _checkpoint_sqlite(path: Path) -> None:
-    """Flush any pending WAL contents into the main SQLite file.
-
-    Merely reading a SQLite database that has a populated -wal file can trigger a
-    checkpoint and change the main file's bytes. Normalizing the WAL before hashing
-    keeps the production-immutability guard deterministic while still detecting any
-    test that genuinely writes to the production database.
-    """
+def _calculate_sqlite_sha256(path: Path) -> Optional[str]:
     if not path.exists():
-        return
-    try:
-        import sqlite3
-
-        conn = sqlite3.connect(str(path))
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        conn.close()
-    except Exception:
-        pass
+        return None
+    h = hashlib.sha256()
+    for candidate in (path, Path(f"{path}-wal")):
+        if not candidate.exists():
+            continue
+        h.update(candidate.name.encode())
+        with open(candidate, "rb") as f:
+            while chunk := f.read(65536):
+                h.update(chunk)
+    return h.hexdigest()
 
 
 # Configure test environment BEFORE any database module is loaded
 _TEMP_TEST_DIR = tempfile.mkdtemp(prefix="reachout_pytest_isolation_")
+
+
+def _cleanup_temp_test_dir() -> None:
+    shutil.rmtree(_TEMP_TEST_DIR, ignore_errors=True)
+
+
+atexit.register(_cleanup_temp_test_dir)
 _TEST_DB_FILE = Path(_TEMP_TEST_DIR) / "test_reachout_isolated.db"
 os.environ.setdefault("REACHOUT_LIVE_DATABASE_URL", os.environ.get("DATABASE_URL", f"sqlite:///{PROD_DB.as_posix()}"))
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB_FILE.as_posix()}"
@@ -70,7 +73,7 @@ os.environ["OUTREACH_CHANNEL_DELAY_EM"] = "0.01"
 def pytest_sessionstart(session):
     """Record SHA-256 of production database and raw datasets before test suite execution."""
     global _PRE_TEST_HASHES
-    _checkpoint_sqlite(PROD_DB)
+    _calculate_sqlite_sha256(PROD_DB)
     _PRE_TEST_HASHES["reachout.db"] = _calculate_file_sha256(PROD_DB)
     _PRE_TEST_HASHES["MNC_Final.xlsx"] = _calculate_file_sha256(MNC_XLSX)
     _PRE_TEST_HASHES["Reachout.xlsx"] = _calculate_file_sha256(REACHOUT_XLSX)
@@ -131,6 +134,7 @@ def reset_test_provider_overrides():
 def pytest_sessionfinish(session, exitstatus):
     """Verify 100% byte-for-byte SHA-256 immutability of production database and raw workbooks."""
     global _PRE_TEST_HASHES
+    _cleanup_temp_test_dir()
     for filename, path in [
         ("reachout.db", PROD_DB),
         ("MNC_Final.xlsx", MNC_XLSX),
@@ -138,9 +142,11 @@ def pytest_sessionfinish(session, exitstatus):
         ("mnc_whatsapp_send_log.csv", SEND_LOG_CSV),
     ]:
         if filename == "reachout.db":
-            _checkpoint_sqlite(path)
-        pre_hash = _PRE_TEST_HASHES.get(filename)
-        post_hash = _calculate_file_sha256(path)
+            pre_hash = _PRE_TEST_HASHES.get(filename)
+            post_hash = _calculate_sqlite_sha256(path)
+        else:
+            pre_hash = _PRE_TEST_HASHES.get(filename)
+            post_hash = _calculate_file_sha256(path)
         if pre_hash is not None:
             assert post_hash == pre_hash, (
                 f"FATAL: Production file '{filename}' was modified during test run!\n"
