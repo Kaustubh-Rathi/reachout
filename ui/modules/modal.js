@@ -1,5 +1,17 @@
-// Modal accessibility: Escape-to-close, initial focus, focus trap, focus
-// restore, and background scroll lock.
+import { getAction } from './actions.js';
+
+const modalCloseActions = {
+  'confirm-modal': ['resolveConfirm', false],
+  'send-modal': ['closeSendModal'],
+  'history-modal': ['closeHistoryModal'],
+  'email-config-modal': ['closeEmailConfigModal'],
+  'wa-qr-modal': ['closeWhatsAppQrModal'],
+  'discrepancies-modal': ['closeDiscrepanciesDrawer'],
+  'readiness-modal': ['closeReadinessModal'],
+  'sync-modal': ['closeSyncModal'],
+  'failed-modal': ['closeFailedDrawer'],
+  'recovery-modal': ['closeRecoveryDrawer'],
+};
 
 function openModals() {
   return Array.from(document.querySelectorAll('.modal-overlay.open'));
@@ -39,7 +51,13 @@ export function initModalAccessibility() {
     if (event.key !== 'Escape') return;
     const modals = openModals();
     if (modals.length === 0) return;
-    modals[modals.length - 1].classList.remove('open');
+    const modal = modals[modals.length - 1];
+    const closeAction = modalCloseActions[modal.id];
+    if (closeAction) {
+      getAction(closeAction[0])(...closeAction.slice(1));
+    } else {
+      modal.classList.remove('open');
+    }
   });
 
   new MutationObserver(syncModalState).observe(document.body, {

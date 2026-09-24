@@ -4,7 +4,7 @@ import pytest
 from playwright.sync_api import Page
 
 from app.domain.enums import Channel, SenderStatus
-from app.infrastructure.database import SessionFactory
+from app.infrastructure import database as database_module
 from app.services.sender_service import SenderService
 
 BASE_URL = "http://127.0.0.1:8899"
@@ -45,7 +45,7 @@ def test_senders_control_plane(browser_page: Page):
 
 def test_readiness_modal_on_blocked_start(browser_page: Page):
     """Test that starting outreach when unauthenticated triggers the Readiness Error Modal."""
-    with SessionFactory() as session:
+    with database_module.SessionFactory() as session:
         from app.domain.enums import CampaignStatus
         from app.services.campaign_service import CampaignService
 
@@ -55,10 +55,10 @@ def test_readiness_modal_on_blocked_start(browser_page: Page):
             camp_svc.campaign_repo.save(c)
 
         sender_svc = SenderService(session)
-        senders = sender_svc.repo.list_by_channel(Channel.WHATSAPP)
-        for s in senders:
-            s.status = SenderStatus.AUTH_REQUIRED
-            sender_svc.repo.save(s)
+        for sender_channel in (Channel.WHATSAPP, Channel.EMAIL):
+            for sender in sender_svc.repo.list_by_channel(sender_channel):
+                sender.status = SenderStatus.AUTH_REQUIRED
+                sender_svc.repo.save(sender)
         session.commit()
 
     page = browser_page

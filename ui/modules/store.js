@@ -1,51 +1,15 @@
-// Observable application store.
-//
-// A single, centralized store replaces scattered module-level state. Mutations
-// through the proxy notify subscribers so views can react to state changes
-// without imperative re-render wiring.
-
-export function createStore(initialState = {}) {
-  const subscribers = new Set();
-  const state = new Proxy({ ...initialState }, {
-    set(target, key, value) {
-      const changed = target[key] !== value;
-      target[key] = value;
-      if (changed) notify();
-      return true;
-    },
-    deleteProperty(target, key) {
-      delete target[key];
-      notify();
-      return true;
-    },
-  });
-
-  function notify() {
-    subscribers.forEach((subscriber) => {
-      try {
-        subscriber(state);
-      } catch (err) {
-        console.error('Store subscriber error:', err);
-      }
-    });
-  }
-
-  return { state };
-}
-
-export const store = createStore({
+export const state = {
   companies: [],
   hierarchies: [],
   senders: [],
   templates: [],
+  campaigns: [],
   activeCampaign: null,
+  selectedCampaignId: null,
   searchQuery: '',
   selectedCompany: 'ALL',
   selectedCrmStatus: 'ALL',
-  selectedChannelStatus: 'ALL',
+  selectedCoverageStatus: 'ALL',
   selectedPriorityFilter: 'ALL',
   contactsPage: 1,
-});
-
-// Convenience accessor for modules that only need the observable state object.
-export const state = store.state;
+};

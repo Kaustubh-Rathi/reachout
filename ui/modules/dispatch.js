@@ -6,7 +6,7 @@ import { getAction } from './actions.js';
 
 const ACTIVATABLE_TAGS = new Set(['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA']);
 
-export function resolveActionArgs(el, event) {
+function resolveActionArgs(el, event) {
   let args = [];
   if (el.dataset.args) {
     try {
@@ -23,7 +23,7 @@ export function resolveActionArgs(el, event) {
   });
 }
 
-export function runActionNames(el, names, event) {
+function runActionNames(el, names, event) {
   for (const name of names) {
     const fn = getAction(name);
     fn.apply(el, resolveActionArgs(el, event));

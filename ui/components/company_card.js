@@ -47,40 +47,60 @@ function hrStatusSelect(contactId, currentStatus) {
   `;
 }
 
-function endpointStatusBadge(endpoint, recoveryAtt) {
-  const isSent = endpoint.status === 'SENT';
-  if (isSent) return `<span class="endpoint-sent">✓ ${endpoint.channel} SENT</span>`;
-  if (recoveryAtt) return `<span class="endpoint-recovery-badge">⏱ ${endpoint.channel} IN RECOVERY QUEUE</span>`;
-  return '<span class="endpoint-uncontacted">○ Not contacted</span>';
+function endpointStatusBadge(endpoint) {
+  const state = endpoint.coverage_state || endpoint.status || 'NEVER_ATTEMPTED';
+  const badges = {
+    SENT: `<span class="endpoint-sent">✓ ${escapeHtml(endpoint.channel)} COVERED</span>`,
+    NEVER_ATTEMPTED: `<span class="endpoint-uncontacted">○ ${escapeHtml(endpoint.channel)} NEVER ATTEMPTED</span>`,
+    RETRYABLE: `<span class="endpoint-failed-badge">✕ ${escapeHtml(endpoint.channel)} FAILED · RETRYABLE</span>`,
+    PERMANENT_FAILED: `<span class="endpoint-failed-badge">⛔ ${escapeHtml(endpoint.channel)} PERMANENT FAILURE</span>`,
+    SUPPRESSED: `<span class="endpoint-uncontacted">⊘ ${escapeHtml(endpoint.channel)} SUPPRESSED</span>`,
+    BLOCKED: `<span class="endpoint-recovery-badge">⏱ ${escapeHtml(endpoint.channel)} BLOCKED · RECOVERY</span>`,
+    READY: `<span class="endpoint-uncontacted">○ ${escapeHtml(endpoint.channel)} READY</span>`,
+  };
+  return badges[state] || badges.READY;
 }
 
-function findRecoveryAttempt(hr, endpoint) {
-  return (hr.history || []).find(
-    (att) => isRecoveryAttempt(att) && att.channel === endpoint.channel && (att.destination || '') === (endpoint.address || '')
-  );
+function findEndpointAttempt(hr, endpoint) {
+  if (endpoint.attempt_id) {
+    const exact = (hr.history || []).find(attempt => attempt.id === endpoint.attempt_id);
+    if (exact) return exact;
+  }
+  return (hr.history || []).find(attempt =>
+    attempt.channel === endpoint.channel && (attempt.destination || '') === (endpoint.address || '')
+  ) || null;
 }
 
 function renderEndpointBox(hr, endpoint) {
-  const isSent = endpoint.status === 'SENT';
-  const recoveryAtt = findRecoveryAttempt(hr, endpoint);
+  const isSent = endpoint.coverage_state === 'SENT' || endpoint.status === 'SENT';
+  const isBlocked = endpoint.coverage_state === 'BLOCKED' || isRecoveryAttempt(findEndpointAttempt(hr, endpoint));
+  const isInFlight = ['PREPARED', 'QUEUED', 'SENDING'].includes(endpoint.status);
+  const attempt = findEndpointAttempt(hr, endpoint);
 
   let metaDetails = '';
   if (isSent && endpoint.sender_account_id) {
     metaDetails = `<div class="endpoint-meta">${escapeHtml(endpoint.sender_account_id)} &bull; ${escapeHtml(endpoint.template_id || 'Direct')} &bull; ${formatDate(endpoint.sent_at)}</div>`;
-  } else if (recoveryAtt && recoveryAtt.failure_detail) {
-    metaDetails = `<div class="endpoint-meta endpoint-meta-warn">${escapeHtml(recoveryAtt.failure_detail)}</div>`;
+  } else if (endpoint.failure_detail || (attempt && attempt.failure_detail)) {
+    const detail = endpoint.failure_detail || attempt.failure_detail;
+    const code = endpoint.failure_code || attempt.failure_code;
+    metaDetails = `<div class="endpoint-meta endpoint-meta-warn">${escapeHtml(detail)}${code ? ` · ${escapeHtml(code)}` : ''}</div>`;
   }
 
-  const sendBtn = recoveryAtt
-    ? '<button class="btn btn-amber btn-xs" data-action="openRecoveryDrawer">⏱ Review queue</button>'
-    : (endpoint.channel === 'WHATSAPP'
-      ? `<button class="btn btn-emerald btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"WHATSAPP",${isSent},${jsonAttr(endpoint.address)}]'>${isSent ? 'Resend WA' : 'Send WA'}</button>`
-      : `<button class="btn btn-primary btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"EMAIL",${isSent},${jsonAttr(endpoint.address)}]'>${isSent ? 'Resend Email' : 'Send Email'}</button>`);
+  let sendBtn;
+  if (isBlocked) {
+    sendBtn = '<button class="btn btn-amber btn-xs" data-action="openRecoveryDrawer">Review recovery</button>';
+  } else if (isInFlight) {
+    sendBtn = '<button class="btn btn-outline btn-xs" disabled>In flight</button>';
+  } else if (endpoint.channel === 'WHATSAPP') {
+    sendBtn = `<button class="btn btn-emerald btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"WHATSAPP",${isSent},${jsonAttr(endpoint.address)}]'>${isSent ? 'Resend WA' : 'Send WA'}</button>`;
+  } else {
+    sendBtn = `<button class="btn btn-primary btn-xs" data-action="openSendModal" data-args='[${jsonAttr(hr.contact_id)},"EMAIL",${isSent},${jsonAttr(endpoint.address)}]'>${isSent ? 'Resend Email' : 'Send Email'}</button>`;
+  }
 
   return `
     <div class="endpoint-box ${isSent ? 'endpoint-covered' : ''}">
       <div class="endpoint-info">
-        <span class="endpoint-label">${escapeHtml(endpoint.label)} &bull; ${endpointStatusBadge(endpoint, recoveryAtt)}</span>
+        <span class="endpoint-label">${escapeHtml(endpoint.label)} &bull; ${endpointStatusBadge(endpoint)}</span>
         <span class="endpoint-addr">${escapeHtml(endpoint.address)}</span>
         ${metaDetails}
       </div>
@@ -106,7 +126,7 @@ function renderHrCard(hr, index) {
     <div class="hr-card" data-contact-id="${escapeHtml(hr.contact_id)}">
       <div class="hr-header">
         <div class="hr-title-wrap">
-          <span class="hr-name-bold">HR ${index + 1}: ${escapeHtml(hr.name)}</span>
+          <span class="hr-name-bold">Contact ${index + 1}: ${escapeHtml(hr.name)}</span>
           ${hr.designation ? `<span class="hr-designation-text">&bull; ${escapeHtml(hr.designation)}</span>` : ''}
           ${followUpBadge}
         </div>
@@ -148,14 +168,14 @@ export function renderCompanyCard(comp) {
   const hrsHtml = (comp.contacts || []).map((hr, index) => renderHrCard(hr, index)).join('');
 
   card.innerHTML = `
-    <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='[${jsonAttr(comp.id)}]' title="Click to expand / collapse HR contacts">
+    <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="hrlist-${escapeHtml(comp.id)}" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='[${jsonAttr(comp.id)}]' title="Click to expand / collapse HR contacts">
       <div class="company-title-area">
         <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
         <span class="company-name-lg">${escapeHtml(comp.name)}</span>
         <span class="company-status-badge ${meta.cls}">${meta.icon} ${meta.text}</span>
       </div>
       <div class="company-meta-pills">
-        <span>HRs: <strong>${comp.total_contacts || 0}</strong></span>
+        <span>Contacts: <strong>${comp.total_contacts || 0}</strong></span>
         <span>Endpoints: <strong>${comp.covered_endpoints || 0} / ${comp.total_endpoints || 0} covered</strong></span>
       </div>
     </div>

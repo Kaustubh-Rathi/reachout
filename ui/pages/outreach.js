@@ -199,6 +199,174 @@ async function submitSendMessage() {
   }
 }
 
+const FAILED_PAGE_SIZE = 50;
+let failedOffset = 0;
+let failedRequestSequence = 0;
+
+function openFailedDrawer() {
+  failedOffset = 0;
+  renderFailedCampaignOptions();
+  document.getElementById('failed-modal').classList.add('open');
+  fetchFailedAttempts();
+}
+
+function closeFailedDrawer() {
+  failedRequestSequence += 1;
+  document.getElementById('failed-modal').classList.remove('open');
+}
+
+function renderFailedCampaignOptions() {
+  const select = document.getElementById('failed-campaign-filter');
+  const selected = select.value;
+  select.innerHTML = '';
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'All campaigns';
+  select.appendChild(all);
+  state.campaigns.forEach(campaign => {
+    const option = document.createElement('option');
+    option.value = campaign.id;
+    option.textContent = `${campaign.name} — ${campaign.status}`;
+    select.appendChild(option);
+  });
+  select.value = state.campaigns.some(campaign => campaign.id === selected) ? selected : '';
+}
+
+function failedQuery() {
+  const params = new URLSearchParams();
+  const campaignId = document.getElementById('failed-campaign-filter').value;
+  const channel = document.getElementById('failed-channel-filter').value;
+  const failureCode = document.getElementById('failed-code-filter').value;
+  const search = document.getElementById('failed-search-input').value.trim();
+  if (campaignId) params.set('campaign_id', campaignId);
+  if (channel) params.set('channel', channel);
+  if (failureCode) params.set('failure_code', failureCode);
+  if (search) params.set('search', search);
+  params.set('offset', failedOffset);
+  params.set('limit', FAILED_PAGE_SIZE);
+  return params.toString();
+}
+
+function renderFailedCodeOptions(codes) {
+  const select = document.getElementById('failed-code-filter');
+  const selected = select.value;
+  select.innerHTML = '';
+  const all = document.createElement('option');
+  all.value = '';
+  all.textContent = 'All failure reasons';
+  select.appendChild(all);
+  (codes || []).forEach(code => {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = code;
+    select.appendChild(option);
+  });
+  const selectedStillValid = !selected || (codes || []).includes(selected);
+  select.value = selectedStillValid ? selected : '';
+  return Boolean(selected && !selectedStillValid);
+}
+
+async function fetchFailedAttempts(preserveOffset = false) {
+  if (!preserveOffset) failedOffset = 0;
+  const query = failedQuery();
+  const request = ++failedRequestSequence;
+  const container = document.getElementById('failed-list-container');
+  const summary = document.getElementById('failed-list-summary');
+  container.innerHTML = '<div class="history-empty">Loading failed dispatches...</div>';
+  summary.innerText = 'Loading failed dispatches...';
+  try {
+    const res = await api.failedAttempts(query);
+    if (!res.ok) {
+      const message = await apiErrorText(res);
+      if (request !== failedRequestSequence) return false;
+      container.innerHTML = `<div class="failed-table-empty">${escapeHtml(message)}</div>`;
+      summary.innerText = 'Failed dispatches could not be loaded';
+      return false;
+    }
+    const result = await res.json();
+    if (request !== failedRequestSequence) return false;
+    if (renderFailedCodeOptions(result.failure_codes)) {
+      await fetchFailedAttempts();
+      return false;
+    }
+    renderFailedAttempts(result);
+    return true;
+  } catch (err) {
+    if (request !== failedRequestSequence) return false;
+    container.innerHTML = `<div class="failed-table-empty">${escapeHtml(err.message)}</div>`;
+    summary.innerText = 'Failed dispatches could not be loaded';
+    return false;
+  }
+}
+
+function renderFailedAttempts(result) {
+  const container = document.getElementById('failed-list-container');
+  const summary = document.getElementById('failed-list-summary');
+  const items = result.items || [];
+  const start = result.total ? result.offset + 1 : 0;
+  const end = result.offset + items.length;
+  summary.innerText = `Showing ${start}-${end} of ${result.total} failed attempts • ${result.failed_destinations} distinct failed destinations`;
+  document.getElementById('failed-page-prev').disabled = result.offset <= 0;
+  document.getElementById('failed-page-next').disabled = !result.has_more;
+  if (items.length === 0) {
+    container.innerHTML = '<div class="failed-table-empty">No failed dispatches match these filters.</div>';
+    return;
+  }
+  const rows = items.map(item => `
+    <tr>
+      <td>${item.completed_at ? formatDate(item.completed_at) : '--'}</td>
+      <td><strong>${escapeHtml(item.contact_name || 'Unknown')}</strong><div class="failed-muted">${escapeHtml(item.company_name || '')}</div></td>
+      <td class="failed-destination">${escapeHtml(item.destination || 'Destination unavailable')}</td>
+      <td>${escapeHtml(item.channel || '')}</td>
+      <td>${escapeHtml(item.failure_code || '')}<div class="failed-muted">${escapeHtml(item.failure_class || '')}</div></td>
+      <td class="failed-reason">${escapeHtml(item.failure_detail || '')}</td>
+      <td>${item.campaign_id ? escapeHtml(item.campaign_id) : 'Manual'}</td>
+      <td><button class="btn btn-outline btn-xs" data-action="viewFailedContact" data-args='[${jsonAttr(item.contact_id)}]'>History</button></td>
+    </tr>
+  `).join('');
+  container.innerHTML = `<table class="failure-table"><thead><tr><th>Completed</th><th>Contact</th><th>Destination</th><th>Channel</th><th>Reason</th><th>Detail</th><th>Campaign</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function changeFailedPage(delta) {
+  failedOffset = Math.max(0, failedOffset + Number(delta || 0));
+  fetchFailedAttempts(true);
+}
+
+function resetFailedFilters() {
+  document.getElementById('failed-campaign-filter').value = '';
+  document.getElementById('failed-channel-filter').value = '';
+  document.getElementById('failed-code-filter').value = '';
+  document.getElementById('failed-search-input').value = '';
+  failedOffset = 0;
+  fetchFailedAttempts();
+}
+
+async function exportFailedCsv() {
+  try {
+    const params = new URLSearchParams(failedQuery());
+    params.delete('offset');
+    params.delete('limit');
+    const res = await api.exportFailedAttempts(params.toString());
+    if (!res.ok) throw new Error(await apiErrorText(res));
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'reachout_failed_attempts.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    showToast('Failed to export failed dispatches: ' + err.message, 'error');
+  }
+}
+
+async function viewFailedContact(contactId) {
+  closeFailedDrawer();
+  await getAction('openHistoryModal')(contactId);
+}
+
 async function triggerSync() {
   const syncBtn = document.getElementById('sync-btn');
   syncBtn.disabled = true;
@@ -279,7 +447,7 @@ async function fetchRecoveryQueue() {
         + (it.failure_detail ? '<div style="font-size:0.75rem;color:var(--accent-rose);margin-top:0.15rem;">' + escapeHtml(it.failure_detail) + '</div>' : '')
         + '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">'
         + '<button class="btn btn-emerald btn-xs" data-action="resolveRecoveryAttempt" data-args=\'[' + jsonAttr(it.id) + ',"mark_sent"]\'>Confirm sent</button>'
-        + '<button class="btn btn-primary btn-xs" data-action="resolveRecoveryAttempt" data-args=\'[' + jsonAttr(it.id) + ',"retry"]\'>Retry</button>'
+        + '<button class="btn btn-primary btn-xs" data-action="resolveRecoveryAttempt" data-args=\'[' + jsonAttr(it.id) + ',"retry"]\'>Allow fresh retry</button>'
         + '<button class="btn btn-outline btn-xs" style="color:var(--accent-rose);" data-action="resolveRecoveryAttempt" data-args=\'[' + jsonAttr(it.id) + ',"cancel"]\'>Cancel</button>'
         + '</div></div>';
     }).join('');
@@ -315,10 +483,14 @@ async function fetchDiscrepancies() {
   container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Loading discrepancies...</div>';
   try {
     const res = await api.getContactDiscrepancies();
+    if (!res.ok) {
+      container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading discrepancies: ' + escapeHtml(await apiErrorText(res)) + '</div>';
+      return false;
+    }
     const data = await res.json();
     if (!data || !data.groups || data.groups.length === 0) {
       container.innerHTML = '<div style="color:var(--accent-emerald);font-size:0.85rem;">&#10003; No data discrepancies found.</div>';
-      return;
+      return true;
     }
     let html = '<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem;">Found ' + data.groups.length + ' discrepancy group(s).</div>';
     data.groups.forEach(function(g, i) {
@@ -330,10 +502,11 @@ async function fetchDiscrepancies() {
       html += '</div>';
     });
     container.innerHTML = html;
+    return true;
   } catch (err) {
     container.innerHTML = '<div style="color:var(--accent-rose);font-size:0.85rem;">Error loading discrepancies: ' + escapeHtml(err.message) + '</div>';
+    return false;
   }
 }
 
-registerActions({ openSendModal, handleTemplateSelectChange, closeSendModal, submitSendMessage, triggerSync, closeSyncModal, openRecoveryDrawer, closeRecoveryDrawer, fetchRecoveryQueue, resolveRecoveryAttempt, openDiscrepanciesDrawer, closeDiscrepanciesDrawer, fetchDiscrepancies });
-export { openSendModal, handleTemplateSelectChange, closeSendModal, submitSendMessage, triggerSync, closeSyncModal, openRecoveryDrawer, closeRecoveryDrawer, fetchRecoveryQueue, resolveRecoveryAttempt, openDiscrepanciesDrawer, closeDiscrepanciesDrawer, fetchDiscrepancies };
+registerActions({ openSendModal, handleTemplateSelectChange, closeSendModal, submitSendMessage, openFailedDrawer, closeFailedDrawer, fetchFailedAttempts, changeFailedPage, resetFailedFilters, exportFailedCsv, viewFailedContact, triggerSync, closeSyncModal, openRecoveryDrawer, closeRecoveryDrawer, fetchRecoveryQueue, resolveRecoveryAttempt, openDiscrepanciesDrawer, closeDiscrepanciesDrawer, fetchDiscrepancies });

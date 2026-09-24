@@ -28,7 +28,7 @@ import pytest
 from playwright.sync_api import Page
 
 from app.domain.enums import CRMOutcome, InterviewState
-from app.infrastructure.database import SessionFactory
+from app.infrastructure import database as database_module
 from app.services.crm_service import CrmService
 from app.services.sender_service import SenderService
 from tests.e2e.conftest import BASE_URL
@@ -38,36 +38,73 @@ pytestmark = pytest.mark.e2e
 
 def _activate_sender(sender_id: str) -> None:
     """Mark a seeded sender ACTIVE so manual dispatch is permitted."""
-    with SessionFactory() as session:
+    with database_module.SessionFactory() as session:
         SenderService(session).update_sender_status(sender_id, "ACTIVE")
 
 
+def _open_coverage_details(page: Page) -> None:
+    if not page.locator("#coverage-details").evaluate("details => details.open"):
+        page.locator("#coverage-details > summary").click()
+
+
 def test_dashboard_loading_and_kpis(browser_page: Page):
-    """Test dashboard page loads with all 11 required KPI metrics."""
+    """Test dashboard shows four primary KPIs plus compact and diagnostic metrics."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("header h1", timeout=30000)
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
 
-    # Verify brand & header
     assert "Reachout CRM" in page.title()
     assert page.locator("header h1", has_text="Reachout CRM").is_visible()
 
-    # Verify all required KPI metric cards exist
-    required_kpis = [
-        "Total Contacts",
-        "Eligible",
-        "Contacted",
-        "WhatsApp Sent",
-        "Email Sent",
+    primary_kpis = [
+        "Ready Now",
+        "Endpoint Coverage",
+        "Failed Attempts",
+        "Unresolved Attempts",
+    ]
+    compact_metrics = [
         "Interested",
         "Not Interested",
         "Interview",
         "Follow-up Due",
-        "Failed",
-        "Recovery Required",
     ]
-    for kpi in required_kpis:
-        assert page.is_visible(f"text={kpi}"), f"KPI card '{kpi}' must be visible on dashboard"
+    for label in primary_kpis + compact_metrics + ["Coverage Details"]:
+        assert page.is_visible(f"text={label}"), f"Metric '{label}' must be visible on dashboard"
+
+    page.locator("#coverage-details > summary").click()
+    detail_metrics = [
+        "Total Contacts",
+        "Fully Messaged",
+        "Policy Complete",
+        "Contacts With Sends",
+        "Total Endpoints",
+        "Covered Endpoints",
+        "Ready Endpoints",
+        "Blocked Endpoints",
+        "Never Attempted",
+        "Permanent Failed",
+        "Retryable Failed",
+        "WhatsApp Covered Endpoints",
+        "Email Covered Endpoints",
+    ]
+    for label in detail_metrics:
+        assert page.is_visible(f"text={label}"), f"Coverage detail '{label}' must be visible when expanded"
+
+
+def test_failed_dispatch_drawer_opens_with_operational_filters(browser_page: Page):
+    page = browser_page
+    page.goto(BASE_URL, wait_until="networkidle")
+    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    page.wait_for_selector("#kpi-failed", timeout=30000)
+    page.click("#kpi-failed")
+    page.wait_for_selector("#failed-modal.open", timeout=30000)
+    assert page.is_visible("text=Failed Dispatches")
+    assert page.locator("#failed-channel-filter").count() == 1
+    assert page.locator("#failed-code-filter").count() == 1
+    assert page.locator("#failed-search-input").count() == 1
+    page.click("#failed-modal .modal-close-btn")
+    page.wait_for_timeout(300)
+    assert not page.is_visible("#failed-modal.open")
 
 
 def test_theme_toggle_switches_modes(browser_page: Page):
@@ -173,14 +210,15 @@ def test_manual_whatsapp_send_and_resend(browser_page: Page):
     page.wait_for_selector("#send-modal.open", state="hidden", timeout=30000)
     # The Overview KPI reflects the persisted SENT attempt.
     page.click('[data-nav="overview"]')
-    page.wait_for_selector("text=WHATSAPP SENT", timeout=30000)
+    _open_coverage_details(page)
+    page.wait_for_selector("#val-wa-sent", timeout=30000)
 
 
 def test_manual_email_send_and_resend(browser_page: Page):
     """Test manual Email send modal and subject/template customization."""
     _activate_sender("EMAIL_E2E_SMOKE")
     # Ensure at least one contact has an email
-    with SessionFactory() as session:
+    with database_module.SessionFactory() as session:
         crm_svc = CrmService(session)
         contacts = crm_svc.contact_repo.list_all()
         if contacts:
@@ -211,7 +249,8 @@ def test_manual_email_send_and_resend(browser_page: Page):
     assert "Sent" in page.inner_text(".toast"), "Email send should succeed"
     page.wait_for_selector("#send-modal.open", state="hidden", timeout=30000)
     page.click('[data-nav="overview"]')
-    page.wait_for_selector("text=EMAIL SENT", timeout=30000)
+    _open_coverage_details(page)
+    page.wait_for_selector("#val-email-sent", timeout=30000)
 
 
 def test_interested_and_interview_workflows(browser_page: Page):
@@ -241,7 +280,7 @@ def test_interested_and_interview_workflows(browser_page: Page):
 def test_followup_reminder_due_display(browser_page: Page):
     """Test follow-up due UI callout appears for interested contacts with pending interview >= 7 days."""
     past_date = datetime.now(timezone.utc) - timedelta(days=10)
-    with SessionFactory() as session:
+    with database_module.SessionFactory() as session:
         crm_svc = CrmService(session)
         contacts = crm_svc.contact_repo.list_all()
         if contacts:
@@ -362,7 +401,7 @@ def test_sidebar_navigation_and_pagination(browser_page: Page):
 def test_campaign_resume_flow(browser_page: Page):
     """A seeded PAUSED campaign exposes Resume on the primary control and resumes to RUNNING."""
     _activate_sender("WA_E2E_SMOKE")
-    with SessionFactory() as session:
+    with database_module.SessionFactory() as session:
         from app.domain.campaign import Campaign
         from app.domain.enums import CampaignStatus, Channel
         from app.services.campaign_service import CampaignService
@@ -377,6 +416,12 @@ def test_campaign_resume_flow(browser_page: Page):
     page.goto(BASE_URL, wait_until="networkidle")
     page.wait_for_function("window.__dashboardReady === true", timeout=30000)
 
+    campaign_selector = page.locator("#campaign-selector")
+    campaign_value = campaign_selector.evaluate(
+        "select => Array.from(select.options).find(option => option.textContent.includes('E2E Resume Flow Campaign'))?.value"
+    )
+    assert campaign_value
+    campaign_selector.select_option(campaign_value)
     action_btn = page.locator("#campaign-action-btn")
     assert "Resume" in action_btn.inner_text()
     assert action_btn.get_attribute("data-action") == "onCampaignAction"

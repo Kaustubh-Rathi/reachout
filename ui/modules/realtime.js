@@ -137,4 +137,4 @@ function fallbackToSSE() {
   };
 }
 
-export { initEventStream, subscribeToEvents, setWsBanner };
+export { initEventStream, subscribeToEvents };

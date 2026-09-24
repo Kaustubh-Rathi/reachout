@@ -3,7 +3,7 @@
 // Every endpoint path lives here (and only here); UI functions depend on the
 // typed `api` client instead of inlining URL strings.
 
-export async function apiFetch(url, options = {}) {
+async function apiFetch(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (options.body && typeof options.body === 'string' && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
@@ -25,7 +25,7 @@ export async function apiErrorText(res) {
   return res.statusText || `HTTP ${res.status}`;
 }
 
-export const routes = {
+const routes = {
   kpis: '/api/crm/kpis',
   companies: '/api/companies',
   hierarchy: (query) => `/api/companies/hierarchy?${query}`,
@@ -38,6 +38,8 @@ export const routes = {
   outreachPreview: '/api/outreach/preview',
   outreachSend: (channel, isResend) =>
     `/api/outreach/${isResend ? 'resend-' : 'send-'}${channel === 'WHATSAPP' ? 'whatsapp' : 'email'}`,
+  outreachFailures: (query) => `/api/outreach/failures?${query}`,
+  outreachFailuresCsv: (query) => `/api/outreach/failures/export/csv?${query}`,
   outreachRecovery: '/api/outreach/recovery',
   outreachRecoveryResolve: (id) => `/api/outreach/recovery/${encodeURIComponent(id)}/resolve`,
   senders: '/api/senders',
@@ -71,6 +73,8 @@ export const api = {
   previewMessage: (payload) => apiFetch(routes.outreachPreview, { method: 'POST', body: JSON.stringify(payload) }),
   sendMessage: (channel, isResend, payload) =>
     apiFetch(routes.outreachSend(channel, isResend), { method: 'POST', body: JSON.stringify(payload) }),
+  failedAttempts: (query) => apiFetch(routes.outreachFailures(query)),
+  exportFailedAttempts: (query) => apiFetch(routes.outreachFailuresCsv(query)),
   recoveryQueue: () => apiFetch(routes.outreachRecovery),
   resolveRecovery: (attemptId, payload) =>
     apiFetch(routes.outreachRecoveryResolve(attemptId), { method: 'POST', body: JSON.stringify(payload) }),
