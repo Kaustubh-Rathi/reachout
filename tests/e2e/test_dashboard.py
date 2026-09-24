@@ -300,7 +300,7 @@ def test_followup_reminder_due_display(browser_page: Page):
     page.click("button[data-filter='FOLLOW_UP_DUE']")
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
-    page.wait_for_selector(".hr-card", timeout=30000)
+    page.wait_for_selector(".hr-card:visible", timeout=30000)
 
     # Verify FOLLOW-UP DUE indicator is visible
     badge = page.locator(".hr-card .badge", has_text="FOLLOW-UP DUE").first
