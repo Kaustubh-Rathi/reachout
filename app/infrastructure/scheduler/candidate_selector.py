@@ -34,6 +34,7 @@ class CandidateSelector:
         attempts: Sequence[OutreachAttempt],
         suppressed_identifiers: Optional[Container[str]],
         preferred_channel: Channel,
+        available_channels: Optional[Container[Channel]] = None,
     ) -> List[Contact]:
         """Return the Company-First prioritized candidate list for the channel."""
         attempts_by_contact = CandidateSelector.attempts_by_contact(attempts)
@@ -43,6 +44,7 @@ class CandidateSelector:
             _attempts=attempts_by_contact,
             _channel=preferred_channel,
             _suppressed=suppressed_identifiers,
+            _available=available_channels,
         ) -> bool:
             hist = _attempts.get(cnt.contact_id, [])
             decision = ChannelRotationPolicy.evaluate_contact_dispatch(
@@ -50,6 +52,7 @@ class CandidateSelector:
                 preferred_channel=_channel,
                 historical_attempts=hist,
                 suppressed_identifiers=_suppressed,
+                available_channels=_available,
             )
             return decision.is_eligible
 

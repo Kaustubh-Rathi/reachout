@@ -3,7 +3,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.domain.campaign import Campaign
 from app.domain.enums import Channel, SenderStatus
+from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import SessionFactory
 from app.main import app
 from app.services.sender_service import SenderService
@@ -34,16 +36,22 @@ def test_readiness_gate_blocks_when_no_active_whatsapp(client):
             comp_repo.save(Company.create(name="Gate Company", domain="gate.com", company_id="cmp_gate_test"))
         if not cnt_repo.list_all():
             cnt_repo.save(
-                Contact(contact_id="cnt_gate_test", company_id="cmp_gate_test", name="Gate Test", phone="919999900000")
+                Contact(
+                    contact_id="cnt_gate_test",
+                    company_id="cmp_gate_test",
+                    name="Gate Test",
+                    phone="919999900000",
+                    email="gate@example.com",
+                )
             )
         if not tpl_repo.list_by_channel(Channel.WHATSAPP):
             tpl_repo.save(MessageTemplate.create(name="WA Tpl", channel=Channel.WHATSAPP, body="Hello"))
 
         # Ensure all WA senders are AUTH_REQUIRED
-        senders = sender_svc.repo.list_by_channel(Channel.WHATSAPP)
-        for s in senders:
-            s.status = SenderStatus.AUTH_REQUIRED
-            sender_svc.repo.save(s)
+        for sender_channel in (Channel.WHATSAPP, Channel.EMAIL):
+            for sender in sender_svc.repo.list_by_channel(sender_channel):
+                sender.status = SenderStatus.AUTH_REQUIRED
+                sender_svc.repo.save(sender)
         session.commit()
 
     # 1. Test GET /api/campaigns/readiness pre-flight
@@ -59,6 +67,145 @@ def test_readiness_gate_blocks_when_no_active_whatsapp(client):
     err_body = res_start.json()
     assert err_body["detail"]["error"] == "OUTREACH_NOT_READY"
     assert err_body["detail"]["reason"] == "NO_ACTIVE_WHATSAPP_SESSION"
+
+
+def test_readiness_uses_active_fallback_channel(tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.composition import build_repositories
+    from app.domain.company import Company
+    from app.domain.contact import Contact
+    from app.domain.message_template import MessageTemplate
+    from app.domain.sender_account import SenderAccount
+    from app.infrastructure.database import Base
+    from app.services.campaign_service import CampaignService
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'fallback_readiness.db'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+
+    with session_factory() as session:
+        repos = build_repositories(session)
+        repos.company.save(Company.create(name="Fallback Co", company_id="fallback_co"))
+        repos.contact.save(
+            Contact(
+                contact_id="fallback_contact",
+                company_id="fallback_co",
+                name="Fallback Contact",
+                phone="+919999900001",
+                email="fallback@example.com",
+            )
+        )
+        repos.template.save(
+            MessageTemplate.create(template_id="fallback_email", name="Fallback", channel=Channel.EMAIL, body="Hello")
+        )
+        email_sender = SenderAccount.create(
+            sender_id="fallback_email_sender",
+            channel=Channel.EMAIL,
+            provider="smtp",
+            identity="fallback@example.com",
+            display_name="Fallback Email",
+        )
+        email_sender.mark_status(SenderStatus.ACTIVE)
+        repos.sender.save(email_sender)
+        session.commit()
+
+        readiness = CampaignService(session).validate_outreach_readiness(Channel.WHATSAPP)
+
+    assert readiness["ready"] is True
+    assert readiness["reason"] is None
+
+
+def test_readiness_honors_campaign_resource_restrictions(tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.composition import build_repositories
+    from app.domain.company import Company
+    from app.domain.contact import Contact
+    from app.domain.message_template import MessageTemplate
+    from app.infrastructure.database import Base
+    from app.services.campaign_service import CampaignService
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'restricted_readiness.db'}")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+
+    with session_factory() as session:
+        repos = build_repositories(session)
+        repos.company.save(Company.create(name="Restricted Co", company_id="restricted_co"))
+        repos.contact.save(
+            Contact(
+                contact_id="restricted_contact",
+                company_id="restricted_co",
+                name="Restricted Contact",
+                phone="+919999900002",
+            )
+        )
+        repos.template.save(
+            MessageTemplate.create(
+                template_id="restricted_template",
+                name="Restricted Template",
+                channel=Channel.WHATSAPP,
+                body="Hello",
+            )
+        )
+        restricted_sender = SenderAccount.create(
+            sender_id="restricted_sender",
+            channel=Channel.WHATSAPP,
+            provider="mock",
+            identity="+919999900000",
+            display_name="Restricted Sender",
+        )
+        restricted_sender.mark_status(SenderStatus.INACTIVE)
+        repos.sender.save(restricted_sender)
+        active_sender = SenderAccount.create(
+            sender_id="active_sender",
+            channel=Channel.WHATSAPP,
+            provider="mock",
+            identity="+919999900001",
+            display_name="Active Sender",
+        )
+        repos.sender.save(active_sender)
+        campaign = Campaign.create(
+            name="Restricted Campaign",
+            channel=Channel.WHATSAPP,
+            campaign_id="restricted_campaign",
+            template_ids=["restricted_template"],
+            sender_account_ids=["restricted_sender"],
+        )
+        repos.campaign.save(campaign)
+        session.commit()
+
+        unavailable = CampaignService(session).validate_outreach_readiness(
+            Channel.WHATSAPP,
+            campaign_id=campaign.id,
+        )
+        assert unavailable["ready"] is False
+        assert unavailable["reason"] == "NO_ACTIVE_WHATSAPP_SESSION"
+
+        campaign.sender_account_ids = ["active_sender"]
+        campaign.template_ids = ["missing_template"]
+        repos.campaign.save(campaign)
+        session.commit()
+
+        missing = CampaignService(session).validate_outreach_readiness(
+            Channel.WHATSAPP,
+            campaign_id=campaign.id,
+        )
+        assert missing["ready"] is False
+        assert missing["reason"] == "MISSING_TEMPLATES"
+
+        campaign.template_ids = ["restricted_template"]
+        repos.campaign.save(campaign)
+        session.commit()
+
+        ready = CampaignService(session).validate_outreach_readiness(
+            Channel.WHATSAPP,
+            campaign_id=campaign.id,
+        )
+        assert ready["ready"] is True
 
 
 def test_whatsapp_auth_flow_activates_sender_and_unblocks_readiness(client):

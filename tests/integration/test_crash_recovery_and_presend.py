@@ -11,6 +11,8 @@ from app.domain.contact import Contact
 from app.domain.enums import AttemptType, CampaignStatus, Channel, OutreachStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
+from app.domain.policies.channel_rotation_policy import ChannelRotationPolicy
+from app.domain.policies.endpoint_coverage_policy import is_endpoint_permanently_failed
 from app.domain.sender_account import SenderAccount
 from app.infrastructure.database import Base
 from app.infrastructure.events.event_bus import EventBus
@@ -27,6 +29,7 @@ from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import SystemClock
 from app.ports.providers import ProviderSendResult
+from app.services.outreach_service import OutreachService
 from tests.doubles.fake_providers import FakeEmailProvider
 
 
@@ -124,6 +127,44 @@ class TestCrashRecoveryAndPreSend:
             assert db_attempt is not None
             assert db_attempt.status == OutreachStatus.UNKNOWN
 
+    def test_operator_cancellation_definitively_excludes_endpoint(self, recovery_env):
+        session_factory = recovery_env["session_factory"]
+
+        with session_factory() as session:
+            repos = build_repositories(session)
+            contact = repos.contact.get_by_id("cnt_oracle_01")
+            attempt = OutreachAttempt.prepare(
+                contact_id=contact.contact_id,
+                sender_account_id="snd_wa_1",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                message_body="Hello",
+                destination=contact.primary_phone,
+            )
+            attempt.mark_unknown("Provider status unavailable")
+            repos.outreach.save(attempt)
+            session.commit()
+
+            service = OutreachService(session)
+            service.resolve_recovery(attempt.id, "cancel", "Operator declined a retry")
+            resolved = repos.outreach.get_by_id(attempt.id)
+            failures = service.get_failed_attempts(failure_code="OPERATOR_CANCELLED")
+            history = repos.outreach.list_by_contact(contact.contact_id)
+            decision = ChannelRotationPolicy.evaluate_contact_dispatch(
+                contact=contact,
+                preferred_channel=Channel.WHATSAPP,
+                historical_attempts=history,
+                available_channels={Channel.WHATSAPP},
+            )
+
+        assert resolved.status == OutreachStatus.FAILED
+        assert resolved.failure_code == "OPERATOR_CANCELLED"
+        assert failures["count"] == 1
+        assert failures["items"][0]["failure_class"] == "PERMANENT"
+        assert is_endpoint_permanently_failed(contact.endpoints[0], contact.contact_id, history)
+        assert decision.is_eligible is False
+        assert decision.reason == "CONTACT_FULLY_COVERED"
+
     def test_crash_recovery_audit_detects_and_flags_orphaned_in_flight_attempts(self, recovery_env):
         session_factory = recovery_env["session_factory"]
         rate_limiter = RateLimiter()
@@ -177,11 +218,22 @@ class TestCrashRecoveryAndPreSend:
             )
             att2.mark_queued()
             outreach_repo.save(att2)
+
+            att3 = OutreachAttempt.prepare(
+                contact_id="cnt_oracle_01",
+                sender_account_id="snd_wa_1",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                message_body="Msg 3",
+                campaign_id="cmp_crashed",
+                idempotency_key="idemp_crash_3",
+            )
+            outreach_repo.save(att3)
             session.commit()
 
         # Run startup crash recovery audit
         recovered_count = scheduler.run_crash_recovery_audit()
-        assert recovered_count == 2
+        assert recovered_count == 3
 
         with session_factory() as session:
             outreach_repo = SqliteOutreachRepository(session)
@@ -189,8 +241,11 @@ class TestCrashRecoveryAndPreSend:
 
             a1 = outreach_repo.get_by_id(att1.id)
             a2 = outreach_repo.get_by_id(att2.id)
+            a3 = outreach_repo.get_by_id(att3.id)
             assert a1.status == OutreachStatus.RECOVERY_REQUIRED
             assert a2.status == OutreachStatus.RECOVERY_REQUIRED
+            assert a3.status == OutreachStatus.FAILED
+            assert a3.failure_code == "ERR_INTERRUPTED_BEFORE_DISPATCH"
             assert "crash recovery" in a1.recovery_notes.lower()
 
             c = camp_repo.get_by_id("cmp_crashed")

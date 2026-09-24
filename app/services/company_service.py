@@ -26,6 +26,7 @@ class CompanyService:
         self.company_repo = ctx.company_repo
         self.contact_repo = ctx.contact_repo
         self.outreach_repo = ctx.outreach_repo
+        self.suppression_repo = ctx.suppression_repo
         self.reminder_repo = ctx.reminder_repo
         self.clock = ctx.clock
 
@@ -33,6 +34,7 @@ class CompanyService:
         companies = self.company_repo.list_all()
         all_attempts = self.outreach_repo.list_all()
         results = []
+        suppressed_identifiers = {record.identifier for record in self.suppression_repo.list_all()}
         for comp in companies:
             contacts = self.contact_repo.find_by_company(comp.id)
             comp_attempts = [a for a in all_attempts if a.contact_id in {c.contact_id for c in contacts}]
@@ -40,7 +42,8 @@ class CompanyService:
 
             total_endpoints = sum(len(c.endpoints) for c in contacts)
             covered_endpoints = sum(
-                get_contact_endpoint_metrics(c, comp_attempts)["covered_endpoints"] for c in contacts
+                get_contact_endpoint_metrics(c, comp_attempts, suppressed_identifiers)["covered_endpoints"]
+                for c in contacts
             )
 
             results.append(
@@ -108,10 +111,11 @@ class CompanyService:
         total_endpoints = 0
         covered_endpoints = 0
         now = self.clock.now()
+        suppressed_identifiers = {record.identifier for record in self.suppression_repo.list_all()}
 
         for c in contacts:
             c_attempts = attempts_by_contact.get(c.contact_id, [])
-            coverage = get_contact_endpoint_metrics(c, c_attempts)
+            coverage = get_contact_endpoint_metrics(c, c_attempts, suppressed_identifiers)
             total_endpoints += coverage["total_endpoints"]
             covered_endpoints += coverage["covered_endpoints"]
 
@@ -148,39 +152,18 @@ class CompanyService:
             ]
 
             endpoints_list = []
-            # WhatsApp endpoints
-            for ep in coverage["whatsapp_endpoints"]:
+            for endpoint in coverage["whatsapp_endpoints"]:
                 endpoints_list.append(
                     {
-                        "channel": "WHATSAPP",
-                        "address": ep["address"],
-                        "normalized_address": ep["normalized_address"],
-                        "ordinal": ep["ordinal"],
-                        "label": f"Phone {ep['ordinal'] + 1}",
-                        "status": ep["status"],
-                        "is_covered": ep["is_covered"],
-                        "sender_account_id": ep["sender_account_id"],
-                        "template_id": ep["template_id"],
-                        "attempt_id": ep["attempt_id"],
-                        "sent_at": ep["sent_at"],
+                        **endpoint,
+                        "label": f"Phone {endpoint['ordinal'] + 1}",
                     }
                 )
-
-            # Email endpoints
-            for ep in coverage["email_endpoints"]:
+            for endpoint in coverage["email_endpoints"]:
                 endpoints_list.append(
                     {
-                        "channel": "EMAIL",
-                        "address": ep["address"],
-                        "normalized_address": ep["normalized_address"],
-                        "ordinal": ep["ordinal"],
-                        "label": f"Email {ep['ordinal'] + 1}",
-                        "status": ep["status"],
-                        "is_covered": ep["is_covered"],
-                        "sender_account_id": ep["sender_account_id"],
-                        "template_id": ep["template_id"],
-                        "attempt_id": ep["attempt_id"],
-                        "sent_at": ep["sent_at"],
+                        **endpoint,
+                        "label": f"Email {endpoint['ordinal'] + 1}",
                     }
                 )
 

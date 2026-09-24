@@ -125,3 +125,71 @@ class TestDuplicatePolicy:
         res = evaluate_automatic_eligibility(contact, Channel.WHATSAPP, historical_attempts=[attempt_failed])
         assert res.is_eligible
         assert res.reason == "ELIGIBLE"
+
+    def test_suppression_and_opt_out_block_all_channels(self):
+        contact = Contact(
+            contact_id="c9",
+            company_id="suppressed",
+            name="Suppressed",
+            phone="919999999999",
+            email="blocked@example.com",
+        )
+        suppressed = evaluate_automatic_eligibility(
+            contact,
+            Channel.WHATSAPP,
+            suppressed_identifiers={contact.phones[0]},
+        )
+        assert suppressed.reason == "CONTACT_SUPPRESSED"
+
+        contact.tags = ["Opt-Out"]
+        opted_out = evaluate_automatic_eligibility(contact, Channel.EMAIL)
+        assert opted_out.reason == "CONTACT_OPTED_OUT"
+
+    def test_destination_can_select_an_uncovered_endpoint(self):
+        contact = Contact(
+            contact_id="c10",
+            company_id="multi",
+            name="Multi Endpoint",
+            phone="+91 99999 11111, +91 99999 22222",
+        )
+        sent = OutreachAttempt.prepare(
+            contact_id=contact.contact_id,
+            sender_account_id="snd_1",
+            channel=Channel.WHATSAPP,
+            attempt_type=AttemptType.AUTOMATIC,
+            message_body="Hello",
+            destination=contact.phones[0],
+        )
+        sent.mark_sending()
+        sent.mark_sent()
+
+        covered = evaluate_automatic_eligibility(
+            contact,
+            Channel.WHATSAPP,
+            historical_attempts=[sent],
+            destination=contact.phones[0],
+        )
+        assert not covered.is_eligible
+        assert covered.reason == "ALREADY_SENT_WHATSAPP"
+
+        uncovered = evaluate_automatic_eligibility(
+            contact,
+            Channel.WHATSAPP,
+            historical_attempts=[sent],
+            destination=contact.phones[1],
+        )
+        assert uncovered.is_eligible
+        assert uncovered.target_endpoint.address == contact.phones[1]
+
+    def test_invalid_recipient_values_are_rejected(self):
+        invalid_phone = Contact(contact_id="c11", company_id="invalid", name="Phone", phone="123")
+        assert evaluate_automatic_eligibility(invalid_phone, Channel.WHATSAPP).reason == "INVALID_PHONE_NUMBER"
+
+        invalid_email = Contact(contact_id="c12", company_id="invalid", name="Email", email="not-an-email")
+        assert evaluate_automatic_eligibility(invalid_email, Channel.EMAIL).reason == "INVALID_EMAIL_ADDRESS"
+
+    def test_destination_must_belong_to_contact_endpoint(self):
+        contact = Contact(contact_id="c13", company_id="destination", name="Target", phone="919999999999")
+        result = evaluate_automatic_eligibility(contact, Channel.WHATSAPP, destination="919888888888")
+        assert not result.is_eligible
+        assert result.reason == "ENDPOINT_NOT_FOUND_919888888888"

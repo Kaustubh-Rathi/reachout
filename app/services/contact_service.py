@@ -48,6 +48,7 @@ class ContactService:
         now = current_time or self.clock.now()
         all_contacts = self.contact_repo.list_all()
         all_attempts = self.outreach_repo.list_all()
+        suppressed_identifiers = {record.identifier for record in self.suppression_repo.list_all()}
 
         # Build attempts map by contact
         attempts_by_contact: Dict[str, List] = {}
@@ -65,11 +66,11 @@ class ContactService:
         for c in all_contacts:
             comp_name = comp_map.get(c.company_id, c.company_id.title() if c.company_id else "Unknown")
             c_attempts = attempts_by_contact.get(c.contact_id, [])
-            coverage = get_contact_endpoint_metrics(c, c_attempts)
+            coverage = get_contact_endpoint_metrics(c, c_attempts, suppressed_identifiers)
 
             # Determine channel statuses
-            wa_status = "SENT" if (c.last_whatsapp_at or coverage["whatsapp_covered"] > 0) else "NOT_SENT"
-            email_status = "SENT" if (c.last_email_at or coverage["email_covered"] > 0) else "NOT_SENT"
+            wa_status = "SENT" if coverage["whatsapp_covered"] > 0 else "NOT_SENT"
+            email_status = "SENT" if coverage["email_covered"] > 0 else "NOT_SENT"
 
             # Check follow-up due status
             follow_up = check_contact_follow_up_eligibility(c, now, DEFAULT_FOLLOW_UP_THRESHOLD_DAYS)
@@ -242,7 +243,11 @@ class ContactService:
             for r in reminders
         ]
 
-        coverage = get_contact_endpoint_metrics(contact, attempts)
+        coverage = get_contact_endpoint_metrics(
+            contact,
+            attempts,
+            {record.identifier for record in self.suppression_repo.list_all()},
+        )
 
         return {
             "contact_id": contact.contact_id,
@@ -329,10 +334,10 @@ class ContactService:
             return False
 
         # Add tombstone suppression records so source synchronizer won't resurrect it
-        if contact.phone:
-            self.suppression_repo.add_suppression("PHONE", contact.phone, reason)
-        if contact.email:
-            self.suppression_repo.add_suppression("EMAIL", contact.email, reason)
+        for phone in contact.phones:
+            self.suppression_repo.add_suppression("PHONE", phone, reason)
+        for email in contact.emails:
+            self.suppression_repo.add_suppression("EMAIL", email, reason)
         self.suppression_repo.add_suppression("CANONICAL_KEY", contact.canonical_key, reason)
 
         # Delete through the repository abstraction

@@ -94,9 +94,19 @@ def company_matches_filters(
             return False
         if bucket == "NOT_SENT" and covered > 0:
             return False
-        if bucket == "WHATSAPP_SENT" and not any(c.get("last_whatsapp_at") for c in contacts):
+        if bucket == "WHATSAPP_SENT" and not any(
+            endpoint.get("coverage_state") == "SENT"
+            for contact in contacts
+            for endpoint in contact.get("endpoints", [])
+            if endpoint.get("channel") == "WHATSAPP"
+        ):
             return False
-        if bucket == "EMAIL_SENT" and not any(c.get("last_email_at") for c in contacts):
+        if bucket == "EMAIL_SENT" and not any(
+            endpoint.get("coverage_state") == "SENT"
+            for contact in contacts
+            for endpoint in contact.get("endpoints", [])
+            if endpoint.get("channel") == "EMAIL"
+        ):
             return False
 
     if priority_filter and priority_filter != "ALL":

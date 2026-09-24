@@ -56,6 +56,8 @@ class OutreachService:
             session=session,
             outreach_repo=self.outreach_repo,
             contact_repo=self.contact_repo,
+            company_repo=ctx.company_repo,
+            campaign_repo=ctx.campaign_repo,
             clock=self.clock,
         )
 
@@ -541,6 +543,28 @@ class OutreachService:
     def get_history(self, contact_id: str) -> List[Dict[str, Any]]:
         """Retrieve complete historical attempts for a contact."""
         return self.recovery.get_history(contact_id)
+
+    def get_failed_attempts(
+        self,
+        campaign_id: Optional[str] = None,
+        channel: Optional[Channel] = None,
+        failure_code: Optional[str] = None,
+        search: Optional[str] = None,
+        offset: int = 0,
+        limit: Optional[int] = 50,
+        stop_after: Optional[int] = None,
+        failure_detail_limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        return self.recovery.get_failed_attempts(
+            campaign_id=campaign_id,
+            channel=channel,
+            failure_code=failure_code,
+            search=search,
+            offset=offset,
+            limit=limit,
+            stop_after=stop_after,
+            failure_detail_limit=failure_detail_limit,
+        )
 
     def get_recovery_queue(self) -> List[Dict[str, Any]]:
         """Retrieve all outreach attempts stuck in RECOVERY_REQUIRED or UNKNOWN."""

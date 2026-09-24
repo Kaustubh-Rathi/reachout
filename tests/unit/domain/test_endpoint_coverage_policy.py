@@ -63,6 +63,16 @@ def test_has_ambiguous_or_inflight_blocker():
     # Clean history
     assert not has_ambiguous_or_inflight_blocker(contact, [])
 
+    att_prepared = OutreachAttempt.prepare(
+        contact_id=contact.contact_id,
+        sender_account_id="wa_sender",
+        attempt_type=AttemptType.AUTOMATIC,
+        channel=Channel.WHATSAPP,
+        destination="919876543210",
+        message_body="Test",
+    )
+    assert has_ambiguous_or_inflight_blocker(contact, [att_prepared])
+
     # In flight attempt
     att_sending = OutreachAttempt.prepare(
         contact_id=contact.contact_id,
@@ -150,6 +160,69 @@ def test_get_next_uncovered_endpoint():
     assert ep_em is not None
     assert ep_em.channel == Channel.EMAIL
     assert ep_em.normalized_address == "hr@c.com"
+
+
+def test_endpoint_coverage_states_match_dispatch_policy():
+    contact = _make_contact(phones="+919876543210", emails="")
+
+    ready = get_contact_endpoint_metrics(contact, [])["whatsapp_endpoints"][0]
+    assert ready["coverage_state"] == "NEVER_ATTEMPTED"
+    assert ready["is_ready"] is True
+
+    failed = OutreachAttempt.prepare(
+        contact_id=contact.contact_id,
+        sender_account_id="wa_sender",
+        attempt_type=AttemptType.AUTOMATIC,
+        channel=Channel.WHATSAPP,
+        destination="919876543210",
+        message_body="Test",
+    )
+    failed.mark_failed("ERR_SYNC_TIMEOUT", "Temporary provider failure")
+    retryable = get_contact_endpoint_metrics(contact, [failed])["whatsapp_endpoints"][0]
+    assert retryable["coverage_state"] == "RETRYABLE"
+    assert retryable["is_ready"] is True
+    assert retryable["failure_code"] == "ERR_SYNC_TIMEOUT"
+
+    permanent = OutreachAttempt.prepare(
+        contact_id=contact.contact_id,
+        sender_account_id="wa_sender",
+        attempt_type=AttemptType.AUTOMATIC,
+        channel=Channel.WHATSAPP,
+        destination="919876543210",
+        message_body="Test",
+    )
+    permanent.mark_failed("ERR_NOT_ON_WHATSAPP", "Number is not on WhatsApp")
+    permanent_metrics = get_contact_endpoint_metrics(contact, [failed, permanent])["whatsapp_endpoints"][0]
+    assert permanent_metrics["coverage_state"] == "PERMANENT_FAILED"
+    assert permanent_metrics["is_ready"] is False
+    assert permanent_metrics["is_covered"] is False
+
+    blocked_prior = OutreachAttempt.prepare(
+        contact_id=contact.contact_id,
+        sender_account_id="wa_sender",
+        attempt_type=AttemptType.AUTOMATIC,
+        channel=Channel.WHATSAPP,
+        destination="919876543210",
+        message_body="Test",
+    )
+    blocked_prior.mark_failed("ERR_SYNC_TIMEOUT", "Temporary provider failure")
+
+    blocked = OutreachAttempt.prepare(
+        contact_id=contact.contact_id,
+        sender_account_id="wa_sender",
+        attempt_type=AttemptType.AUTOMATIC,
+        channel=Channel.WHATSAPP,
+        destination="919876543210",
+        message_body="Test",
+    )
+    blocked.mark_unknown("Provider status unavailable")
+    blocked_metrics = get_contact_endpoint_metrics(
+        contact,
+        [failed, blocked_prior, blocked],
+    )
+    assert blocked_metrics["whatsapp_endpoints"][0]["coverage_state"] == "BLOCKED"
+    assert blocked_metrics["whatsapp_endpoints"][0]["is_blocked"] is True
+    assert blocked_metrics["retryable_failed_endpoints"] == 0
 
 
 def test_get_contact_endpoint_metrics():

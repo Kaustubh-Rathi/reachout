@@ -16,14 +16,17 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.composition import build_repositories, get_credential_vault
+from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
+from app.domain.errors import ConflictError
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.channel_rotation_policy import ChannelRotationPolicy
@@ -55,7 +58,9 @@ from app.infrastructure.security.credential_vault import CredentialVault
 from app.infrastructure.source.synchronizer import DatabaseSourceSynchronizer
 from app.ports.infrastructure import SystemClock
 from app.ports.source import SourceRow
+from app.services.campaign_service import CampaignService
 from app.services.crm_service import CrmService
+from app.services.outreach_service import OutreachService
 from app.services.sender_service import SenderService
 from tests.doubles.fake_providers import MockEmailProvider, MockWhatsAppProvider
 
@@ -650,6 +655,194 @@ class TestCanonicalCrmKpis:
             assert "interested" in kpis
             assert "not_interested" in kpis
             assert "follow_up_due" in kpis
+
+    def test_kpis_use_endpoint_and_scheduler_states(self, tmp_path):
+        engine = create_engine(f"sqlite:///{tmp_path / 'analytics_states.db'}")
+        Base.metadata.create_all(engine)
+        local_factory = sessionmaker(bind=engine)
+
+        with local_factory() as session:
+            repos = build_repositories(session)
+            repos.company.save(Company.create(name="Acme", company_id="acme"))
+            repos.sender.save(
+                SenderAccount.create(
+                    sender_id="wa_analytics",
+                    channel=Channel.WHATSAPP,
+                    provider="mock",
+                    identity="+910000000000",
+                    display_name="Analytics",
+                )
+            )
+            repos.campaign.save(
+                Campaign.create(
+                    name="Analytics campaign",
+                    channel=Channel.WHATSAPP,
+                    campaign_id="analytics_campaign",
+                    automatic_quota=10,
+                )
+            )
+            repos.contact.save(
+                Contact(
+                    contact_id="cnt_alice",
+                    company_id="acme",
+                    name="Alice",
+                    phone="+919876543210",
+                    email="alice@example.com",
+                )
+            )
+            repos.contact.save(Contact(contact_id="cnt_bob", company_id="acme", name="Bob", phone="+919876543211"))
+            repos.contact.save(Contact(contact_id="cnt_carol", company_id="acme", name="Carol", phone="+919876543212"))
+
+            sent = OutreachAttempt.prepare(
+                contact_id="cnt_alice",
+                sender_account_id="wa_analytics",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                campaign_id="analytics_campaign",
+                message_body="Hello",
+                destination="+919876543210",
+            )
+            sent.mark_sent("ref-sent")
+            repos.outreach.save(sent)
+            repos.campaign.increment_automatic_used("analytics_campaign")
+
+            failed = OutreachAttempt.prepare(
+                contact_id="cnt_bob",
+                sender_account_id="wa_analytics",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                campaign_id="analytics_campaign",
+                message_body="Hello",
+                destination="+919876543211",
+            )
+            failed.mark_failed("ERR_SYNC_TIMEOUT", "Temporary failure")
+            repos.outreach.save(failed)
+
+            unknown = OutreachAttempt.prepare(
+                contact_id="cnt_carol",
+                sender_account_id="wa_analytics",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                campaign_id="analytics_campaign",
+                message_body="Hello",
+                destination="+919876543212",
+            )
+            unknown.mark_unknown("Provider status unavailable")
+            repos.outreach.save(unknown)
+            session.commit()
+
+            kpis = CrmService(session).get_kpis()
+            progress = CampaignService(session).get_campaign_progress("analytics_campaign")
+            failures = OutreachService(session).get_failed_attempts(
+                campaign_id="analytics_campaign",
+                channel=Channel.WHATSAPP,
+            )
+
+            second_failure = OutreachAttempt.prepare(
+                contact_id="cnt_bob",
+                sender_account_id="wa_analytics",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                campaign_id="analytics_campaign",
+                message_body="Hello",
+                destination="+919876543211",
+                idempotency_key="analytics_second_failure",
+            )
+            second_failure.mark_failed("ERR_PACING_TIMEOUT", "Second retryable failure")
+            repos.outreach.save(second_failure)
+            session.commit()
+            filtered_failures = OutreachService(session).get_failed_attempts(
+                campaign_id="analytics_campaign",
+                failure_code="ERR_SYNC_TIMEOUT",
+            )
+            paged_failures = OutreachService(session).get_failed_attempts(
+                campaign_id="analytics_campaign",
+                limit=1,
+            )
+            all_failures = OutreachService(session).get_failed_attempts(
+                campaign_id="analytics_campaign",
+                limit=None,
+            )
+            offset_failures = OutreachService(session).get_failed_attempts(
+                campaign_id="analytics_campaign",
+                offset=1,
+                limit=None,
+            )
+            limited_failures = OutreachService(session).get_failed_attempts(
+                campaign_id="analytics_campaign",
+                limit=1,
+                stop_after=1,
+                failure_detail_limit=3,
+            )
+            OutreachService(session).resolve_recovery(unknown.id, "mark_sent")
+            with pytest.raises(ConflictError):
+                OutreachService(session).resolve_recovery(unknown.id, "mark_sent")
+            recovered_progress = CampaignService(session).get_campaign_progress("analytics_campaign")
+
+            retry_race = OutreachAttempt.prepare(
+                contact_id="cnt_bob",
+                sender_account_id="wa_analytics",
+                channel=Channel.WHATSAPP,
+                attempt_type=AttemptType.AUTOMATIC,
+                campaign_id="analytics_campaign",
+                message_body="Hello",
+                destination="+919876543211",
+                idempotency_key="analytics_retry_race",
+            )
+            retry_race.mark_unknown("Provider status unavailable")
+            repos.outreach.save(retry_race)
+            session.commit()
+            OutreachService(session).resolve_recovery(retry_race.id, "retry")
+            with pytest.raises(ConflictError):
+                OutreachService(session).resolve_recovery(retry_race.id, "mark_sent")
+            retry_race_after = repos.outreach.get_by_id(retry_race.id)
+
+        assert kpis["total_contacts"] == 3
+        assert kpis["total_endpoints"] == 4
+        assert kpis["covered_endpoints"] == 1
+        assert kpis["ready_endpoints"] == 2
+        assert kpis["blocked_endpoints"] == 1
+        assert kpis["never_attempted_endpoints"] == 1
+        assert kpis["retryable_failed_endpoints"] == 1
+        assert kpis["ready_contacts"] == 2
+        assert kpis["blocked_contacts"] == 1
+        assert kpis["fully_messaged_contacts"] == 0
+        assert kpis["failed_attempts"] == 1
+        assert kpis["failed_destinations"] == 1
+        assert kpis["unresolved_attempts"] == 1
+        assert progress["attempt_outcomes"] == {
+            "total_attempts": 3,
+            "sent": 1,
+            "failed": 1,
+            "pending": 0,
+            "unresolved": 1,
+            "sent_percent": 33.3,
+        }
+        assert progress["target_count"] == 10
+        assert progress["target_progress_percent"] == 10.0
+        assert progress["global_endpoint_coverage"]["covered_endpoints"] == 1
+        assert failures["total"] == 1
+        assert failures["items"][0]["destination"] == "+919876543211"
+        assert failures["items"][0]["failure_class"] == "RETRYABLE"
+        assert filtered_failures["total"] == 1
+        assert filtered_failures["failure_codes"] == ["ERR_PACING_TIMEOUT", "ERR_SYNC_TIMEOUT"]
+        assert paged_failures["total"] == 2
+        assert paged_failures["count"] == 1
+        assert paged_failures["has_more"] is True
+        assert all_failures["count"] == 2
+        assert all_failures["has_more"] is False
+        assert offset_failures["total"] == 2
+        assert offset_failures["count"] == 1
+        assert offset_failures["offset"] == 1
+        assert offset_failures["has_more"] is False
+        assert limited_failures["count"] == 1
+        assert len(limited_failures["items"][0]["failure_detail"]) == 3
+        assert recovered_progress["automatic_used"] == 2
+        assert recovered_progress["target_progress"]["successful_sends"] == 2
+        assert recovered_progress["target_progress_percent"] == 20.0
+        assert retry_race_after is not None
+        assert retry_race_after.status == OutreachStatus.FAILED
+        assert retry_race_after.failure_code == "OPERATOR_RETRY_REQUESTED"
 
 
 # ==============================================================================

@@ -1,7 +1,9 @@
 """Unit tests verifying Port Contracts and Protocol conformance with in-memory adapters."""
 
+import threading
+from copy import copy
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from app.domain import (
     AttemptType,
@@ -79,6 +81,7 @@ class InMemoryCompanyRepository:
 class InMemoryOutreachRepository:
     def __init__(self) -> None:
         self._store: Dict[str, OutreachAttempt] = {}
+        self._lock = threading.Lock()
 
     def get_by_id(self, attempt_id: str) -> Optional[OutreachAttempt]:
         return self._store.get(attempt_id)
@@ -97,6 +100,62 @@ class InMemoryOutreachRepository:
 
     def list_by_status(self, status: OutreachStatus) -> List[OutreachAttempt]:
         return [a for a in self._store.values() if a.status == status]
+
+    def iter_by_status(
+        self,
+        status: OutreachStatus,
+        batch_size: int = 200,
+        failure_detail_limit: Optional[int] = None,
+    ) -> Iterable[OutreachAttempt]:
+        with self._lock:
+            attempts = sorted(
+                (attempt for attempt in self._store.values() if attempt.status == status),
+                key=lambda attempt: (attempt.completed_at or attempt.prepared_at, attempt.id),
+                reverse=True,
+            )
+        if failure_detail_limit is not None:
+            limited = []
+            for attempt in attempts:
+                attempt = copy(attempt)
+                if attempt.failure_detail:
+                    attempt.failure_detail = attempt.failure_detail[:failure_detail_limit]
+                limited.append(attempt)
+            attempts = limited
+        return iter(attempts)
+
+    def mark_recovery_sent_if_unresolved(
+        self,
+        attempt_id: str,
+        completed_at: datetime,
+        recovery_notes: str,
+    ) -> Optional[OutreachAttempt]:
+        with self._lock:
+            attempt = self._store.get(attempt_id)
+            if attempt is None or attempt.status not in {OutreachStatus.UNKNOWN, OutreachStatus.RECOVERY_REQUIRED}:
+                return None
+            attempt.status = OutreachStatus.SENT
+            attempt.completed_at = completed_at
+            attempt.recovery_notes = recovery_notes
+            return attempt
+
+    def fail_recovery_if_unresolved(
+        self,
+        attempt_id: str,
+        completed_at: datetime,
+        recovery_notes: str,
+        failure_code: str,
+        failure_detail: str,
+    ) -> Optional[OutreachAttempt]:
+        with self._lock:
+            attempt = self._store.get(attempt_id)
+            if attempt is None or attempt.status not in {OutreachStatus.UNKNOWN, OutreachStatus.RECOVERY_REQUIRED}:
+                return None
+            attempt.status = OutreachStatus.FAILED
+            attempt.completed_at = completed_at
+            attempt.recovery_notes = recovery_notes
+            attempt.failure_code = failure_code
+            attempt.failure_detail = failure_detail
+            return attempt
 
     def list_all(self) -> List[OutreachAttempt]:
         return list(self._store.values())
