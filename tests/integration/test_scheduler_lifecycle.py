@@ -186,6 +186,93 @@ class TestSchedulerLifecycle:
             tmpl_ids = [a.template_id for a in attempts]
             assert tmpl_ids == ["tmpl_wa_1", "tmpl_wa_2", "tmpl_wa_1", "tmpl_wa_2", "tmpl_wa_1", "tmpl_wa_2"]
 
+    def test_campaign_resource_ids_restrict_scheduler_selection(self, scheduler_env):
+        session_factory = scheduler_env["session_factory"]
+        scheduler = scheduler_env["scheduler"]
+
+        with session_factory() as session:
+            sender_repo = SqliteSenderRepository(session)
+            sender_repo.save(
+                SenderAccount.create(
+                    sender_id="snd_wa_2",
+                    channel=Channel.WHATSAPP,
+                    provider="mock",
+                    identity="+919999999998",
+                    display_name="Line 2",
+                )
+            )
+            campaign_repo = SqliteCampaignRepository(session)
+            campaign_repo.save(
+                Campaign.create(
+                    name="Restricted Resource Campaign",
+                    channel=Channel.WHATSAPP,
+                    template_ids=["tmpl_wa_2"],
+                    sender_account_ids=["snd_wa_2"],
+                    campaign_id="cmp_restricted_01",
+                )
+            )
+            session.commit()
+
+        scheduler.start_campaign("cmp_restricted_01")
+
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            with session_factory() as probe:
+                if SqliteCampaignRepository(probe).get_by_id("cmp_restricted_01").status == CampaignStatus.COMPLETED:
+                    break
+            time.sleep(0.05)
+
+        with session_factory() as session:
+            attempts = SqliteOutreachRepository(session).list_by_campaign("cmp_restricted_01")
+
+        assert len(attempts) == 6
+        assert {attempt.template_id for attempt in attempts} == {"tmpl_wa_2"}
+        assert {attempt.sender_account_id for attempt in attempts} == {"snd_wa_2"}
+
+    def test_empty_campaign_resource_ids_do_not_restrict_scheduler_selection(self, scheduler_env):
+        session_factory = scheduler_env["session_factory"]
+        scheduler = scheduler_env["scheduler"]
+
+        with session_factory() as session:
+            sender_repo = SqliteSenderRepository(session)
+            sender_repo.save(
+                SenderAccount.create(
+                    sender_id="snd_wa_2",
+                    channel=Channel.WHATSAPP,
+                    provider="mock",
+                    identity="+919999999998",
+                    display_name="Line 2",
+                )
+            )
+            campaign_repo = SqliteCampaignRepository(session)
+            campaign_repo.save(
+                Campaign.create(
+                    name="Automatic Resource Campaign",
+                    channel=Channel.WHATSAPP,
+                    campaign_id="cmp_auto_resources_01",
+                )
+            )
+            session.commit()
+
+        scheduler.start_campaign("cmp_auto_resources_01")
+
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            with session_factory() as probe:
+                if (
+                    SqliteCampaignRepository(probe).get_by_id("cmp_auto_resources_01").status
+                    == CampaignStatus.COMPLETED
+                ):
+                    break
+            time.sleep(0.05)
+
+        with session_factory() as session:
+            attempts = SqliteOutreachRepository(session).list_by_campaign("cmp_auto_resources_01")
+
+        assert len(attempts) == 6
+        assert {attempt.template_id for attempt in attempts} == {"tmpl_wa_1", "tmpl_wa_2"}
+        assert {attempt.sender_account_id for attempt in attempts} == {"snd_wa_1", "snd_wa_2"}
+
     def test_campaign_pause_and_resume(self, scheduler_env):
         session_factory = scheduler_env["session_factory"]
         scheduler = scheduler_env["scheduler"]
