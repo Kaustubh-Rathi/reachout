@@ -14,10 +14,8 @@ from app.domain.policies.endpoint_coverage_policy import (
     is_contact_fully_covered,
     is_endpoint_covered,
 )
-from app.domain.policies.fallback_policy import ChannelFallbackPolicy
 from app.domain.policies.prioritization import (
     CompanyRoundMetrics,
-    ContactPrioritizer,
     calculate_company_round_state,
     prioritize_company_first,
 )
@@ -29,15 +27,12 @@ from app.domain.policies.reminder_policy import (
 )
 from app.domain.policies.resend_policy import prepare_manual_resend
 from app.domain.policies.sender_rotation import SenderRotationPolicy
-from app.domain.policies.template_rotation import (
-    select_template_round_robin,
-)
+from app.domain.policies.template_rotation import select_template_round_robin
 
 __all__ = [
     "prioritize_company_first",
     "calculate_company_round_state",
     "CompanyRoundMetrics",
-    "ContactPrioritizer",
     "evaluate_automatic_eligibility",
     "EligibilityResult",
     "prepare_manual_resend",
@@ -47,7 +42,6 @@ __all__ = [
     "DEFAULT_FOLLOW_UP_THRESHOLD_DAYS",
     "select_template_round_robin",
     "SenderRotationPolicy",
-    "ChannelFallbackPolicy",
     "ChannelRotationPolicy",
     "ChannelDispatchDecision",
     "DEFAULT_ROTATION_SEQUENCE",

@@ -75,11 +75,6 @@ def get_event_bus() -> EventBus:
     return EventBus()
 
 
-def get_repository_factory() -> Any:
-    """Return the canonical repository-bundle factory."""
-    return build_repositories
-
-
 class SyncSummaryStore:
     """Thread-safe holder for the most recent sync summary (separate request)."""
 

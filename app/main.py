@@ -6,8 +6,8 @@ serving the operational dashboard UI, and managing startup/shutdown lifecycle.
 
 from __future__ import annotations
 
+import hashlib
 import logging
-import subprocess
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -27,7 +27,7 @@ from app.config import (
     MAX_OUTREACH_LIMIT,
 )
 from app.domain.errors import SourceError
-from app.infrastructure.database import SessionFactory, init_db
+from app.infrastructure import database as database_module
 from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
 from app.services.crm_service import CrmService
 from app.services.sender_service import SenderService
@@ -42,32 +42,30 @@ logger = logging.getLogger(__name__)
 
 
 def _asset_version() -> str:
-    """Short git SHA used to version /ui asset URLs so browsers never serve
-    a stale cached shell after a deploy. Falls back to "dev" outside git."""
-    try:
-        out = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=ROOT_DIR,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        sha = out.stdout.strip()
-        if out.returncode == 0 and sha:
-            return sha
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return "dev"
+    """Content-based version for dashboard assets."""
+    digest = hashlib.sha256()
+    for path in sorted(UI_DIR.rglob("*")):
+        if path.is_file() and path.suffix in {".html", ".js", ".css"}:
+            digest.update(path.relative_to(UI_DIR).as_posix().encode("utf-8"))
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
 
 
 ASSET_VERSION = _asset_version()
 
 
+class DashboardStaticFiles(StaticFiles):
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize DB tables and seed initial default templates/senders
-    init_db()
-    with SessionFactory() as session:
+    database_module.init_db(target_engine=database_module.engine)
+    with database_module.SessionFactory() as session:
         TemplateService(session).seed_defaults_if_empty()
         sender_svc = SenderService(session)
         sender_svc.reconcile_sender_states()
@@ -135,7 +133,7 @@ async def add_security_headers(request, call_next):
 
 
 # Serve the dashboard's external CSS/JS assets.
-app.mount("/ui", StaticFiles(directory=UI_DIR), name="ui")
+app.mount("/ui", DashboardStaticFiles(directory=UI_DIR), name="ui")
 
 # Mount all /api endpoints
 app.include_router(api_router)
