@@ -378,7 +378,7 @@ class DatabaseSourceSynchronizer(SourceSynchronizer):
                             if not extracted:
                                 invalid_count += 1
 
-                    if not slot_phones and not email_str:
+                    if not slot_phones and not clean_text(v.get(name_col)):
                         continue
 
                     phone_str = ", ".join(slot_phones) if slot_phones else None
