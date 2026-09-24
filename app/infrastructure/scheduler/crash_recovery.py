@@ -51,6 +51,22 @@ class CrashRecoveryService:
                         )
                     )
 
+            for attempt in outreach_repo.list_by_status(OutreachStatus.PREPARED):
+                attempt.mark_failed(
+                    "ERR_INTERRUPTED_BEFORE_DISPATCH",
+                    "Process restarted before the prepared attempt was dispatched",
+                    now,
+                )
+                attempt.recovery_notes = f"Closed by crash recovery audit at {now.isoformat()}"
+                outreach_repo.save(attempt)
+                recovered_count += 1
+                self.event_publisher.publish(
+                    DomainEvent(
+                        event_type="ATTEMPT_FAILED",
+                        payload={"attempt_id": attempt.id, "reason": attempt.failure_detail},
+                    )
+                )
+
             for cmp in campaign_repo.list_all():
                 if cmp.status in (CampaignStatus.RUNNING, CampaignStatus.STARTING):
                     cmp.pause()

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import List, Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.orm import Session
 
 from app.domain.campaign import Campaign
@@ -24,7 +24,7 @@ class SqliteCampaignRepository(CampaignRepository):
         return model.to_domain() if model else None
 
     def list_all(self) -> List[Campaign]:
-        stmt = select(CampaignModel).order_by(CampaignModel.created_at.desc())
+        stmt = select(CampaignModel).order_by(desc(CampaignModel.created_at), desc(CampaignModel.id))
         models = self.session.scalars(stmt).all()
         return [m.to_domain() for m in models]
 

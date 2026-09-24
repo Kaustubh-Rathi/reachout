@@ -91,6 +91,7 @@ class CrmService:
         self.analytics = CrmAnalyticsService(
             contact_repo=self.contact_repo,
             outreach_repo=self.outreach_repo,
+            suppression_repo=ctx.suppression_repo,
             clock=self.clock,
         )
 

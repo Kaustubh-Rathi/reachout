@@ -90,6 +90,17 @@ class RateLimiter(Protocol):
 
     default_channel_delay: Dict[str, float]
 
+    def can_send(
+        self,
+        sender_id: str,
+        channel: str,
+        daily_limit: Optional[int] = None,
+        hourly_limit: Optional[int] = None,
+        min_delay_override: Optional[float] = None,
+    ) -> tuple[bool, str]:
+        """Return whether a sender is currently eligible to dispatch."""
+        ...
+
     def wait_for_ready(
         self,
         sender_id: str,

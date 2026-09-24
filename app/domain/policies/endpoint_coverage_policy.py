@@ -18,6 +18,7 @@ from app.domain.outreach_attempt import OutreachAttempt
 
 # Ambiguous or active states that block automatic duplicate outreach
 BLOCKING_INFLIGHT_STATUSES = {
+    OutreachStatus.PREPARED,
     OutreachStatus.QUEUED,
     OutreachStatus.SENDING,
     OutreachStatus.UNKNOWN,
@@ -80,31 +81,20 @@ def is_endpoint_covered(
     return False
 
 
-def get_endpoint_attempt_info(
+def _matching_endpoint_attempts(
     endpoint: CommunicationEndpoint,
     contact_id: str,
     historical_attempts: Optional[Sequence[OutreachAttempt]] = None,
-) -> Optional[OutreachAttempt]:
-    """Retrieve the most recent successful or terminal OutreachAttempt for this endpoint."""
+) -> List[OutreachAttempt]:
     if not historical_attempts:
-        return None
-
-    matching_attempts = []
-    for att in historical_attempts:
-        if att.contact_id != contact_id or att.channel != endpoint.channel:
-            continue
-        dest = att.destination
-        if dest and endpoint.matches(att.channel, dest):
-            matching_attempts.append(att)
-        elif not dest and endpoint.ordinal == 0:
-            matching_attempts.append(att)
-
-    if not matching_attempts:
-        return None
-
-    # Return newest attempt by timestamp
-    matching_attempts.sort(key=lambda a: a.completed_at or a.prepared_at, reverse=True)
-    return matching_attempts[0]
+        return []
+    return [
+        attempt
+        for attempt in historical_attempts
+        if attempt.contact_id == contact_id
+        and attempt.channel == endpoint.channel
+        and (endpoint.matches(endpoint.channel, attempt.destination) if attempt.destination else endpoint.ordinal == 0)
+    ]
 
 
 DEFINITIVE_ENDPOINT_FAILURES: Set[str] = {
@@ -113,6 +103,7 @@ DEFINITIVE_ENDPOINT_FAILURES: Set[str] = {
     "ERR_PHONE_UNAVAILABLE",
     "ERR_INVALID_RECIPIENT",
     "INVALID_PHONE_NUMBER",
+    "ERR_INVALID_PHONE_FORMAT",
     "MISSING_PHONE_NUMBER",
     "ERR_PERMANENT_REJECTION",
     "ERR_EMAIL_UNAVAILABLE",
@@ -123,6 +114,7 @@ DEFINITIVE_ENDPOINT_FAILURES: Set[str] = {
     "ERR_NUMBER_NOT_REGISTERED",
     "ERR_INVALID_EMAIL",
     "ERR_RECIPIENT_REFUSED",
+    "OPERATOR_CANCELLED",
 }
 
 
@@ -272,24 +264,50 @@ def get_next_uncovered_endpoint(
 def get_contact_endpoint_metrics(
     contact: Contact,
     historical_attempts: Optional[Sequence[OutreachAttempt]] = None,
+    suppressed_identifiers: Optional[Container[str]] = None,
 ) -> Dict[str, Any]:
     """Generate detailed per-endpoint coverage audit metrics for UI, API, and dashboards."""
     all_endpoints = contact.endpoints
+    suppressed = suppressed_identifiers or set()
+    contact_blocked = has_ambiguous_or_inflight_blocker(contact, historical_attempts)
+    opt_out_tags = {"dnc", "opt_out", "opt-out", "do_not_contact", "unsubscribed"}
+    contact_excluded = contact.contact_id in suppressed or bool(
+        {tag.strip().lower() for tag in (contact.tags or [])} & opt_out_tags
+    )
 
     wa_endpoints = []
     em_endpoints = []
 
     for ep in all_endpoints:
-        attempt = get_endpoint_attempt_info(ep, contact.contact_id, historical_attempts)
+        matching_attempts = _matching_endpoint_attempts(ep, contact.contact_id, historical_attempts)
+        matching_attempts.sort(key=lambda a: a.completed_at or a.prepared_at, reverse=True)
+        attempt = matching_attempts[0] if matching_attempts else None
+        sent_attempt = next((a for a in matching_attempts if a.status == OutreachStatus.SENT), None)
+        failed_attempt = next((a for a in matching_attempts if a.status == OutreachStatus.FAILED), None)
         is_sent = is_endpoint_covered(ep, contact.contact_id, historical_attempts, contact)
+        is_permanent_failure = is_endpoint_permanently_failed(ep, contact.contact_id, historical_attempts)
+        is_excluded = contact_excluded or ep.address in suppressed or ep.normalized_address in suppressed
 
-        status_str = (
-            "SENT"
-            if is_sent
-            else ("FAILED" if attempt and attempt.status == OutreachStatus.FAILED else "NOT_CONTACTED")
-        )
-        if attempt and attempt.status in BLOCKING_INFLIGHT_STATUSES:
+        if is_sent:
+            coverage_state = "SENT"
+        elif is_permanent_failure:
+            coverage_state = "PERMANENT_FAILED"
+        elif is_excluded:
+            coverage_state = "SUPPRESSED"
+        elif contact_blocked:
+            coverage_state = "BLOCKED"
+        elif not matching_attempts:
+            coverage_state = "NEVER_ATTEMPTED"
+        elif failed_attempt:
+            coverage_state = "RETRYABLE"
+        else:
+            coverage_state = "READY"
+
+        status_str = "SENT" if is_sent else ("FAILED" if failed_attempt else "NOT_CONTACTED")
+        if attempt and attempt.status in BLOCKING_INFLIGHT_STATUSES and not is_sent:
             status_str = attempt.status.value
+
+        selected_attempt = sent_attempt or attempt
 
         ep_info = {
             "channel": ep.channel.value,
@@ -297,12 +315,25 @@ def get_contact_endpoint_metrics(
             "normalized_address": ep.normalized_address,
             "ordinal": ep.ordinal,
             "status": status_str,
+            "coverage_state": coverage_state,
             "is_covered": is_sent,
-            "sender_account_id": attempt.sender_account_id if attempt else None,
-            "template_id": attempt.template_id if attempt else None,
-            "attempt_id": attempt.id if attempt else None,
-            "sent_at": (attempt.completed_at or attempt.started_at or attempt.prepared_at).isoformat()
-            if (attempt and is_sent and (attempt.completed_at or attempt.started_at or attempt.prepared_at))
+            "is_ready": coverage_state in {"READY", "NEVER_ATTEMPTED", "RETRYABLE"},
+            "is_blocked": coverage_state == "BLOCKED",
+            "is_permanently_failed": coverage_state == "PERMANENT_FAILED",
+            "is_excluded": coverage_state == "SUPPRESSED",
+            "never_attempted": not matching_attempts,
+            "attempt_count": len(matching_attempts),
+            "failed_attempt_count": sum(1 for a in matching_attempts if a.status == OutreachStatus.FAILED),
+            "sender_account_id": selected_attempt.sender_account_id if selected_attempt else None,
+            "template_id": selected_attempt.template_id if selected_attempt else None,
+            "attempt_id": selected_attempt.id if selected_attempt else None,
+            "failure_code": failed_attempt.failure_code if failed_attempt else None,
+            "failure_detail": failed_attempt.failure_detail if failed_attempt else None,
+            "last_failure_at": failed_attempt.completed_at.isoformat()
+            if failed_attempt and failed_attempt.completed_at
+            else None,
+            "sent_at": (sent_attempt.completed_at or sent_attempt.started_at or sent_attempt.prepared_at).isoformat()
+            if (sent_attempt and (sent_attempt.completed_at or sent_attempt.started_at or sent_attempt.prepared_at))
             else None,
         }
 
@@ -317,7 +348,11 @@ def get_contact_endpoint_metrics(
     em_covered = sum(1 for e in em_endpoints if e["is_covered"])
     total = wa_total + em_total
     covered = wa_covered + em_covered
+    all_endpoint_rows = wa_endpoints + em_endpoints
     is_complete = total > 0 and covered == total
+    dispatch_complete = total > 0 and all(
+        endpoint["coverage_state"] in {"SENT", "PERMANENT_FAILED", "SUPPRESSED"} for endpoint in all_endpoint_rows
+    )
 
     return {
         "contact_id": contact.contact_id,
@@ -329,7 +364,18 @@ def get_contact_endpoint_metrics(
         "email_covered": em_covered,
         "total_endpoints": total,
         "covered_endpoints": covered,
+        "ready_endpoints": sum(1 for e in wa_endpoints + em_endpoints if e["is_ready"]),
+        "blocked_endpoints": sum(1 for e in wa_endpoints + em_endpoints if e["is_blocked"]),
+        "permanent_failed_endpoints": sum(1 for e in wa_endpoints + em_endpoints if e["is_permanently_failed"]),
+        "excluded_endpoints": sum(1 for e in wa_endpoints + em_endpoints if e["is_excluded"]),
+        "never_attempted_endpoints": sum(1 for e in wa_endpoints + em_endpoints if e["never_attempted"]),
+        "retryable_failed_endpoints": sum(
+            1
+            for e in wa_endpoints + em_endpoints
+            if e["coverage_state"] == "RETRYABLE" and e["failed_attempt_count"] > 0
+        ),
         "is_fully_covered": is_complete,
+        "is_dispatch_complete": dispatch_complete,
         "has_uncovered_whatsapp": wa_covered < wa_total,
         "has_uncovered_email": em_covered < em_total,
     }

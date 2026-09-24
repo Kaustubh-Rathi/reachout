@@ -7,12 +7,12 @@ Defined using typing.Protocol to decouple domain logic from persistence mechanis
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Protocol, runtime_checkable
+from typing import Iterable, List, Optional, Protocol, runtime_checkable
 
 from app.domain.campaign import Campaign
 from app.domain.company import Company
 from app.domain.contact import Contact
-from app.domain.enums import Channel, OutreachStatus
+from app.domain.enums import CampaignStatus, Channel, OutreachStatus
 from app.domain.message_template import MessageTemplate
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.reminder import FollowUpReminder
@@ -82,8 +82,29 @@ class CampaignRepository(Protocol):
         """List all campaigns."""
         ...
 
+    def increment_automatic_used(self, campaign_id: str, delta: int = 1) -> None:
+        """Atomically increment successful automatic sends for a campaign."""
+        ...
+
+    def increment_manual_used(self, campaign_id: str, delta: int = 1) -> None:
+        """Atomically increment successful manual sends for a campaign."""
+        ...
+
+    def set_rotation_state(self, campaign_id: str, rotation_state: dict) -> None:
+        """Persist the scheduler's rotation state without replacing campaign metadata."""
+        ...
+
+    def set_status(
+        self,
+        campaign_id: str,
+        status: CampaignStatus,
+        ended_at: Optional[datetime] = None,
+    ) -> None:
+        """Atomically update campaign status without replacing campaign metadata."""
+        ...
+
     def save(self, campaign: Campaign) -> Campaign:
-        """Upsert a campaign entity."""
+        """Save/upsert a campaign entity."""
         ...
 
 
@@ -109,6 +130,35 @@ class OutreachRepository(Protocol):
 
     def list_by_status(self, status: OutreachStatus) -> List[OutreachAttempt]:
         """Return all attempts currently in a given status (e.g. RECOVERY_REQUIRED)."""
+        ...
+
+    def iter_by_status(
+        self,
+        status: OutreachStatus,
+        batch_size: int = 200,
+        failure_detail_limit: Optional[int] = None,
+    ) -> Iterable[OutreachAttempt]:
+        """Iterate attempts in a status using stable newest-first ordering."""
+        ...
+
+    def mark_recovery_sent_if_unresolved(
+        self,
+        attempt_id: str,
+        completed_at: datetime,
+        recovery_notes: str,
+    ) -> Optional[OutreachAttempt]:
+        """Atomically resolve an UNKNOWN or RECOVERY_REQUIRED attempt as SENT."""
+        ...
+
+    def fail_recovery_if_unresolved(
+        self,
+        attempt_id: str,
+        completed_at: datetime,
+        recovery_notes: str,
+        failure_code: str,
+        failure_detail: str,
+    ) -> Optional[OutreachAttempt]:
+        """Atomically resolve an UNKNOWN or RECOVERY_REQUIRED attempt as FAILED."""
         ...
 
     def list_all(self) -> List[OutreachAttempt]:
