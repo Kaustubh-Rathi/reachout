@@ -74,7 +74,7 @@ def pytest_sessionstart(session):
     """Record SHA-256 of production database and raw datasets before test suite execution."""
     global _PRE_TEST_HASHES
     _calculate_sqlite_sha256(PROD_DB)
-    _PRE_TEST_HASHES["reachout.db"] = _calculate_file_sha256(PROD_DB)
+    _PRE_TEST_HASHES["reachout.db"] = _calculate_sqlite_sha256(PROD_DB)
     _PRE_TEST_HASHES["MNC_Final.xlsx"] = _calculate_file_sha256(MNC_XLSX)
     _PRE_TEST_HASHES["Reachout.xlsx"] = _calculate_file_sha256(REACHOUT_XLSX)
     _PRE_TEST_HASHES["mnc_whatsapp_send_log.csv"] = _calculate_file_sha256(SEND_LOG_CSV)
