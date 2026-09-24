@@ -108,10 +108,6 @@ class WhatsAppSessionManager:
         """True if this id has real, non-default in-memory auth state (e.g. a live temp)."""
         return self._auth.is_known(sender_id)
 
-    def has_active_auth_thread(self, sender_id: str) -> bool:
-        """True if a QR auth thread is currently running for this id."""
-        return self._auth.has_active_thread(sender_id)
-
     def set_auth_state(
         self,
         sender_id: str,

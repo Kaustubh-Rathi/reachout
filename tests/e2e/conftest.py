@@ -17,7 +17,7 @@ from camoufox.sync_api import Camoufox
 
 from app.domain.enums import Channel, SenderStatus
 from app.domain.sender_account import SenderAccount
-from app.infrastructure.database import SessionFactory, init_db
+from app.infrastructure import database as database_module
 from app.infrastructure.repositories.sqlite_sender_repository import SqliteSenderRepository
 from app.main import app
 from app.services.sync_service import SyncService
@@ -74,10 +74,10 @@ def e2e_server_storage(tmp_path_factory):
 @pytest.fixture(scope="session", autouse=True)
 def run_test_server(e2e_server_storage):
     """Launch local ASGI test server in a background daemon thread."""
-    init_db()
+    database_module.init_db(target_engine=database_module.engine)
 
     # Seed initial test data
-    with SessionFactory() as session:
+    with database_module.SessionFactory() as session:
         sync_svc = SyncService(session)
         try:
             sync_svc.sync_source()

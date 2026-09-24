@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import datetime
 import atexit
+import datetime
 import hashlib
-import shutil
 import os
+import shutil
 import tempfile
 from datetime import timezone
 from pathlib import Path
@@ -28,6 +28,9 @@ SEND_LOG_CSV = LOGS_DIR / "mnc_whatsapp_send_log.csv"
 
 # Global dictionary to track SHA-256 before and after the test run
 _PRE_TEST_HASHES = {}
+_ORIGINAL_DB_ENGINE = None
+_ORIGINAL_SESSION_FACTORY = None
+_ORIGINAL_DB_URL = None
 
 
 def _calculate_file_sha256(path: Path) -> Optional[str]:
@@ -72,8 +75,7 @@ os.environ["OUTREACH_CHANNEL_DELAY_EM"] = "0.01"
 
 def pytest_sessionstart(session):
     """Record SHA-256 of production database and raw datasets before test suite execution."""
-    global _PRE_TEST_HASHES
-    _calculate_sqlite_sha256(PROD_DB)
+    global _PRE_TEST_HASHES, _ORIGINAL_DB_ENGINE, _ORIGINAL_SESSION_FACTORY, _ORIGINAL_DB_URL
     _PRE_TEST_HASHES["reachout.db"] = _calculate_sqlite_sha256(PROD_DB)
     _PRE_TEST_HASHES["MNC_Final.xlsx"] = _calculate_file_sha256(MNC_XLSX)
     _PRE_TEST_HASHES["Reachout.xlsx"] = _calculate_file_sha256(REACHOUT_XLSX)
@@ -82,8 +84,11 @@ def pytest_sessionstart(session):
     # Initialize tables on the isolated test database
     import app.infrastructure.database as db
 
-    # Rebind engine and sessionmaker to isolated test database
+    _ORIGINAL_DB_ENGINE = db.engine
+    _ORIGINAL_SESSION_FACTORY = db.SessionFactory
+    _ORIGINAL_DB_URL = db.DB_URL
     db.DB_URL = f"sqlite:///{_TEST_DB_FILE.as_posix()}"
+    db.engine = db.create_db_engine(db.DB_URL)
     db.SessionFactory = sessionmaker(autocommit=False, autoflush=False, bind=db.engine)
     db.init_db(target_engine=db.engine)
 
@@ -134,7 +139,16 @@ def reset_test_provider_overrides():
 def pytest_sessionfinish(session, exitstatus):
     """Verify 100% byte-for-byte SHA-256 immutability of production database and raw workbooks."""
     global _PRE_TEST_HASHES
+    if _ORIGINAL_DB_ENGINE is not None:
+        import app.infrastructure.database as db
+
+        db.engine.dispose()
+        db.engine = _ORIGINAL_DB_ENGINE
+        db.SessionFactory = _ORIGINAL_SESSION_FACTORY
+        db.DB_URL = _ORIGINAL_DB_URL
     _cleanup_temp_test_dir()
+    if os.environ.get("REACHOUT_ALLOW_EXTERNAL_DB_WRITES") == "1":
+        return
     for filename, path in [
         ("reachout.db", PROD_DB),
         ("MNC_Final.xlsx", MNC_XLSX),

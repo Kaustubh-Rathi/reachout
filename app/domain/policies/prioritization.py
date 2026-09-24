@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Callable, Container, Dict, List, Optional, Sequence, Set
+from typing import Any, Callable, Container, Dict, List, Optional, Sequence
 
 from app.domain.contact import Contact
 
@@ -234,36 +234,3 @@ def calculate_company_round_state(
         total_eligible_contacts=total_eligible,
         remaining_eligible_contacts=remaining_eligible,
     )
-
-
-class ContactPrioritizer:
-    """Encapsulates WHO selection: Company-First Round-Robin prioritization with eligibility filtering."""
-
-    def __init__(self, company_key_fn: Optional[Callable[[Contact], str]] = None) -> None:
-        self.company_key_fn = company_key_fn or (lambda c: c.company_id.strip().casefold())
-
-    def get_ordered_candidates(
-        self,
-        contacts: Sequence[Contact],
-        eligibility_predicate: Optional[Callable[[Contact], bool]] = None,
-        dispatched_contact_ids: Optional[Container[str]] = None,
-    ) -> List[Contact]:
-        return prioritize_company_first(
-            contacts=contacts,
-            eligibility_predicate=eligibility_predicate,
-            company_key_fn=self.company_key_fn,
-            dispatched_contact_ids=dispatched_contact_ids,
-        )
-
-    def get_round_metrics(
-        self,
-        all_contacts: Sequence[Contact],
-        eligibility_predicate: Optional[Callable[[Contact], bool]] = None,
-        dispatched_contact_ids: Optional[Set[str]] = None,
-    ) -> CompanyRoundMetrics:
-        return calculate_company_round_state(
-            all_contacts=all_contacts,
-            eligibility_predicate=eligibility_predicate,
-            dispatched_contact_ids=dispatched_contact_ids,
-            company_key_fn=self.company_key_fn,
-        )
