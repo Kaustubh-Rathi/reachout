@@ -10,7 +10,6 @@ from typing import Any, Optional
 
 from app.composition import build_repositories
 from app.infrastructure.events.event_bus import EventBus
-from app.infrastructure.scheduler.campaign_scheduler import PersistentCampaignScheduler
 from app.infrastructure.scheduler.campaign_worker import OutreachWorker
 from app.infrastructure.scheduler.rate_limiter import RateLimiter
 from app.ports.infrastructure import SystemClock
@@ -36,22 +35,6 @@ def build_worker(
         whatsapp_provider=whatsapp_provider or FakeWhatsAppProvider(),
         email_provider=email_provider or FakeEmailProvider(),
         rate_limiter=rate_limiter or fast_rate_limiter(),
-        event_publisher=event_publisher or EventBus(),
-        repository_factory=build_repositories,
-        clock=SystemClock(),
-    )
-
-
-def build_scheduler(
-    session_factory: Any,
-    *,
-    worker: Optional[OutreachWorker] = None,
-    event_publisher: Optional[Any] = None,
-) -> PersistentCampaignScheduler:
-    """Construct a PersistentCampaignScheduler with a fake-backed worker by default."""
-    return PersistentCampaignScheduler(
-        session_factory=session_factory,
-        worker=worker or build_worker(session_factory),
         event_publisher=event_publisher or EventBus(),
         repository_factory=build_repositories,
         clock=SystemClock(),

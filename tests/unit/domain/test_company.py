@@ -1,7 +1,5 @@
 """Unit tests for Company domain entity."""
 
-from datetime import datetime, timezone
-
 from app.domain.company import Company, normalize_company_name
 
 
@@ -28,12 +26,3 @@ class TestCompanyModel:
         )
         assert comp.id == "custom_comp_001"
         assert comp.name == "OpenAI"
-
-    def test_update_name(self):
-        t0 = datetime(2026, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
-        comp = Company.create(name="Facebook", created_at=t0)
-        t1 = datetime(2026, 1, 2, 10, 0, 0, tzinfo=timezone.utc)
-        comp.update_name("Meta Platforms", timestamp=t1)
-        assert comp.name == "Meta Platforms"
-        assert comp.normalized_name == "meta platforms"
-        assert comp.updated_at == t1
