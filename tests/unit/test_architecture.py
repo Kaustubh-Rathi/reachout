@@ -19,6 +19,10 @@ APP_DIR = ROOT_DIR / "app"
 DOMAIN_DIR = APP_DIR / "domain"
 PORTS_DIR = APP_DIR / "ports"
 INFRA_DIR = APP_DIR / "infrastructure"
+UI_DIR = ROOT_DIR / "ui"
+
+# Modules imported by the runtime entry point rather than by another app/ module.
+APP_ENTRYPOINTS = {"app.main", "app.composition"}
 
 # Forbidden external libraries in pure Domain Layer
 FORBIDDEN_DOMAIN_IMPORTS = {
@@ -443,3 +447,167 @@ class TestArchitecturalBoundaries:
             "actions.js getAction must throw Error for unknown action"
         )
         assert "getAction(" in dispatch_content, "dispatch.js must call getAction to resolve action names"
+
+
+def app_module_name(file_path: Path) -> str:
+    """Dotted module name for a file under app/ (package __init__ maps to its package)."""
+    parts = list(file_path.relative_to(APP_DIR).with_suffix("").parts)
+    if parts and parts[-1] == "__init__":
+        parts = parts[:-1]
+    return ".".join(["app", *parts])
+
+
+def app_package_name(file_path: Path) -> str:
+    """Dotted package a file under app/ belongs to (for resolving relative imports)."""
+    parts = list(file_path.relative_to(APP_DIR).parts)
+    if parts[-1] != "__init__.py":
+        parts = parts[:-1]
+    return ".".join(["app", *parts]) if parts else "app"
+
+
+def iter_python_sources(*roots: Path) -> List[Path]:
+    """All python sources under the given roots, skipping caches and virtualenvs."""
+    skip = {".venv", "__pycache__", "node_modules", ".pytest_cache", ".ruff_cache"}
+    found: List[Path] = []
+    for root in roots:
+        for path in root.rglob("*.py"):
+            if skip & set(path.parts):
+                continue
+            found.append(path)
+    return sorted(found)
+
+
+def iter_ui_scripts() -> List[Path]:
+    """All dashboard javascript modules, excluding any vendored node_modules."""
+    return sorted(p for p in UI_DIR.rglob("*.js") if "node_modules" not in p.parts)
+
+
+class TestNoDeadCode:
+    """Guards that fail when code becomes unreachable, so dead code cannot silently accumulate.
+
+    These are the regression checks for a one-off dead-code sweep that removed an
+    orphaned domain policy module, a test-only contact filter, a test-only entity
+    mutator, and two unused test doubles. Each guard was verified to flag the original
+    offender and to pass on the cleaned tree.
+    """
+
+    def test_no_orphan_app_modules(self):
+        """Every app/ module must be imported by another app/ module (or be an entrypoint)."""
+        sources = [p for p in iter_python_sources(APP_DIR) if p.name != "__init__.py"]
+        assert sources, "No app/ modules discovered"
+
+        imported: Set[str] = set()
+        for path in iter_python_sources(APP_DIR):
+            package = app_package_name(path)
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    if node.level:
+                        base = package.split(".")
+                        base = base[: len(base) - (node.level - 1)]
+                        if node.module:
+                            base = base + node.module.split(".")
+                        module = ".".join(base)
+                    else:
+                        module = node.module or ""
+                    if module.split(".")[0] == "app":
+                        imported.add(module)
+                elif isinstance(node, ast.Import):
+                    for alias in node.names:
+                        if alias.name.split(".")[0] == "app":
+                            imported.add(alias.name)
+
+        orphans = sorted(
+            app_module_name(p)
+            for p in sources
+            if app_module_name(p) not in imported and app_module_name(p) not in APP_ENTRYPOINTS
+        )
+        assert not orphans, (
+            "Orphaned app/ modules (never imported by app/ code - delete or wire them up):\n" + "\n".join(orphans)
+        )
+
+    def test_app_module_functions_have_production_callers(self):
+        """Module-level app/ functions must be called by app/ code, not only by tests.
+
+        A function whose sole references live in tests/ is dead weight: the test exists
+        only to cover it. Decorated functions are exempt because the decorator (route
+        handler, middleware, SQLAlchemy hook) is itself the caller.
+        """
+        prod = iter_python_sources(APP_DIR)
+        prod_sources = {p: p.read_text(encoding="utf-8") for p in prod}
+        everything = {
+            p: p.read_text(encoding="utf-8", errors="ignore")
+            for p in iter_python_sources(ROOT_DIR / "app", ROOT_DIR / "tests", ROOT_DIR / "scripts")
+        }
+        assert prod_sources, "No app/ modules discovered"
+
+        orphans: List[str] = []
+        for path in prod:
+            tree = ast.parse(prod_sources[path], filename=str(path))
+            for node in tree.body:
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.decorator_list or node.name.startswith("__"):
+                    continue
+                pattern = re.compile(r"(?<![\w.])" + re.escape(node.name) + r"\b")
+                has_prod_caller = False
+                for p, text in prod_sources.items():
+                    for match in pattern.finditer(text):
+                        if p == path and text[: match.start()].count("\n") + 1 == node.lineno:
+                            continue  # the declaration itself is not a call
+                        has_prod_caller = True
+                        break
+                    if has_prod_caller:
+                        break
+                if not has_prod_caller:
+                    elsewhere = any(pattern.search(text) for p, text in everything.items() if p != path)
+                    orphans.append(
+                        f"{path.relative_to(ROOT_DIR).as_posix()}:{node.lineno} {node.name}()"
+                        + ("  (referenced only by tests - dead code)" if elsewhere else "  (no references at all)")
+                    )
+
+        assert not orphans, "Dead app/ module-level functions:\n" + "\n".join(orphans)
+
+    def test_no_unused_ui_js_exports(self):
+        """Every exported dashboard symbol must be consumed by another UI module or the HTML."""
+        scripts = iter_ui_scripts()
+        assert scripts, "No UI JS modules discovered"
+
+        html_file = UI_DIR / "crm_dashboard.html"
+        html = html_file.read_text(encoding="utf-8") if html_file.exists() else ""
+        sources = {p: p.read_text(encoding="utf-8") for p in scripts}
+
+        unused: List[str] = []
+        for path in scripts:
+            for match in re.finditer(
+                r"^export\s+(?:async\s+)?(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)", sources[path], re.M
+            ):
+                name = match.group(1)
+                pattern = re.compile(r"(?<![\w$])" + re.escape(name) + r"\b")
+                consumed = any(pattern.search(text) for other, text in sources.items() if other != path)
+                if not consumed and not pattern.search(html):
+                    lineno = sources[path][: match.start()].count("\n") + 1
+                    unused.append(f"{path.relative_to(ROOT_DIR).as_posix()}:{lineno} export {name}")
+
+        assert not unused, "Unused exports in ui/ (delete them or wire them up):\n" + "\n".join(unused)
+
+    def test_every_api_client_method_is_called(self):
+        """Every method on the api client must be called by the dashboard."""
+        api_file = UI_DIR / "modules" / "api.js"
+        assert api_file.exists(), "ui/modules/api.js not found"
+
+        client = api_file.read_text(encoding="utf-8")
+        block = re.search(r"export const api = \{(.*?)\n\};", client, re.S)
+        assert block, "Could not locate the `export const api = {...}` client in ui/modules/api.js"
+
+        consumers = "\n".join(p.read_text(encoding="utf-8") for p in iter_ui_scripts() if p != api_file)
+        html_file = UI_DIR / "crm_dashboard.html"
+        if html_file.exists():
+            consumers += "\n" + html_file.read_text(encoding="utf-8")
+
+        unused = [
+            name
+            for name in re.findall(r"^  ([A-Za-z_$][\w$]*):", block.group(1), re.M)
+            if not re.search(r"\." + re.escape(name) + r"\b", consumers)
+        ]
+        assert not unused, f"Unused api client methods in ui/modules/api.js (no caller found): {unused}"
