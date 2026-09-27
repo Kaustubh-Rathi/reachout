@@ -1,5 +1,4 @@
 from app.services.contact_filters import (
-    apply_contact_filters,
     company_matches_filters,
     matches_priority,
     matches_send_status,
@@ -34,19 +33,6 @@ def test_priority_buckets_cover_crm_activity_and_uncontacted_states():
     assert matches_priority({"last_contacted": "2026-01-01"}, "RECENTLY_ACTIVE") is True
     assert matches_priority({}, "UNCONTACTED") is True
     assert matches_priority({}, "UNKNOWN") is True
-
-
-def test_apply_contact_filters_materializes_generators_and_combines_filters():
-    contacts = (
-        value
-        for value in [
-            {"crm_outcome": "INTERESTED", "whatsapp_status": "SENT"},
-            {"crm_outcome": "INTERESTED", "whatsapp_status": "NOT_SENT"},
-            {"crm_outcome": "NOT_INTERESTED", "whatsapp_status": "SENT"},
-        ]
-    )
-    result = apply_contact_filters(contacts, send_status="SENT", priority_filter="INTERESTED")
-    assert result == [{"crm_outcome": "INTERESTED", "whatsapp_status": "SENT"}]
 
 
 def test_company_filters_use_aggregate_coverage_and_nested_endpoints():

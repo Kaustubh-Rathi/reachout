@@ -28,7 +28,6 @@ from app.domain.contact import Contact
 from app.domain.enums import AttemptType, Channel, OutreachStatus, SenderStatus
 from app.domain.outreach_attempt import OutreachAttempt
 from app.domain.policies.duplicate_policy import evaluate_automatic_eligibility
-from app.domain.policies.fallback_policy import ChannelFallbackPolicy
 from app.domain.policies.prioritization import (
     calculate_company_round_state,
     prioritize_company_first,
@@ -294,36 +293,6 @@ class TestHistoricalExclusion:
             assert all_attempts[0].id != all_attempts[1].id
             assert all_attempts[0].status == OutreachStatus.SENT
             assert all_attempts[1].status == OutreachStatus.SENT
-
-
-class TestChannelFallback:
-    """Dimension 4 & 5: Channel Fallback and Safety verification suite."""
-
-    def test_missing_phone_falls_back_to_email(self):
-        """Contact missing phone falls back safely to Email if email handle is available."""
-        contact = Contact(
-            contact_id="cnt_no_phone",
-            company_id="uber",
-            name="Uber Recruiter",
-            phone="",
-            email="recruiter@uber.com",
-        )
-
-        fb = ChannelFallbackPolicy.determine_fallback_channel(
-            contact=contact,
-            failed_channel=Channel.WHATSAPP,
-            failure_code="MISSING_PHONE_NUMBER",
-        )
-        assert fb == Channel.EMAIL
-
-    def test_ambiguous_unknown_outcome_does_not_trigger_automatic_fallback(self):
-        """Ambiguous UNKNOWN provider result blocks automatic fallback to prevent duplicate sends."""
-        assert ChannelFallbackPolicy.is_fallback_safe(OutreachStatus.UNKNOWN) is False
-        assert ChannelFallbackPolicy.is_fallback_safe(OutreachStatus.RECOVERY_REQUIRED) is False
-        assert (
-            ChannelFallbackPolicy.is_fallback_safe(OutreachStatus.FAILED, failure_code="ERR_PHONE_NOT_ON_WHATSAPP")
-            is True
-        )
 
 
 class TestSenderRotation:

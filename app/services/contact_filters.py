@@ -63,21 +63,6 @@ def matches_priority(contact: Mapping[str, Any], priority: str) -> bool:
     return True
 
 
-def apply_contact_filters(
-    contacts: Any,
-    *,
-    send_status: str | None = None,
-    priority_filter: str | None = None,
-) -> Any:
-    """Filter an iterable of contact dicts by send status and priority bucket."""
-    items = list(contacts)
-    if send_status and send_status != "ALL":
-        items = [c for c in items if matches_send_status(c, send_status)]
-    if priority_filter and priority_filter != "ALL":
-        items = [c for c in items if matches_priority(c, priority_filter)]
-    return items
-
-
 def company_matches_filters(
     hierarchy: Dict[str, Any],
     *,

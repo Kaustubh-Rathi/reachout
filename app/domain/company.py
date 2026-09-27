@@ -71,12 +71,6 @@ class Company:
             updated_at=now,
         )
 
-    def update_name(self, new_name: str, timestamp: Optional[datetime] = None) -> None:
-        """Update company name and refresh normalized name."""
-        self.name = new_name.strip()
-        self.normalized_name = normalize_company_name(new_name)
-        self.updated_at = timestamp or datetime.now(timezone.utc)
-
 
 def calculate_company_status(
     contacts: Sequence[Any],
