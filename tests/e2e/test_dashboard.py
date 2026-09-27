@@ -31,7 +31,7 @@ from app.domain.enums import CRMOutcome, InterviewState
 from app.infrastructure import database as database_module
 from app.services.crm_service import CrmService
 from app.services.sender_service import SenderService
-from tests.e2e.conftest import BASE_URL
+from tests.e2e.conftest import BASE_URL, wait_for_dashboard_ready
 
 pytestmark = pytest.mark.e2e
 
@@ -51,7 +51,7 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
     """Test dashboard shows four primary KPIs plus compact and diagnostic metrics."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
 
     assert "Reachout CRM" in page.title()
     assert page.locator("header h1", has_text="Reachout CRM").is_visible()
@@ -94,7 +94,7 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
 def test_failed_dispatch_drawer_opens_with_operational_filters(browser_page: Page):
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.wait_for_selector("#kpi-failed", timeout=30000)
     page.click("#kpi-failed")
     page.wait_for_selector("#failed-modal.open", timeout=30000)
@@ -111,7 +111,7 @@ def test_theme_toggle_switches_modes(browser_page: Page):
     """The theme control must resolve and switch between light, dark, and system."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.wait_for_selector("header h1", timeout=30000)
 
     html = page.locator("html")
@@ -139,7 +139,7 @@ def test_contact_display_and_email_visibility(browser_page: Page):
     page.goto(BASE_URL, wait_until="networkidle")
 
     # Wait for hierarchy company cards to render
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     cards = page.query_selector_all(".company-card")
@@ -189,7 +189,7 @@ def test_manual_whatsapp_send_and_resend(browser_page: Page):
     _activate_sender("WA_E2E_SMOKE")
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
@@ -228,7 +228,7 @@ def test_manual_email_send_and_resend(browser_page: Page):
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
@@ -257,7 +257,7 @@ def test_interested_and_interview_workflows(browser_page: Page):
     """Test Interested workflow records interested_at and transitions interview states via dropdown."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
@@ -293,7 +293,7 @@ def test_followup_reminder_due_display(browser_page: Page):
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.click('[data-nav="contacts"]')
 
     # Filter to Follow-up Due and expand the resulting company to reveal the badge
@@ -311,7 +311,7 @@ def test_source_synchronization_modal(browser_page: Page):
     """Test source synchronization summary modal opens and displays metrics."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
 
     sync_btn = page.locator("#sync-btn")
     sync_btn.click()
@@ -331,7 +331,7 @@ def test_senders_and_templates_pages(browser_page: Page):
     """Test the Senders and Templates pages dynamically list accounts without credentials."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
 
     # 1. Senders page
     page.click('[data-nav="senders"]')
@@ -356,7 +356,7 @@ def test_contact_history_timeline_modal(browser_page: Page):
     """Test contact activity timeline modal renders chronological events."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     page.click('[data-nav="contacts"]')
     page.wait_for_selector(".company-card", timeout=30000)
     page.locator(".company-card-header").first.click()
@@ -377,7 +377,7 @@ def test_sidebar_navigation_and_pagination(browser_page: Page):
     """Test sidebar routing between Overview and Contacts plus contacts pagination."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
 
     # Overview is the default landing page; Contacts is hidden until routed to.
     assert page.eval_on_selector("#page-overview", "el => el.classList.contains('active')")
@@ -414,7 +414,7 @@ def test_campaign_resume_flow(browser_page: Page):
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
 
     campaign_selector = page.locator("#campaign-selector")
     campaign_value = campaign_selector.evaluate(

@@ -6,8 +6,7 @@ from playwright.sync_api import Page
 from app.domain.enums import Channel, SenderStatus
 from app.infrastructure import database as database_module
 from app.services.sender_service import SenderService
-
-BASE_URL = "http://127.0.0.1:8899"
+from tests.e2e.conftest import BASE_URL, wait_for_dashboard_ready
 
 pytestmark = pytest.mark.e2e
 
@@ -19,7 +18,7 @@ def test_senders_control_plane(browser_page: Page):
 
     # 1. Verify header senders indicator is visible
     page.wait_for_selector("#header-senders-indicator", timeout=25000)
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
     assert page.is_visible("#hdr-wa-text")
     assert page.is_visible("#hdr-em-text")
 
@@ -63,7 +62,7 @@ def test_readiness_modal_on_blocked_start(browser_page: Page):
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_function("window.__dashboardReady === true", timeout=30000)
+    wait_for_dashboard_ready(page)
 
     # Wait for the consolidated campaign action to be enabled
     page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=30000)
