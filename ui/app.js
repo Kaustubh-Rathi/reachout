@@ -264,6 +264,18 @@ function initSidebar() {
 // ------------------------------------------------------------------
 // Initial load + bootstrap
 // ------------------------------------------------------------------
+// Publish bootstrap readiness to the DOM as well as a JS global.
+//
+// End-to-end tests wait on this. Camoufox (the browser the app automates WhatsApp
+// with) runs page scripts in an anti-detect context that is isolated from the
+// automation driver, so a plain `window` global is invisible to
+// `page.wait_for_function`. DOM state is shared across that boundary, so the
+// attribute below is what the e2e suite actually waits on.
+function markDashboardReady(ready) {
+  document.documentElement.dataset.dashboardReady = String(Boolean(ready));
+  window.__dashboardReady = ready;
+}
+
 async function loadInitialData() {
   const results = await Promise.allSettled([
     getAction('fetchKpis')(),
@@ -275,7 +287,7 @@ async function loadInitialData() {
   const hierarchyResult = await Promise.allSettled([getAction('fetchHierarchies')()]);
   const activityResult = await Promise.allSettled([getAction('fetchActivity')()]);
   const ready = allLoadsSucceeded([...results, ...hierarchyResult, ...activityResult]);
-  window.__dashboardReady = ready;
+  markDashboardReady(ready);
   return ready;
 }
 

@@ -14,6 +14,7 @@ if str(ROOT_DIR) not in sys.path:
 import pytest
 import uvicorn
 from camoufox.sync_api import Camoufox
+from playwright.sync_api import Page
 
 from app.domain.enums import Channel, SenderStatus
 from app.domain.sender_account import SenderAccount
@@ -23,8 +24,28 @@ from app.main import app
 from app.services.sync_service import SyncService
 
 TEST_HOST = "127.0.0.1"
+# NOTE: the E2E server binds a fixed port and Camoufox cannot run two browser
+# instances concurrently, so the e2e suite must run serially (no pytest-xdist).
+# Run everything else in parallel with: pytest -m "not e2e" -n auto
 TEST_PORT = 8899
 BASE_URL = f"http://{TEST_HOST}:{TEST_PORT}"
+
+# Readiness signal published by ui/app.js once the initial dashboard load settles.
+DASHBOARD_READY_SELECTOR = 'html[data-dashboard-ready="true"]'
+DASHBOARD_READY_TIMEOUT_MS = 30000
+
+
+def wait_for_dashboard_ready(page: Page, timeout: int = DASHBOARD_READY_TIMEOUT_MS) -> None:
+    """Block until the dashboard bootstrap has finished its initial load.
+
+    The app records readiness twice: as ``window.__dashboardReady`` and as a
+    ``data-dashboard-ready`` attribute on <html>. Camoufox runs page scripts in an
+    anti-detect context that is isolated from the automation driver, so JS globals
+    are *not* observable from here -- ``page.wait_for_function`` can never see
+    ``window.__dashboardReady``. The DOM is shared across that boundary, so wait on
+    the attribute instead.
+    """
+    page.wait_for_selector(DASHBOARD_READY_SELECTOR, timeout=timeout)
 
 
 @pytest.fixture(scope="session")
@@ -132,42 +153,56 @@ def run_test_server(e2e_server_storage):
     server.should_exit = True
 
 
-@pytest.fixture(scope="function")
-def browser_page():
-    """Yield a fresh headless Camoufox (Firefox) page per test.
+@pytest.fixture(scope="session")
+def camoufox_browser():
+    """Launch one headless Camoufox (Firefox) browser for the whole test session.
 
     Camoufox is the browser engine the application itself uses, so the E2E
     control-plane tests run against the same engine as production instead of
-    requiring a separately installed Playwright Chromium.
+    requiring a separately installed Playwright Chromium. Cold-starting it costs
+    tens of seconds, so it is launched once here; per-test isolation comes from a
+    fresh browser context in ``browser_page`` rather than a fresh browser.
     """
     with Camoufox(headless=True, window=(1440, 900)) as browser:
-        context = browser.new_context(
-            viewport={"width": 1440, "height": 900},
-            reduced_motion="reduce",
-            # The app ships a strict CSP; bypass it so Playwright's injected
-            # selector/eval scripts are not blocked in Firefox.
-            bypass_csp=True,
-        )
-        # Camoufox (Firefox) is slower to first paint than Chromium; give UI
-        # selectors a generous default so tests are not timing-flaky.
-        context.set_default_timeout(20000)
-        context.set_default_navigation_timeout(45000)
-        # Disable CSS animations/transitions so Playwright's actionability
-        # "stable" check does not time out on pulsing/transitioning elements.
-        context.add_init_script(
-            """
-            const __noAnim = () => {
-              const style = document.createElement('style');
-              style.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }';
-              (document.head || document.documentElement).appendChild(style);
-            };
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', __noAnim);
-            } else {
-              __noAnim();
-            }
-            """
-        )
-        page = context.new_page()
+        yield browser
+
+
+@pytest.fixture(scope="function")
+def browser_page(camoufox_browser):
+    """Yield an isolated headless page per test, backed by the shared browser.
+
+    Each test gets its own context (fresh cookies, storage, and page) so state
+    cannot leak between tests, while paying the browser launch cost only once.
+    """
+    context = camoufox_browser.new_context(
+        viewport={"width": 1440, "height": 900},
+        reduced_motion="reduce",
+        # The app ships a strict CSP; bypass it so Playwright's injected
+        # selector/eval scripts are not blocked in Firefox.
+        bypass_csp=True,
+    )
+    # Camoufox (Firefox) is slower to first paint than Chromium; give UI
+    # selectors a generous default so tests are not timing-flaky.
+    context.set_default_timeout(20000)
+    context.set_default_navigation_timeout(30000)
+    # Disable CSS animations/transitions so Playwright's actionability
+    # "stable" check does not time out on pulsing/transitioning elements.
+    context.add_init_script(
+        """
+        const __noAnim = () => {
+          const style = document.createElement('style');
+          style.textContent = '*, *::before, *::after { animation: none !important; transition: none !important; }';
+          (document.head || document.documentElement).appendChild(style);
+        };
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', __noAnim);
+        } else {
+          __noAnim();
+        }
+        """
+    )
+    page = context.new_page()
+    try:
         yield page
-        browser.close()
+    finally:
+        context.close()
