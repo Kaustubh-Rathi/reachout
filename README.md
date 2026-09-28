@@ -122,22 +122,19 @@ uv run pytest tests/integration/
 # End-to-End browser tests (Camoufox / Firefox, ~1 min; tagged `e2e`)
 uv run pytest tests/e2e/
 
-# Everything except the browser suite (~20s)
+# Everything except the browser suite (~45s)
 uv run pytest -m "not e2e"
-
-# Parallel run for everything except the browser suite (~20s)
-uv run pytest -m "not e2e" -n auto
 ```
+
+> **Run the suite serially.** A number of tests drive real threads and sleeps
+> (scheduler pause/resume, server restart, recovery race resolution), and they
+> become timing-sensitive under parallel load. `pytest-xdist` (`-n`) is not
+> supported here — a serial run is the authoritative result. A 300s per-test
+> timeout is configured so a hang fails loudly instead of blocking the run.
 
 The two `tests/e2e/live/` tests dispatch real messages and skip automatically
 unless live SMTP / WhatsApp credentials are configured. Lint with
 `uv run ruff check app tests` and format with `uv run ruff format`.
-
-> **The `e2e` suite must run serially.** Its fixture starts a real HTTP server on a
-> fixed port, and Camoufox cannot run two browser instances concurrently, so
-> `pytest-xdist` (`-n`) fails the browser suite. Exclude it with `-m "not e2e"`
-> when running in parallel. A 300s per-test timeout is configured so a hang
-> fails loudly instead of blocking the run.
 
 ### Live Provider Tests (sends real messages)
 
