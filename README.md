@@ -139,6 +139,46 @@ unless live SMTP / WhatsApp credentials are configured. Lint with
 > when running in parallel. A 300s per-test timeout is configured so a hang
 > fails loudly instead of blocking the run.
 
+### Live Provider Tests (sends real messages)
+
+`tests/e2e/live/` dispatches a **real** WhatsApp message and a **real** email. It is
+skipped unless explicitly opted in, so it never runs from a plain `uv run pytest`.
+
+Sender accounts are discovered from `ACTIVE` rows in `sender_accounts`, and the
+recipient is another one of your own accounts (sender ≠ recipient is enforced).
+
+```powershell
+# Both channels: needs >= 2 ACTIVE accounts per channel
+$env:LIVE_E2E="1"
+uv run pytest tests/e2e/live
+
+# Email only
+$env:LIVE_EMAIL_E2E="1"
+uv run pytest tests/e2e/live/test_email_live.py
+
+# WhatsApp only
+$env:LIVE_WHATSAPP_E2E="1"
+uv run pytest tests/e2e/live/test_whatsapp_live.py
+
+# Pin a specific sender, and an explicit recipient when only one account is ACTIVE
+$env:LIVE_WHATSAPP_E2E="1"
+$env:LIVE_TEST_WHATSAPP_SENDER_ID="wa_917875193206"
+$env:LIVE_TEST_WHATSAPP_RECIPIENT="917499718082"
+uv run pytest tests/e2e/live/test_whatsapp_live.py
+
+# Clear the opt-in afterwards
+$env:LIVE_E2E=""; $env:LIVE_WHATSAPP_E2E=""; $env:LIVE_EMAIL_E2E=""
+```
+
+Notes:
+- WhatsApp runs **headed** by default. Headless is a strong automation signal on
+  WhatsApp Web, so `PLAYWRIGHT_HEADLESS=true` is an explicit opt-in only.
+- WhatsApp must be re-authenticated (QR scan via the Senders page) if the session
+  expires; the test then skips with `ERR_AUTH_REQUIRED` rather than failing.
+- Both tests build their fixtures in an in-memory SQLite database, so the
+  production database is never written to — only the outbound message is real.
+- Clear `LIVE_*` variables before sharing a shell; the opt-in is env-var based.
+
 ---
 
 ## 🛡️ Safety Invariants & Policies
