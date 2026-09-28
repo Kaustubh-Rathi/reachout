@@ -90,7 +90,11 @@ class TestWhatsAppLiveProviderE2E:
         session_manager = WhatsAppSessionManager()
         provider = PlaywrightWhatsAppProvider(
             session_manager=session_manager,
-            headless=os.environ.get("PLAYWRIGHT_HEADLESS", "true").lower() == "true",
+            # Headed by default, matching app.infrastructure.providers.factory.
+            # Headless mode is a strong automation signal on WhatsApp Web and
+            # largely defeats the point of driving Camoufox, so only opt in
+            # deliberately via PLAYWRIGHT_HEADLESS=true.
+            headless=os.environ.get("PLAYWRIGHT_HEADLESS", "false").lower() == "true",
             timeout_seconds=180,
             expected_identity=pair.sender.identity,
         )
