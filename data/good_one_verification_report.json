@@ -1,0 +1,760 @@
+{
+  "generated_at": "2026-10-20T12:46:19.954488+00:00",
+  "total_source_rows": 55,
+  "unique_emails": 48,
+  "deliverable": 14,
+  "risky": 15,
+  "undeliverable": 13,
+  "imported_contacts_count": 29,
+  "new_companies_count": 4,
+  "records": [
+    {
+      "id": "cnt_0aa945eb0b524a6d",
+      "company": "Akamai Technologies",
+      "name": "Preethi Daniel",
+      "designation": "",
+      "email": "prdanie@akamai.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_9da1147ed9a841a2",
+      "company": "Akamai Technologies",
+      "name": "Manu Barki",
+      "designation": "Talent Acquisition",
+      "email": "mbarki@akamai.com",
+      "phone": "918722967246",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_d54884dcc8d04895",
+      "company": "Amazon",
+      "name": "Parthiban Bhavanisankar",
+      "designation": "HR",
+      "email": "pbbhavan@amazon.com",
+      "phone": "918971205050",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_17dd9180413a41bd",
+      "company": "Amazon",
+      "name": "Richa Sharma",
+      "designation": "HR",
+      "email": "rricsha@amazon.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_4d5c6f83588d444c",
+      "company": "Amazon",
+      "name": "Sriharsha Pidaparthi",
+      "designation": "SP Recruiter, Student Programs | APAC",
+      "email": "pidapas@amazon.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_d1d8237bf0eb406b",
+      "company": "Amazon",
+      "name": "Abhinav Shankar",
+      "designation": "Senior Recruiter APAC Student Programs",
+      "email": "abhshan@amazon.com",
+      "phone": "919535234370",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_544ab752296b4b67",
+      "company": "American Express",
+      "name": "ISHAAN BATRA",
+      "designation": "",
+      "email": "ishaan.batra@aexp.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_2709b28075ac4d49",
+      "company": "American Express",
+      "name": "abhinav sehgal",
+      "designation": "",
+      "email": "abhinav.a.sehgal@aexp.com",
+      "phone": "919643233608",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_6f40fd7083de4395",
+      "company": "Apple",
+      "name": "Divina Bajpai",
+      "designation": "HR",
+      "email": "divina_bajpai@apple.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_d3fdefbee068440b",
+      "company": "Apple",
+      "name": "Renu Sevanthi",
+      "designation": "",
+      "email": "renu_sevanthi@apple.com",
+      "phone": "917022790958",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_d37fd7b55a744d3d",
+      "company": "Apple",
+      "name": "Asheesh Sharma",
+      "designation": "India Recruitment",
+      "email": "asheesh_sharma@apple.com",
+      "phone": "919885383877",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_57d28ec7743947b0",
+      "company": "Arcesium",
+      "name": "Pradeep Irwin",
+      "designation": "",
+      "email": "pradeep.irwin@arcesium.com",
+      "phone": "919000598735",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_538df97898fe4e0e",
+      "company": "Arcesium",
+      "name": "Shruthi Heda",
+      "designation": "",
+      "email": "heda@arcesium.com",
+      "phone": "918919400193",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_680f412411084cc8",
+      "company": "Arcesium",
+      "name": "Atima Shahi",
+      "designation": "",
+      "email": "tech-campus@arcesium.com",
+      "phone": "918297689296",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_141964d51e254398",
+      "company": "Aqr Capital",
+      "name": "Krishna Prema Kattirisetti",
+      "designation": "Country Head",
+      "email": "krishna.kattirisetti@aqr.com",
+      "phone": "919908968844",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_6c0c189407e146aa",
+      "company": "Aqr Capital",
+      "name": "Sheryl Gomes",
+      "designation": "",
+      "email": "sheryl.gomes@aqr.com",
+      "phone": "919902426514",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_bb6a830aaed64cf9",
+      "company": "Arista Networks",
+      "name": "VJ Shah",
+      "designation": "",
+      "email": "vshah@arista.com",
+      "phone": "919620468301",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_4a2767b420f24732",
+      "company": "Arista Networks",
+      "name": "Mary Jude",
+      "designation": "",
+      "email": "mary@arista.com",
+      "phone": "918105631319",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_fccb6b24090741b2",
+      "company": "Atlassian",
+      "name": "Lakshmi",
+      "designation": "Campus Recruitment Team",
+      "email": "lkowligiprahlad@atlassian.com",
+      "phone": "917975309361",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_9e723096f6f64f19",
+      "company": "Atlassian",
+      "name": "Neethu Joy",
+      "designation": "Head of Campus Recruitment- India",
+      "email": "njoy@atlassian.com",
+      "phone": "917259034096",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_2d57b3dac0814d0c",
+      "company": "Bank of New York Mellon",
+      "name": "Shubhanshu Sharma",
+      "designation": "",
+      "email": "shubhanshu.sharma@bnymellon.com",
+      "phone": "918087597260",
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_649128d785824f3e",
+      "company": "Cisco",
+      "name": "Sujitha Balan",
+      "designation": "HR",
+      "email": "sujbalan@cisco.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_e29f7dd26c704d80",
+      "company": "Cisco",
+      "name": "Alexandra Grigore",
+      "designation": "Program Manager",
+      "email": "agrigore@cisco.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_d4deca7e2848491a",
+      "company": "Cisco",
+      "name": "Samta Katiyar",
+      "designation": "",
+      "email": "samkatiy@cisco.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "risky"
+    },
+    {
+      "id": "cnt_398ef894490643d8",
+      "company": "Microsoft",
+      "name": "Samer Abu-Latif",
+      "designation": "President - Middle East & Africa",
+      "email": "sameral@microsoft.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_f1ce165bdd4d4f81",
+      "company": "Microsoft",
+      "name": "Ruchika",
+      "designation": "",
+      "email": "ruchika.rocque@microsoft.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_67f2a33ec5a64d97",
+      "company": "Microsoft",
+      "name": "Sharon Joseph",
+      "designation": "University Recruiter",
+      "email": "bojoseph@microsoft.com",
+      "phone": "914066941058",
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_0366ce1b76184184",
+      "company": "Microsoft",
+      "name": "Zubin Sethna",
+      "designation": "University Recruiting",
+      "email": "zusethna@microsoft.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    },
+    {
+      "id": "cnt_f8dd5498aa75419c",
+      "company": "Microsoft",
+      "name": "Bhaskar",
+      "designation": "HR",
+      "email": "bhshrotr@microsoft.com",
+      "phone": null,
+      "status": "CREATED",
+      "ver_result": "deliverable"
+    }
+  ],
+  "raw_verification": {
+    "abhinav.a.sehgal@aexp.com": {
+      "result": "risky",
+      "score": 33,
+      "status": "unknown",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:43:52.313789+00:00"
+    },
+    "abhshan@amazon.com": {
+      "result": "risky",
+      "score": 70,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:43:53.747713+00:00"
+    },
+    "agrigore@cisco.com": {
+      "result": "risky",
+      "score": 71,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:43:55.180616+00:00"
+    },
+    "ankita.balyan@aexp.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:43:56.548457+00:00"
+    },
+    "asheesh_sharma@apple.com": {
+      "result": "deliverable",
+      "score": 100,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:43:58.946305+00:00"
+    },
+    "ashish.tanwar@microsoft.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:09.784203+00:00"
+    },
+    "bhaskar.shrotriya@microsoft.com": {
+      "result": "error",
+      "score": 0,
+      "status": "exception",
+      "error": "The read operation timed out"
+    },
+    "bhshrotr@microsoft.com": {
+      "result": "deliverable",
+      "score": 100,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:24.671583+00:00"
+    },
+    "bojoseph@microsoft.com": {
+      "result": "deliverable",
+      "score": 91,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:26.810771+00:00"
+    },
+    "careers@alphonso.tv": {
+      "result": "error",
+      "score": 0,
+      "status": "HTTP 400",
+      "error": "{\n  \"errors\": [\n    {\n      \"id\": \"blacklisted_domain\",\n      \"code\": 400,\n      \"details\": \"The owner of the domain behind this email address has asked us directly or indirectly to stop the processin"
+    },
+    "college@microsoft.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:36.856293+00:00"
+    },
+    "divina_bajpai@apple.com": {
+      "result": "deliverable",
+      "score": 100,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:38.392256+00:00"
+    },
+    "heda@arcesium.com": {
+      "result": "deliverable",
+      "score": 92,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:40.478688+00:00"
+    },
+    "ishaan.batra@aexp.com": {
+      "result": "risky",
+      "score": 59,
+      "status": "unknown",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:42.819213+00:00"
+    },
+    "krishna.kattirisetti@aqr.com": {
+      "result": "risky",
+      "score": 59,
+      "status": "unknown",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:45.456639+00:00"
+    },
+    "lkowligiprahlad@atlassian.com": {
+      "result": "risky",
+      "score": 70,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:46.744881+00:00"
+    },
+    "manish@alphonso.tv": {
+      "result": "error",
+      "score": 0,
+      "status": "HTTP 400",
+      "error": "{\n  \"errors\": [\n    {\n      \"id\": \"blacklisted_domain\",\n      \"code\": 400,\n      \"details\": \"The owner of the domain behind this email address has asked us directly or indirectly to stop the processin"
+    },
+    "mary@arista.com": {
+      "result": "deliverable",
+      "score": 92,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:49.507580+00:00"
+    },
+    "mbarki@akamai.com": {
+      "result": "risky",
+      "score": 57,
+      "status": "unknown",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:51.704092+00:00"
+    },
+    "mehul@alphonso.tv": {
+      "result": "error",
+      "score": 0,
+      "status": "HTTP 400",
+      "error": "{\n  \"errors\": [\n    {\n      \"id\": \"blacklisted_domain\",\n      \"code\": 400,\n      \"details\": \"The owner of the domain behind this email address has asked us directly or indirectly to stop the processin"
+    },
+    "namrata.shah@arcesium.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:44:58.515194+00:00"
+    },
+    "naren@alphonso.tv": {
+      "result": "error",
+      "score": 0,
+      "status": "HTTP 400",
+      "error": "{\n  \"errors\": [\n    {\n      \"id\": \"blacklisted_domain\",\n      \"code\": 400,\n      \"details\": \"The owner of the domain behind this email address has asked us directly or indirectly to stop the processin"
+    },
+    "neha.upadhyay@arcesium.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:05.200048+00:00"
+    },
+    "nehag@arista.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:06.560010+00:00"
+    },
+    "njoy@atlassian.com": {
+      "result": "risky",
+      "score": 70,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:08.189238+00:00"
+    },
+    "pbbhavan@amazon.com": {
+      "result": "risky",
+      "score": 73,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:09.598525+00:00"
+    },
+    "pidapas@amazon.com": {
+      "result": "risky",
+      "score": 80,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:10.898150+00:00"
+    },
+    "pkishanr@akamai.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:13.820979+00:00"
+    },
+    "prachi.jain5@aexp.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:17.098140+00:00"
+    },
+    "pradeep.irwin@arcesium.com": {
+      "result": "deliverable",
+      "score": 100,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:18.626875+00:00"
+    },
+    "prdanie@akamai.com": {
+      "result": "deliverable",
+      "score": 90,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:20.068169+00:00"
+    },
+    "rcs@aristanetworks.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:21.234386+00:00"
+    },
+    "renu_sevanthi@apple.com": {
+      "result": "deliverable",
+      "score": 89,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:22.728651+00:00"
+    },
+    "rricsha@amazon.com": {
+      "result": "risky",
+      "score": 73,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:24.367554+00:00"
+    },
+    "ruchika.rocque@microsoft.com": {
+      "result": "deliverable",
+      "score": 91,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:29.486832+00:00"
+    },
+    "sameral@microsoft.com": {
+      "result": "deliverable",
+      "score": 92,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:31.376987+00:00"
+    },
+    "samkatiy@cisco.com": {
+      "result": "risky",
+      "score": 71,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:32.763714+00:00"
+    },
+    "sheryl.gomes@aqr.com": {
+      "result": "risky",
+      "score": 57,
+      "status": "unknown",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:35.324778+00:00"
+    },
+    "shreay.kapur@aexp.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:37.799538+00:00"
+    },
+    "shruthi.heda@arcesium.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:44.859487+00:00"
+    },
+    "shubhanshu.sharma@bnymellon.com": {
+      "result": "risky",
+      "score": 72,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:46.281571+00:00"
+    },
+    "smitha@arista.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:47.537331+00:00"
+    },
+    "sujbalan@cisco.com": {
+      "result": "risky",
+      "score": 71,
+      "status": "accept_all",
+      "smtp_check": true,
+      "accept_all": true,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:48.902868+00:00"
+    },
+    "tech-campus@arcesium.com": {
+      "result": "deliverable",
+      "score": 91,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:45:54.779798+00:00"
+    },
+    "university@microsoft.com": {
+      "result": "error",
+      "score": 0,
+      "status": "exception",
+      "error": "The read operation timed out"
+    },
+    "v-silnanair@microsoft.com": {
+      "result": "undeliverable",
+      "score": 0,
+      "status": "invalid",
+      "smtp_check": false,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:46:16.077814+00:00"
+    },
+    "vshah@arista.com": {
+      "result": "deliverable",
+      "score": 100,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:46:18.027311+00:00"
+    },
+    "zusethna@microsoft.com": {
+      "result": "deliverable",
+      "score": 90,
+      "status": "valid",
+      "smtp_check": true,
+      "accept_all": false,
+      "regexp": true,
+      "mx_records": true,
+      "verified_at": "2026-10-20T12:46:19.951468+00:00"
+    }
+  }
+}

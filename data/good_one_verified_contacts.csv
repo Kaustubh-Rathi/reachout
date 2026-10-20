@@ -1,0 +1,30 @@
+company,name,designation,email,phone,verification_result,status
+"Akamai Technologies","Preethi Daniel","",prdanie@akamai.com,,deliverable,CREATED
+"Akamai Technologies","Manu Barki","Talent Acquisition",mbarki@akamai.com,918722967246,risky,CREATED
+"Amazon","Parthiban Bhavanisankar","HR",pbbhavan@amazon.com,918971205050,risky,CREATED
+"Amazon","Richa Sharma","HR",rricsha@amazon.com,,risky,CREATED
+"Amazon","Sriharsha Pidaparthi","SP Recruiter, Student Programs | APAC",pidapas@amazon.com,,risky,CREATED
+"Amazon","Abhinav Shankar","Senior Recruiter APAC Student Programs",abhshan@amazon.com,919535234370,risky,CREATED
+"American Express","ISHAAN BATRA","",ishaan.batra@aexp.com,,risky,CREATED
+"American Express","abhinav sehgal","",abhinav.a.sehgal@aexp.com,919643233608,risky,CREATED
+"Apple","Divina Bajpai","HR",divina_bajpai@apple.com,,deliverable,CREATED
+"Apple","Renu Sevanthi","",renu_sevanthi@apple.com,917022790958,deliverable,CREATED
+"Apple","Asheesh Sharma","India Recruitment",asheesh_sharma@apple.com,919885383877,deliverable,CREATED
+"Arcesium","Pradeep Irwin","",pradeep.irwin@arcesium.com,919000598735,deliverable,CREATED
+"Arcesium","Shruthi Heda","",heda@arcesium.com,918919400193,deliverable,CREATED
+"Arcesium","Atima Shahi","",tech-campus@arcesium.com,918297689296,deliverable,CREATED
+"Aqr Capital","Krishna Prema Kattirisetti","Country Head",krishna.kattirisetti@aqr.com,919908968844,risky,CREATED
+"Aqr Capital","Sheryl Gomes","",sheryl.gomes@aqr.com,919902426514,risky,CREATED
+"Arista Networks","VJ Shah","",vshah@arista.com,919620468301,deliverable,CREATED
+"Arista Networks","Mary Jude","",mary@arista.com,918105631319,deliverable,CREATED
+"Atlassian","Lakshmi","Campus Recruitment Team",lkowligiprahlad@atlassian.com,917975309361,risky,CREATED
+"Atlassian","Neethu Joy","Head of Campus Recruitment- India",njoy@atlassian.com,917259034096,risky,CREATED
+"Bank of New York Mellon","Shubhanshu Sharma","",shubhanshu.sharma@bnymellon.com,918087597260,risky,CREATED
+"Cisco","Sujitha Balan","HR",sujbalan@cisco.com,,risky,CREATED
+"Cisco","Alexandra Grigore","Program Manager",agrigore@cisco.com,,risky,CREATED
+"Cisco","Samta Katiyar","",samkatiy@cisco.com,,risky,CREATED
+"Microsoft","Samer Abu-Latif","President - Middle East & Africa",sameral@microsoft.com,,deliverable,CREATED
+"Microsoft","Ruchika","",ruchika.rocque@microsoft.com,,deliverable,CREATED
+"Microsoft","Sharon Joseph","University Recruiter",bojoseph@microsoft.com,914066941058,deliverable,CREATED
+"Microsoft","Zubin Sethna","University Recruiting",zusethna@microsoft.com,,deliverable,CREATED
+"Microsoft","Bhaskar","HR",bhshrotr@microsoft.com,,deliverable,CREATED

@@ -50,7 +50,7 @@ class EmailSenderService:
         If SMTP verification fails, an exception is raised and NOTHING is persisted;
         no dummy/placeholder row is ever created.
         """
-        clean_id = id.strip()
+        clean_id = (id or "").strip()
         clean_identity = identity.strip()
         clean_display = display_name.strip()
         clean_user = (user or clean_identity).strip()
