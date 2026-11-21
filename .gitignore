@@ -70,6 +70,9 @@ logs/screenshots/
 .env.*
 !.env.example
 
+# Demo video artifacts (large binaries, generated locally)
+out/
+
 # Local dev / sandbox helper artifacts
 .tmp_tests/
 .tmp_run*/
