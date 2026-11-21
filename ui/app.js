@@ -176,10 +176,19 @@ function setActiveNav(route) {
 
 function showPage(route) {
   const page = route === 'contacts' || route === 'senders' || route === 'templates' ? route : 'overview';
+  const labels = { overview: 'Overview', contacts: 'Contacts', senders: 'Senders', templates: 'Templates' };
   document.querySelectorAll('.page').forEach(function (el) {
     el.classList.toggle('active', el.id === 'page-' + page);
   });
   setActiveNav(page);
+  const section = document.getElementById('page-' + page);
+  if (section) {
+    if (section.getAttribute('tabindex') === null) section.setAttribute('tabindex', '-1');
+    if (section.getAttribute('aria-label') === null) section.setAttribute('aria-label', labels[page]);
+    if (typeof section.focus === 'function') section.focus({ preventScroll: true });
+  }
+  const announcer = document.getElementById('route-announcer');
+  if (announcer) announcer.textContent = `${labels[page]} page`;
   return page;
 }
 

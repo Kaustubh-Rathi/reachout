@@ -93,10 +93,11 @@
     <span>⚠️ Some dashboard data could not be loaded. <span id="load-error-areas"></span></span>
     <button type="button" class="btn btn-outline btn-xs" data-action="retryLoad">Retry</button>
   </div>
+  <div id="route-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <main>
     <!-- ============================ Overview ============================ -->
-    <section id="page-overview" class="page active">
+    <section id="page-overview" class="page active" tabindex="-1" aria-label="Overview">
     <!-- Onboarding: shown until at least one sender is authenticated -->
     <div id="onboarding-card" class="onboarding-card" hidden>
       <div class="onboarding-icon" aria-hidden="true">🚀</div>
@@ -282,7 +283,7 @@
     </section>
 
     <!-- ============================ Contacts ============================ -->
-    <section id="page-contacts" class="page">
+    <section id="page-contacts" class="page" tabindex="-1" aria-label="Contacts">
     <!-- Section 8: Search & Priority Filter Bar -->
     <section class="filters-bar">
       <div class="search-wrapper">
@@ -349,7 +350,7 @@
     </section>
 
     <!-- ============================ Senders ============================ -->
-    <section id="page-senders" class="page">
+    <section id="page-senders" class="page" tabindex="-1" aria-label="Senders">
       <div class="page-header">
         <div>
           <h2 class="page-title">Sender Accounts</h2>
@@ -402,7 +403,7 @@
     </section>
 
     <!-- ============================ Templates ============================ -->
-    <section id="page-templates" class="page">
+    <section id="page-templates" class="page" tabindex="-1" aria-label="Templates">
       <div class="page-header">
         <div>
           <h2 class="page-title">Message Templates</h2>

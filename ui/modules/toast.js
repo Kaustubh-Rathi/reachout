@@ -11,7 +11,12 @@ export function showToast(message, type = 'info') {
   toast.className = `toast toast-${type}`;
   const icon = TOAST_ICONS[type] || TOAST_ICONS.info;
 
-  toast.innerHTML = `<span>${icon}</span><span>${escapeHtml(message)}</span>`;
+  toast.innerHTML = `<span aria-hidden="true">${icon}</span><span>${escapeHtml(message)}</span>`;
+  if (type === 'error') {
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+  }
   container.appendChild(toast);
 
   setTimeout(() => {
