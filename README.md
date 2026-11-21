@@ -2,6 +2,30 @@
 
 Reachout is an automated, multi-channel candidate outreach and relationship management (CRM) platform supporting WhatsApp and Email channels. It enforces company-first round-robin scheduling, multi-endpoint HR coverage, provider-compliant rate limiting and pacing, encrypted credential vaults, transactional crash recovery, and real-time WebSocket event streaming.
 
+## ✨ Features
+
+- **Company-first round-robin dispatch** — contacts are interleaved across companies so no single employer receives simultaneous outreach, with quota-aware campaign pacing.
+- **Multi-endpoint HR coverage** — every phone number and email address on a contact is tracked and dispatched independently, with per-endpoint state, retry, and exclusion rules.
+- **Two real channels** — WhatsApp Web through Camoufox (Firefox) and SMTP email, sharing one template and scheduling model.
+- **Provider-compliant pacing** — per-sender inter-message spacing with human jitter, hourly/daily caps, and exponential backoff, configurable per channel.
+- **Encrypted credential vault** — SMTP secrets are stored with Fernet (AES-128-CBC) and never written to the database in plaintext.
+- **Transactional crash recovery** — every dispatch moves through `PREPARED → SENDING → SENT / FAILED`; orphaned in-flight attempts surface in the Recovery Queue instead of being silently retried.
+- **Lossless source sync** — Excel/CSV imports are fingerprinted and never mutate existing records or historical audit logs.
+- **Live operations dashboard** — a dependency-free SPA with KPI overview, contact hierarchy views, sender health, templates, campaign controls, and a WebSocket event stream.
+
+## 🖥️ Dashboard
+
+The SPA is served directly by FastAPI at `http://localhost:8000` and needs no build step or Node runtime.
+
+| View | What it does |
+| :--- | :--- |
+| **Overview** | Outreach KPIs, campaign readiness and controls, company hierarchy, and recent activity. |
+| **Contacts** | Search and filter across companies, endpoints, CRM outcomes, and follow-ups; send a templated message on either channel. |
+| **Senders** | WhatsApp QR authentication and health checks, SMTP configuration and live verification, daily/hourly limits. |
+| **Templates** | Create and edit message templates with variable substitution and attachment paths. |
+
+Canonical domain events stream over `/api/events/stream`, so sends, failures, campaign state changes, and recovery requirements appear without a refresh.
+
 ---
 
 ## 🏛️ Architecture Overview
@@ -68,6 +92,18 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Open your browser at **[http://localhost:8000](http://localhost:8000)** to access the operational CRM Dashboard.
+
+### 3. Optional: Synthetic Demo Database
+
+`scripts/seed_demo.py` builds `data/demo.db` with fictional companies, contacts, templates, campaigns, attempts, and follow-up reminders. It copies only the sender-account rows from `data/reachout.db` — never credentials, real contacts, or history — so an already-authenticated environment can be reused safely.
+
+```powershell
+uv run python scripts/seed_demo.py
+$env:DATABASE_URL = "sqlite:///D:/Reachout/data/demo.db"
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Stop the running app before reseeding: the script refuses to write to a database that is currently locked. `scripts/capture_receiver.py` records the receiver side of a demo WhatsApp conversation from an authenticated Camoufox profile for use in recorded walkthroughs.
 
 ---
 
