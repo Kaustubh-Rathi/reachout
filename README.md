@@ -8,7 +8,7 @@ Reachout is an automated, multi-channel candidate outreach and relationship mana
 - **Multi-endpoint HR coverage** — every phone number and email address on a contact is tracked and dispatched independently, with per-endpoint state, retry, and exclusion rules.
 - **Two real channels** — WhatsApp Web through Camoufox (Firefox) and SMTP email, sharing one template and scheduling model.
 - **Provider-compliant pacing** — per-sender inter-message spacing with human jitter, hourly/daily caps, and exponential backoff, configurable per channel.
-- **Encrypted credential vault** — SMTP secrets are stored with Fernet (AES-128-CBC) and never written to the database in plaintext.
+- **Encrypted credential vault** — SMTP secrets are stored with HMAC-SHA256 authenticated encryption over PBKDF2-derived keys, never in plaintext database rows.
 - **Transactional crash recovery** — every dispatch moves through `PREPARED → SENDING → SENT / FAILED`; orphaned in-flight attempts surface in the Recovery Queue instead of being silently retried.
 - **Lossless source sync** — Excel/CSV imports are fingerprinted and never mutate existing records or historical audit logs.
 - **Live operations dashboard** — a dependency-free SPA with KPI overview, contact hierarchy views, sender health, templates, campaign controls, and a WebSocket event stream.
@@ -55,7 +55,7 @@ D:\Reachout\
 │   │   ├── providers/        # Camoufox (Firefox) WhatsApp & SMTP Email adapters
 │   │   ├── repositories/     # SQLite repository implementations
 │   │   ├── scheduler/        # Persistent scheduler & RateLimiter
-│   │   ├── security/         # Encrypted credential vault (Fernet AES-128-CBC)
+│   │   ├── security/         # Encrypted credential vault (HMAC-SHA256 + PBKDF2)
 │   │   └── source/           # Non-destructive Excel/CSV source reader
 │   ├── services/             # Application use case orchestrators (wired via ServiceContext DI:
 │   │                         # repositories + Clock + EventPublisher, no concrete imports)
@@ -120,7 +120,7 @@ Stop the running app before reseeding: the script refuses to write to a database
 
 1. Navigate to the **Senders** tab and click **Configure Email Sender**.
 2. Provide your SMTP host, port (e.g., `smtp.gmail.com:587`), username, and App Password.
-3. Credentials are encrypted at rest using AES-128-CBC via `app.infrastructure.security.vault.CredentialVault`.
+3. Credentials are encrypted at rest using HMAC-SHA256 authenticated encryption via `app.infrastructure.security.credential_vault.CredentialVault`.
 4. Click **Verify Connection** to perform live SMTP TLS handshake verification.
 
 ---
