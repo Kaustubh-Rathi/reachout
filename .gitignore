@@ -86,6 +86,24 @@ playwright-report/
 data/hunter_verification_cache.json
 data/*.bak
 
+# Real contact data — spreadsheets, exports and verification reports are never committed
+data/*.xlsx
+data/*.xls
+data/*.csv
+data/*.json
+
+# Installed agent skills (third-party asset bundles, restored with `npx skills`)
+.agents/
+skills-lock.json
+
+# Local agent config
+opencode.jsonc
+
+# Historical engineering reports, and the Alembic stack (schema is created by SQLAlchemy create_all)
+docs/
+migrations/
+alembic.ini
+
 # Personal / local artifacts (do not commit)
 logs/*.csv
 resume.pdf
