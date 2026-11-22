@@ -163,7 +163,7 @@ D:\Reachout\
 │   ├── api/                  # FastAPI REST and WebSocket routers
 │   └── main.py               # Canonical FastAPI application entry point
 ├── data/                     # Local SQLite databases (git-ignored, never committed)
-├── scripts/                  # Data migration & administrative maintenance utilities
+├── scripts/                  # Demo seeding and font refresh helpers
 ├── tests/                    # Canonical test suite (unit, integration, e2e)
 ├── ui/                       # Modern SPA CRM dashboard
 ├── assets/                   # Demo video and captions
@@ -206,7 +206,6 @@ Reachout works with safe defaults out of the box. Everything below is optional.
 | `VAULT_ENCRYPTION_KEY` | Auto-generated in `.sessions/.vault_key` | Master key for SMTP credential encryption. |
 | `OUTREACH_CHANNEL_DELAY_WA` | `120.0` | Inter-message spacing for WhatsApp, in seconds. |
 | `OUTREACH_CHANNEL_DELAY_EM` | `60.0` | Inter-message spacing for Email, in seconds. |
-| `REACHOUT_PRIVATE_IDS` | empty | Extra strings to blur in the Gmail capture helper (comma-separated address locals / phone numbers). |
 
 ---
 
@@ -215,11 +214,9 @@ Reachout works with safe defaults out of the box. Everything below is optional.
 | Script | Purpose |
 | :--- | :--- |
 | `scripts/seed_demo.py` | Rebuild `data/demo.db` with fictional data, reusing sender rows from the real database. |
-| `scripts/verify_and_import_good_one.py` | Strict Hunter-based email verification. Runs read-only by default; pass `--apply` to write. |
-| `scripts/capture_receiver.py` | Record the receiver side of a demo WhatsApp chat from an authenticated profile (build-side helper). |
-| `scripts/capture_gmail_receiver.py` | Record a Gmail inbox proof for the demo video, with automatic address/phone blurring. |
+| `scripts/fetch_fonts.py` | Re-download the Inter and JetBrains Mono variable fonts used by the dashboard. |
 
-Both capture helpers write under `out/raw/` (ignored by Git) and need `.sessions/`, so they are meant for the machine that owns the authenticated profiles — never for CI or a shared checkout.
+Both write only to git-ignored paths, so neither touches tracked files.
 
 ---
 
