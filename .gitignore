@@ -61,6 +61,7 @@ data/backups/
 *.enc
 
 # Logs & Screenshots
+logs/
 logs/*.log
 logs/screenshots/
 *.log
