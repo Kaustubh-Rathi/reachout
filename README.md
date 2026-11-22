@@ -61,7 +61,7 @@ Work through these in order — the dashboard is designed around this flow.
 
 A 2 min 35 s narrated walkthrough of the dashboard, setup, and the crash-recovery path.
 
-https://github.com/user-attachments/assets/1624c43d-6210-4a60-934c-c5aa868ba0fb
+https://github.com/user-attachments/assets/b91ad28b-f871-47a3-8c67-c8c12dec7aa6
 
 Source: [`assets/reachout-demo.mp4`](assets/reachout-demo.mp4) · captions: [`assets/reachout-demo.srt`](assets/reachout-demo.srt)
 
