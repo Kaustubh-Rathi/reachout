@@ -221,7 +221,14 @@ def seed() -> None:
             contact_ids.append(contact_id)
             outcome = OUTCOMES[index]
             interview = INTERVIEW_STATE.get(outcome, "NOT_APPLICABLE")
-            active = outcome not in ("NONE", "CONTACTED")
+            # Attempts below cover contacts 6-22. Only those may carry "last
+            # contacted" timestamps: the coverage policy treats a timestamp as
+            # proof of a send when a contact has no attempt history, so stamping
+            # an untouched contact would report a phantom covered endpoint.
+            has_attempts = 6 <= index <= 22
+            # INTERESTED + PENDING older than the 7-day threshold is what the
+            # follow-up policy flags, so the KPI and the badges agree.
+            interested_days = 9 if outcome == "INTERESTED" else 4
             contact = ContactModel(
                 contact_id=contact_id,
                 company_id=company_id,
@@ -229,12 +236,14 @@ def seed() -> None:
                 designation=DESIGNATIONS[index % len(DESIGNATIONS)],
                 phone=f"+1555010{index + 1:04d}",
                 email=f"{first.lower()}.{last.lower()}@{domain}",
-                last_whatsapp_at=NOW - timedelta(days=(index % 9) + 1) if active else None,
-                last_email_at=NOW - timedelta(days=(index % 7) + 1) if active else None,
-                last_activity_at=NOW - timedelta(days=(index % 6) + 1) if active else None,
+                last_whatsapp_at=NOW - timedelta(days=(index % 9) + 1) if has_attempts else None,
+                last_email_at=NOW - timedelta(days=(index % 7) + 1) if has_attempts else None,
+                last_activity_at=NOW - timedelta(days=(index % 6) + 1) if has_attempts else None,
                 crm_outcome=outcome,
                 interview_status=interview,
-                interested_at=NOW - timedelta(days=3) if outcome in ("INTERESTED", "INTERVIEW", "OFFER") else None,
+                interested_at=NOW - timedelta(days=interested_days)
+                if outcome in ("INTERESTED", "INTERVIEW", "OFFER")
+                else None,
                 notes=f"Demo record for {company_name}.",
             )
             session.add(contact)
@@ -289,7 +298,7 @@ def seed() -> None:
                     template_ids_json='["DEMO-WA-01"]',
                     sender_account_ids_json='["wa_919000000001"]',
                     started_at=NOW - timedelta(days=5),
-                    metadata_json='{"automatic_used": 12, "manual_used": 3, "rotation_state": {}}',
+                    metadata_json='{"automatic_quota": 20, "automatic_used": 12, "manual_used": 3, "rotation_state": {}}',
                 ),
                 CampaignModel(
                     id="camp_demo_email",
@@ -300,7 +309,7 @@ def seed() -> None:
                     sender_account_ids_json='["EMAIL_1"]',
                     started_at=NOW - timedelta(days=10),
                     ended_at=NOW - timedelta(days=2),
-                    metadata_json='{"automatic_used": 10, "manual_used": 2}',
+                    metadata_json='{"automatic_quota": 20, "automatic_used": 12, "manual_used": 2}',
                 ),
             ]
         )
@@ -309,7 +318,8 @@ def seed() -> None:
         session.flush()  # parents must exist before FK rows; autoflush is off
         attempts: list[OutreachAttemptModel] = []
         for index in range(40):
-            contact = contact_models[index % 23]
+            # Contacts 0-5 stay untouched: no attempts, no timestamps.
+            contact = contact_models[6 + index % 17]
             channel = "WHATSAPP" if index % 2 == 0 else "EMAIL"
             # Only terminal states: startup recovery fails any PREPARED attempt
             # and pauses any RUNNING campaign, so seeding those is pointless.
@@ -351,14 +361,16 @@ def seed() -> None:
         session.add_all(attempts)
 
         # --- Reminders -----------------------------------------------------
-        reminder_contacts = contact_ids[13:19]
+        # Only the INTERESTED contacts are follow-up due under the policy, so
+        # reminders live on exactly those contacts. Every one is overdue, which
+        # makes the KPI, the reminder list, and the contact badges agree.
+        reminder_contacts = contact_ids[17:20]
         for index, contact_id in enumerate(reminder_contacts):
             session.add(
                 FollowUpReminderModel(
                     id=f"rem_demo_{index + 1:02d}",
                     contact_id=contact_id,
-                    # Three already due (so the KPI is non-zero), three upcoming.
-                    due_at=NOW + timedelta(days=index - 2, hours=10),
+                    due_at=NOW - timedelta(days=index + 1, hours=2),
                     reason="Follow up on the demo conversation",
                     status="PENDING",
                 )

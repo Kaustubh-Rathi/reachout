@@ -15,28 +15,27 @@ WORKSPACE_DIR = Path(__file__).resolve().parent.parent
 if str(WORKSPACE_DIR) not in sys.path:
     sys.path.insert(0, str(WORKSPACE_DIR))
 
+import argparse
 import json
 import os
-import re
 import ssl
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import openpyxl
 
 from app.config import DEFAULT_COUNTRY_CODE
 from app.domain.company import Company, normalize_company_name
 from app.domain.contact import Contact
-from app.domain.source_record import SourceRecord
-from app.domain.source_record import compute_source_fingerprint
+from app.domain.source_record import SourceRecord, compute_source_fingerprint
 from app.infrastructure.database import SessionFactory
 from app.infrastructure.repositories.sqlite_company_repository import SqliteCompanyRepository
 from app.infrastructure.repositories.sqlite_contact_repository import SqliteContactRepository
 from app.infrastructure.repositories.sqlite_suppression_repository import SqliteSuppressionRepository
-from app.infrastructure.source.synchronizer import extract_emails, normalize_phone_number
+from app.infrastructure.source.synchronizer import normalize_phone_number
 
 # Paths
 WORKSPACE_DIR = Path(__file__).resolve().parent.parent
@@ -157,6 +156,38 @@ def verify_email_with_hunter(email: str, api_key: str, cache: Dict[str, Any], ct
         }
 
 
+def is_safe_deliverable(ver: Dict[str, Any]) -> Tuple[bool, str]:
+    """Strict zero-tolerance email deliverability policy for cold outreach.
+
+    To protect sender domain reputation and prevent spam blacklisting,
+    an email is approved ONLY when affirmative proof of individual mailbox
+    existence is verified.
+
+    Rules:
+    - result must be 'deliverable'
+    - status must be 'valid'
+    - smtp_check must be True (target server explicitly verified recipient mailbox)
+    - accept_all must be False (rejects catch-all domains where valid aliases cannot be proved)
+    - score must be >= 85
+    - mx_records must be True
+    """
+    if not ver:
+        return False, "NO_VERIFICATION_DATA"
+    if ver.get("result") != "deliverable":
+        return False, f"RESULT_{ver.get('result', 'unknown').upper()}"
+    if ver.get("status") != "valid":
+        return False, f"STATUS_{ver.get('status', 'unknown').upper()}"
+    if ver.get("smtp_check") is not True:
+        return False, "SMTP_CHECK_FAILED"
+    if ver.get("accept_all") is True:
+        return False, "CATCH_ALL_DOMAIN_UNVERIFIED_ALIAS"
+    if (ver.get("score") or 0) < 85:
+        return False, f"LOW_CONFIDENCE_{ver.get('score', 0)}"
+    if ver.get("mx_records") is not True:
+        return False, "NO_MX_RECORDS"
+    return True, "VERIFIED_SAFE"
+
+
 def read_good_one_rows() -> List[Dict[str, Any]]:
     wb = openpyxl.load_workbook(str(EXCEL_PATH), data_only=True)
     if "good one " not in wb.sheetnames:
@@ -190,9 +221,18 @@ def read_good_one_rows() -> List[Dict[str, Any]]:
 
 
 def main() -> None:
-    print(f"=== Starting Email Verification & Ingestion for 'good one ' ===")
+    parser = argparse.ArgumentParser(description="Strict Recruiter Email Verification & Ingestion")
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Commit changes to reachout.db. If omitted, runs in 100% read-only audit mode (dry-run).",
+    )
+    args = parser.parse_args()
+
+    print("=== Starting Email Verification & Ingestion for 'good one ' ===")
     print(f"Excel Source : {EXCEL_PATH}")
     print(f"Hunter API Key: {HUNTER_API_KEY[:6]}...{HUNTER_API_KEY[-4:] if len(HUNTER_API_KEY) > 10 else 'None'}")
+    print(f"Mode         : {'LIVE DATABASE WRITE (--apply)' if args.apply else 'READ-ONLY AUDIT (DRY-RUN)'}\n")
 
     raw_rows = read_good_one_rows()
     print(f"Loaded {len(raw_rows)} rows from 'good one ' sheet.\n")
@@ -216,52 +256,74 @@ def main() -> None:
         smtp = res.get("smtp_check")
         print(f"[{idx:2d}/{len(unique_emails)}] {tag:<10} {em:<32} -> {status_code:<14} (Score: {score:>3}, SMTP: {str(smtp)})")
 
-    # 2. Score and classify contacts
-    deliverable_count = sum(1 for r in verification_results.values() if r.get("result") == "deliverable")
-    risky_count = sum(1 for r in verification_results.values() if r.get("result") == "risky")
-    undeliverable_count = sum(1 for r in verification_results.values() if r.get("result") == "undeliverable")
-    error_count = sum(1 for r in verification_results.values() if r.get("result") in ("error", "unknown"))
+    # 2. Score and classify contacts using strict deliverability rules
+    strictly_deliverable: List[str] = []
+    rejected_catchall: List[Tuple[str, int]] = []
+    rejected_smtp: List[Tuple[str, int]] = []
+    rejected_undeliverable: List[Tuple[str, int]] = []
+    rejected_other: List[Tuple[str, str]] = []
 
-    print("\n--- Verification Summary ---")
-    print(f"  Deliverable   : {deliverable_count}")
-    print(f"  Risky/CatchAll: {risky_count}")
-    print(f"  Undeliverable : {undeliverable_count} (Will be excluded from database)")
-    print(f"  Errors        : {error_count}")
+    for em, ver in verification_results.items():
+        is_safe, reason = is_safe_deliverable(ver)
+        if is_safe:
+            strictly_deliverable.append(em)
+        elif reason == "CATCH_ALL_DOMAIN_UNVERIFIED_ALIAS":
+            rejected_catchall.append((em, ver.get("score", 0)))
+        elif reason == "SMTP_CHECK_FAILED":
+            rejected_smtp.append((em, ver.get("score", 0)))
+        elif ver.get("result") == "undeliverable":
+            rejected_undeliverable.append((em, ver.get("score", 0)))
+        else:
+            rejected_other.append((em, reason))
+
+    print("\n--- Strict Deliverability Breakdown ---")
+    print(f"  Strictly Deliverable (100% Verified) : {len(strictly_deliverable)}")
+    print(f"  Rejected - Catch-All Domain (Risky)   : {len(rejected_catchall)} (Amazon, Cisco, Atlassian, etc.)")
+    print(f"  Rejected - SMTP Check Failed (Bounce) : {len(rejected_smtp)} (Amex, AQR, etc.)")
+    print(f"  Rejected - Explicit Undeliverable     : {len(rejected_undeliverable)}")
+    print(f"  Rejected - Other / Domain Errors      : {len(rejected_other)}")
 
     # 3. Consolidate and deduplicate candidate contacts
-    # We group by (canonical_company, normalized_email) or (canonical_company, normalized_name)
     candidates_by_key: Dict[str, Dict[str, Any]] = {}
 
     for row in raw_rows:
         em = row["email_raw"].strip().lower() if row["email_raw"] else ""
         ver = verification_results.get(em, {})
-        res_status = ver.get("result", "unknown")
 
-        # Exclude undeliverable mailboxes
-        if res_status == "undeliverable" or ver.get("score", 0) == 0:
-            print(f"  [EXCLUDING] {row['name']} ({em}) -> Marked {res_status.upper()} (Score: {ver.get('score')})")
-            continue
-
-        raw_c = row["company_raw"].strip().lower()
-        canonical_comp = COMPANY_CANONICAL_MAP.get(raw_c, row["company_raw"].strip().title())
+        is_safe, reason = is_safe_deliverable(ver) if em else (False, "NO_EMAIL_PROVIDED")
 
         # Normalize phone
         norm_phone = None
         if row["phone_raw"]:
             norm_phone = normalize_phone_number(row["phone_raw"], DEFAULT_COUNTRY_CODE)
 
-        # Primary deduplication key
-        group_key = f"{canonical_comp.casefold()}|{em}" if em else f"{canonical_comp.casefold()}|{row['name'].casefold()}"
+        # Exclude contacts with NEITHER safe email NOR valid phone
+        if not is_safe and not norm_phone:
+            print(f"  [EXCLUDING CONTACT] {row['name']} ({em or 'No Email'}) -> Unsafe email ({reason}) and no valid phone.")
+            continue
+
+        if em and not is_safe:
+            print(f"  [REJECTING EMAIL] {row['name']} ({em}) -> {reason}. Contact kept for phone outreach only.")
+
+        raw_c = row["company_raw"].strip().lower()
+        canonical_comp = COMPANY_CANONICAL_MAP.get(raw_c, row["company_raw"].strip().title())
+
+        # If email is safe, keep it; if not safe, strip it completely so zero emails will ever be dispatched
+        safe_emails = [em] if is_safe else []
+        safe_phones = [norm_phone] if norm_phone else []
+
+        # Deduplication key: company + safe_email (if safe) or company + name
+        group_key = f"{canonical_comp.casefold()}|{em}" if is_safe else f"{canonical_comp.casefold()}|{row['name'].casefold()}"
 
         if group_key not in candidates_by_key:
             candidates_by_key[group_key] = {
                 "company": canonical_comp,
                 "name": row["name"],
                 "designation": row["designation"],
-                "emails": [em] if em else [],
-                "phones": [norm_phone] if norm_phone else [],
+                "emails": safe_emails,
+                "phones": safe_phones,
                 "source_rows": [row["source_row"]],
-                "verification": ver,
+                "verification": ver if is_safe else {},
             }
         else:
             # Merge fields
@@ -270,13 +332,27 @@ def main() -> None:
                 existing["designation"] = row["designation"]
             if norm_phone and norm_phone not in existing["phones"]:
                 existing["phones"].append(norm_phone)
-            if em and em not in existing["emails"]:
+            if is_safe and em not in existing["emails"]:
                 existing["emails"].append(em)
             existing["source_rows"].append(row["source_row"])
 
-    print(f"\nConsolidated {len(raw_rows)} raw rows into {len(candidates_by_key)} approved unique recruiter contacts.")
+    total_safe_emails = sum(len(c["emails"]) for c in candidates_by_key.values())
+    total_safe_phones = sum(len(c["phones"]) for c in candidates_by_key.values())
+    print(f"\nConsolidated into {len(candidates_by_key)} approved contacts:")
+    print(f"  Contacts with Verified Safe Emails : {total_safe_emails}")
+    print(f"  Contacts with Valid Phone Numbers  : {total_safe_phones}")
 
-    # 4. Ingest into reachout.db using SQLAlchemy repositories
+    # 4. Dry-run safety gate
+    if not args.apply:
+        print("\n" + "=" * 65)
+        print("[DRY-RUN COMPLETE] --apply flag was not specified.")
+        print("  Zero changes were written to reachout.db.")
+        print(f"  Ready to import: {len(candidates_by_key)} contacts ({total_safe_emails} safe emails).")
+        print("  To execute live database write, re-run with: --apply")
+        print("=" * 65)
+        return
+
+    # 5. Ingest into reachout.db using SQLAlchemy repositories (Only when --apply is passed)
     session = SessionFactory()
     comp_repo = SqliteCompanyRepository(session)
     contact_repo = SqliteContactRepository(session)
@@ -289,7 +365,7 @@ def main() -> None:
     imported_records: List[Dict[str, Any]] = []
 
     try:
-        for key, cand in candidates_by_key.items():
+        for cand in candidates_by_key.values():
             comp_name = cand["company"]
             norm_comp = normalize_company_name(comp_name)
 
@@ -338,10 +414,11 @@ def main() -> None:
                     matched_contact = ec
                     break
 
-            ver_status = cand["verification"].get("result", "verified")
-            tags = ["verified_hunter"]
-            if ver_status == "risky":
-                tags.append("risky_catchall")
+            is_email_verified = bool(cand["emails"])
+            ver_status = "deliverable" if is_email_verified else "phone_only"
+            tags = ["verified_lead"]
+            if is_email_verified:
+                tags.append("strict_deliverable")
 
             if matched_contact:
                 # Merge into existing contact
@@ -402,7 +479,7 @@ def main() -> None:
                 })
 
         session.commit()
-        print(f"\n=== Database Ingestion Complete ===")
+        print("\n=== Database Ingestion Complete ===")
         print(f"  New Companies Created : {new_companies}")
         print(f"  New Contacts Added    : {new_contacts}")
         print(f"  Contacts Updated      : {updated_contacts}")
@@ -420,9 +497,11 @@ def main() -> None:
             "generated_at": now.isoformat(),
             "total_source_rows": len(raw_rows),
             "unique_emails": len(unique_emails),
-            "deliverable": deliverable_count,
-            "risky": risky_count,
-            "undeliverable": undeliverable_count,
+            "strictly_deliverable": len(strictly_deliverable),
+            "rejected_catchall": len(rejected_catchall),
+            "rejected_smtp_check_failed": len(rejected_smtp),
+            "rejected_undeliverable": len(rejected_undeliverable),
+            "rejected_other": len(rejected_other),
             "imported_contacts_count": len(imported_records),
             "new_companies_count": new_companies,
             "records": imported_records,
@@ -441,7 +520,7 @@ def main() -> None:
             stat_clean = rec["status"]
             f.write(f"{comp_clean},{name_clean},{desig_clean},{em_clean},{ph_clean},{res_clean},{stat_clean}\n")
 
-    print(f"\nReports saved successfully:")
+    print("\nReports saved successfully:")
     print(f"  JSON Audit: {REPORT_JSON_PATH}")
     print(f"  CSV Export: {OUTPUT_CSV_PATH}")
 

@@ -38,16 +38,51 @@ HIDE_CSS = """
 [data-testid="chatlist-header"] { display: none !important; }
 """
 
+# The chat header shows the contact's phone number, which must never be legible.
+# Blur only elements whose own text looks like a phone number so the message
+# bubbles and timestamps stay sharp.
+PRIVACY_JS = """
+(() => {
+  const pattern = /\\+?\\d[\\d\\s()\\-]{7,}/;
+  const blur = () => {
+    for (const el of document.querySelectorAll('#main *')) {
+      if (el.dataset.reachoutBlur === '1') continue;
+      let own = '';
+      for (const node of el.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) own += node.nodeValue;
+      }
+      if (!own || !pattern.test(own)) continue;
+      el.style.filter = 'blur(7px)';
+      el.dataset.reachoutBlur = '1';
+    }
+  };
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; blur(); });
+  };
+  new MutationObserver(schedule).observe(document.documentElement, {
+    childList: true, subtree: true, characterData: true,
+  });
+  blur();
+})();
+"""
 
-def _convert(webm: Path, out_path: Path) -> None:
+
+def _convert(webm: Path, out_path: Path, keep_last: int) -> None:
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         raise SystemExit("ERROR: ffmpeg not found on PATH")
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Keep only the tail: the head of the recording is WhatsApp Web loading and
+    # any QR/loading screen, which must never reach the demo video.
     subprocess.run(
         [
             ffmpeg,
             "-y",
+            "-sseof",
+            f"-{max(1, keep_last)}",
             "-i",
             str(webm),
             "-c:v",
@@ -72,7 +107,7 @@ def main() -> int:
     parser.add_argument("--out", default="out/raw/whatsapp_receiver.mp4")
     parser.add_argument("--seconds", type=int, default=12)
     parser.add_argument("--width", type=int, default=430)
-    parser.add_argument("--height", type=int, default=900)
+    parser.add_argument("--height", type=int, default=864)
     parser.add_argument("--dry-run", action="store_true", help="Save one screenshot instead of recording")
     args = parser.parse_args()
 
@@ -80,10 +115,11 @@ def main() -> int:
     if not session_dir.exists():
         print(f"ERROR: session profile not found: {session_dir}", file=sys.stderr)
         return 1
-    lock = session_dir / "lock"
-    if lock.exists():
+    locks = [p for p in (session_dir / "parent.lock", session_dir / "lock") if p.exists()]
+    if locks:
         print(
-            f"ERROR: profile is locked; close any app using {args.sender_id} first ({lock})",
+            f"ERROR: profile is locked; close any app using {args.sender_id} first "
+            f"({', '.join(str(p) for p in locks)})",
             file=sys.stderr,
         )
         return 1
@@ -114,13 +150,15 @@ def main() -> int:
                 wait_until="domcontentloaded",
                 timeout=60_000,
             )
-            page.add_style_tag(content=HIDE_CSS)
 
             if page.locator('canvas[aria-label="Scan this QR code to link a device"]').count() > 0:
                 print("ERROR: receiver session needs QR authentication", file=sys.stderr)
                 return 2
 
             page.wait_for_selector("#main", timeout=90_000)
+            page.wait_for_selector("#main header", timeout=30_000)
+            page.add_style_tag(content=HIDE_CSS)
+            page.evaluate(PRIVACY_JS)
             page.wait_for_timeout(3_000)
 
             if args.dry_run:
@@ -129,15 +167,17 @@ def main() -> int:
                 print(f"Saved {shot}")
             else:
                 page.wait_for_timeout(args.seconds * 1000)
-    finally:
-        pass
+    except Exception:
+        # Never leave a partial recording behind for the video pipeline.
+        shutil.rmtree(video_dir, ignore_errors=True)
+        raise
 
     if not args.dry_run:
         videos = sorted(video_dir.glob("*.webm"), key=lambda p: p.stat().st_mtime)
         if not videos:
             print(f"ERROR: no video written under {video_dir}", file=sys.stderr)
             return 3
-        _convert(videos[-1], out_path)
+        _convert(videos[-1], out_path, args.seconds)
         shutil.rmtree(video_dir, ignore_errors=True)
         print(f"Saved {out_path}")
 
