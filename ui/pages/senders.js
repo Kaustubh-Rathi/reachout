@@ -84,7 +84,7 @@ function updateHeaderSendersIndicator() {
       readinessText.style.color = 'var(--accent-emerald)';
     } else if (activeEm > 0) {
       readinessText.innerText = 'Email Channel Ready (WhatsApp unauthenticated)';
-      readinessText.style.color = 'var(--accent-blue)';
+      readinessText.style.color = 'var(--accent-amber)';
     } else {
       readinessText.innerText = 'Not Ready (No active senders)';
       readinessText.style.color = 'var(--accent-rose)';

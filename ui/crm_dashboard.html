@@ -16,74 +16,117 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="Primary navigation">
       <div class="sidebar-brand">
-        <div class="brand-badge">R</div>
-        <span class="sidebar-brand-text">Reachout</span>
-        <button type="button" class="sidebar-toggle" id="sidebar-toggle" data-action="toggleSidebar" aria-label="Collapse sidebar" aria-expanded="true" title="Toggle sidebar">
-          <span aria-hidden="true">&laquo;</span>
-        </button>
+        <div class="brand-badge" aria-hidden="true">R</div>
       </div>
       <nav class="sidebar-nav">
-        <button type="button" class="nav-item active" data-nav="overview" data-action="navigate" data-args='["overview"]' title="Overview" aria-current="page">
-          <span class="nav-icon" aria-hidden="true">◉</span><span>Overview</span>
+        <button type="button" class="nav-item active" data-nav="overview" data-action="navigate" data-args='["overview"]' title="Overview" aria-label="Overview" aria-current="page">
+          <svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span class="sr-only">Overview</span>
         </button>
-        <button type="button" class="nav-item" data-nav="contacts" data-action="navigate" data-args='["contacts"]' title="Contacts">
-          <span class="nav-icon" aria-hidden="true">☰</span><span>Contacts</span>
+        <button type="button" class="nav-item" data-nav="contacts" data-action="navigate" data-args='["contacts"]' title="Contacts" aria-label="Contacts">
+          <svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+            <circle cx="9" cy="7.5" r="3.5"/>
+            <path d="M2 19.5v-1a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v1"/>
+            <path d="M17 4.7a3.5 3.5 0 0 1 0 6.6"/>
+            <path d="M18.5 14.6a4 4 0 0 1 3.5 3.9v1"/>
+          </svg>
+          <span class="sr-only">Contacts</span>
         </button>
-        <button type="button" class="nav-item" data-nav="senders" data-action="navigate" data-args='["senders"]' title="Senders">
-          <span class="nav-icon" aria-hidden="true">👥</span><span>Senders</span>
+        <button type="button" class="nav-item" data-nav="senders" data-action="navigate" data-args='["senders"]' title="Senders" aria-label="Senders">
+          <svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="2.2"/>
+            <path d="M7.9 7.9a5.8 5.8 0 0 0 0 8.2"/>
+            <path d="M16.1 16.1a5.8 5.8 0 0 0 0-8.2"/>
+            <path d="M4.9 4.9a10 10 0 0 0 0 14.2"/>
+            <path d="M19.1 19.1a10 10 0 0 0 0-14.2"/>
+          </svg>
+          <span class="sr-only">Senders</span>
         </button>
-        <button type="button" class="nav-item" data-nav="templates" data-action="navigate" data-args='["templates"]' title="Templates">
-          <span class="nav-icon" aria-hidden="true">📝</span><span>Templates</span>
+        <button type="button" class="nav-item" data-nav="templates" data-action="navigate" data-args='["templates"]' title="Templates" aria-label="Templates">
+          <svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 3v5h5"/>
+            <path d="M9 13h6"/>
+            <path d="M9 17h4"/>
+          </svg>
+          <span class="sr-only">Templates</span>
         </button>
       </nav>
+      <div class="sidebar-footer">
+        <div class="theme-toggle" role="group" aria-label="Color theme">
+          <button type="button" id="theme-system" data-theme-mode="system" title="Match system theme" aria-label="Use system theme" aria-pressed="false" data-action="setThemeMode" data-args='["system"]'>
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+              <rect x="2.5" y="4" width="19" height="13" rx="2"/>
+              <path d="M8.5 20.5h7"/>
+              <path d="M12 17v3.5"/>
+            </svg>
+          </button>
+          <button type="button" id="theme-light" data-theme-mode="light" title="Light theme" aria-label="Use light theme" aria-pressed="false" data-action="setThemeMode" data-args='["light"]'>
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+            </svg>
+          </button>
+          <button type="button" id="theme-dark" data-theme-mode="dark" title="Dark theme" aria-label="Use dark theme" aria-pressed="false" data-action="setThemeMode" data-args='["dark"]'>
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+              <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
     </aside>
     <div class="app-main">
 
   <!-- Top Header Navigation -->
   <header>
-    <div class="brand">
-      <div class="brand-badge">R</div>
-      <div class="brand-text">
-        <h1>Reachout CRM <span class="live-indicator"><span class="live-dot"></span> Live Control Plane</span></h1>
-      </div>
-    </div>
+    <h1 class="topbar-title">Reachout CRM</h1>
     <div class="header-actions">
-      <div id="header-senders-indicator" class="c-inline-1">
-        <span id="hdr-wa-indicator" class="c-inline-2">
-          <span class="live-dot c-inline-3"></span>
+      <div id="header-senders-indicator" class="sender-health">
+        <span id="hdr-wa-indicator" class="health-chip">
+          <span class="live-dot"></span>
           <span id="hdr-wa-text">WA: 0 Active</span>
         </span>
-        <span class="c-inline-4">&bull;</span>
-        <span id="hdr-em-indicator" class="c-inline-5">
-          <span class="live-dot c-inline-6"></span>
+        <span id="hdr-em-indicator" class="health-chip">
+          <span class="live-dot"></span>
           <span id="hdr-em-text">Email: 0 Active</span>
         </span>
-        <span class="c-inline-4">&bull;</span>
-        <span id="hdr-readiness" role="status" aria-live="polite" title="Overall sender readiness" class="c-inline-7">
-          <span class="live-dot c-inline-8" id="hdr-readiness-dot"></span>
-          <span id="hdr-readiness-text">Checking…</span>
+        <span id="hdr-readiness" role="status" aria-live="polite" title="Overall sender readiness" class="health-chip health-readiness">
+          <span class="live-dot" id="hdr-readiness-dot"></span>
+          <span id="hdr-readiness-text" class="sr-only">Checking…</span>
         </span>
       </div>
-      <button class="btn btn-secondary btn-sm" id="sync-btn" data-action="triggerSync">
-        <span>🔄 Sync</span>
-      </button>
+      <button class="btn btn-secondary btn-sm" id="sync-btn" data-action="triggerSync">Sync</button>
       <div class="menu-wrap">
-        <button class="btn btn-outline btn-sm btn-icon" id="more-menu-btn" aria-haspopup="true" aria-expanded="false" title="More actions" data-action="toggleMoreMenu" data-args='["$event"]'>
-          <span>⋯</span>
+        <button class="btn btn-outline btn-sm btn-icon" id="more-menu-btn" aria-haspopup="true" aria-expanded="false" title="More actions" aria-label="More actions" data-action="toggleMoreMenu" data-args='["$event"]'>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
+            <circle cx="5.5" cy="12" r="1.6"/>
+            <circle cx="12" cy="12" r="1.6"/>
+            <circle cx="18.5" cy="12" r="1.6"/>
+          </svg>
         </button>
         <div class="menu-panel" id="more-menu-panel" role="menu">
           <a href="/api/contacts/export/csv" id="export-csv-btn" role="menuitem" download>
-            <span>📥</span><span>Export CSV</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+              <path d="M12 3v11"/>
+              <path d="M7.5 9.5 12 14l4.5-4.5"/>
+              <path d="M4 18.5h16"/>
+            </svg>
+            <span>Export CSV</span>
           </a>
           <button type="button" id="discrepancies-btn" role="menuitem" data-action="closeMoreMenu openDiscrepanciesDrawer">
-            <span>⚠️</span><span>Data Discrepancies</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+              <path d="M12 3.5 21 19.5H3z"/>
+              <path d="M12 9.5v4"/>
+              <path d="M12 16.4v.1"/>
+            </svg>
+            <span>Data Discrepancies</span>
           </button>
         </div>
-      </div>
-      <div class="theme-toggle" role="group" aria-label="Color theme">
-        <button type="button" id="theme-system" data-theme-mode="system" title="Match system theme" aria-label="Use system theme" aria-pressed="false" data-action="setThemeMode" data-args='["system"]'>💻</button>
-        <button type="button" id="theme-light" data-theme-mode="light" title="Light theme" aria-label="Use light theme" aria-pressed="false" data-action="setThemeMode" data-args='["light"]'>☀️</button>
-        <button type="button" id="theme-dark" data-theme-mode="dark" title="Dark theme" aria-label="Use dark theme" aria-pressed="false" data-action="setThemeMode" data-args='["dark"]'>🌙</button>
       </div>
     </div>
   </header>
@@ -115,238 +158,272 @@
       </div>
     </div>
 
-    <section class="kpi-sections compact-overview" id="kpi-grid" aria-label="Dashboard KPI metrics">
-      <div class="overview-snapshot">
+    <section class="kpi-sections" id="kpi-grid" aria-label="Dashboard KPI metrics">
+      <div class="page-header overview-header">
         <div>
-          <span class="overview-snapshot-label">Live outreach snapshot</span>
-          <strong id="overview-summary-text">0 contacts · 0 phone and email endpoints</strong>
-        </div>
-        <span class="overview-snapshot-status">Real-time metrics</span>
-      </div>
-
-      <div class="primary-kpi-grid">
-        <div class="kpi-card kpi-eligible primary-kpi" id="kpi-ready">
-          <div class="kpi-label">Ready Now</div>
-          <div class="kpi-value" id="val-ready-contacts">0</div>
-          <div class="kpi-sub"><span id="val-ready-endpoints">0</span> dispatchable endpoints</div>
-        </div>
-        <div class="kpi-card kpi-contacted primary-kpi" id="kpi-covered-endpoints">
-          <div class="kpi-label">Endpoint Coverage</div>
-          <div class="kpi-value" id="val-covered-endpoints">0 / 0</div>
-          <div class="kpi-sub"><span id="val-coverage-percent">0</span>% successfully sent</div>
-        </div>
-        <div class="kpi-card kpi-failed primary-kpi" id="kpi-failed" role="button" tabindex="0" title="Open failed dispatches" aria-label="Open failed dispatches" data-action="openFailedDrawer">
-          <div class="kpi-label">Failed Attempts</div>
-          <div class="kpi-value" id="val-failed">0</div>
-          <div class="kpi-sub"><span id="val-failed-destinations">0</span> failed destinations · review</div>
-        </div>
-        <div class="kpi-card kpi-recovery primary-kpi" id="kpi-recovery" role="button" tabindex="0" title="Open unresolved attempts" aria-label="Open unresolved attempts" data-action="openRecoveryDrawer">
-          <div class="kpi-label">Unresolved Attempts</div>
-          <div class="kpi-value" id="val-recovery">0</div>
-          <div class="kpi-sub">Unknown or recovery-required · review</div>
+          <h2 class="page-title page-title-xl">Outreach overview</h2>
+          <p class="page-subtitle" id="overview-summary-text">0 contacts · 0 phone and email endpoints</p>
         </div>
       </div>
 
-      <div class="compact-metric-row" aria-label="Responses and follow-up metrics">
-        <span class="compact-metric-heading">Responses</span>
-        <div class="compact-metric"><span>Interested</span><strong id="val-interested">0</strong></div>
-        <div class="compact-metric"><span>Not Interested</span><strong id="val-not-interested">0</strong></div>
-        <div class="compact-metric"><span>Interview</span><strong id="val-interview">0</strong></div>
-        <div class="compact-metric compact-metric-action"><span>Follow-up Due</span><strong id="val-followup">0</strong></div>
+      <!-- Stat strip: one surface, five attempt-based numbers. -->
+      <div class="stat-strip">
+        <div class="stat">
+          <span class="stat-label">Ready now</span>
+          <span class="stat-value" id="val-ready-contacts">0</span>
+          <span class="stat-sub"><span id="val-ready-endpoints">0</span> dispatchable endpoints</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Contacts</span>
+          <span class="stat-value" id="val-total">0</span>
+          <span class="stat-sub"><span id="val-phone-endpoints">0</span> phone · <span id="val-email-endpoints">0</span> email</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Sends delivered</span>
+          <span class="stat-value"><span id="val-sent-attempts">0</span><span class="stat-value-of"> / <span id="val-total-attempts">0</span></span></span>
+          <span class="stat-sub"><span id="val-sent-rate">0</span>% of attempts succeeded</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Endpoint coverage</span>
+          <span class="stat-value" id="val-covered-endpoints">0 / 0</span>
+          <span class="stat-sub"><span id="val-coverage-percent">0</span>% of endpoints reached</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Follow-up due</span>
+          <span class="stat-value stat-value-warn" id="val-followup">0</span>
+          <span class="stat-sub">contacts ready to re-approach</span>
+        </div>
       </div>
 
       <details class="coverage-details" id="coverage-details">
         <summary>
-          <span>Coverage Details</span>
+          <span>Coverage details</span>
           <span class="coverage-details-summary">Contacts, endpoint states, and channel breakdown</span>
         </summary>
         <div class="coverage-details-grid">
           <div class="coverage-detail-group">
             <h3>Contacts</h3>
             <dl class="coverage-detail-list">
-              <div><dt>Total Contacts</dt><dd id="val-total">0</dd></div>
-              <div><dt>Fully Messaged</dt><dd id="val-fully-messaged">0</dd></div>
-              <div><dt>Policy Complete</dt><dd id="val-dispatch-complete">0</dd></div>
-              <div><dt>Contacts With Sends</dt><dd id="val-with-sends">0</dd></div>
+              <div><dt>With a successful send</dt><dd id="val-sent-contacts">0</dd></div>
+              <div><dt>No valid endpoint</dt><dd id="val-no-endpoint">0</dd></div>
+              <div><dt>Blocked</dt><dd id="val-blocked-contacts">0</dd></div>
             </dl>
           </div>
           <div class="coverage-detail-group">
             <h3>Endpoints</h3>
             <dl class="coverage-detail-list">
-              <div><dt>Total Endpoints</dt><dd id="val-total-endpoints">0</dd></div>
-              <div><dt>Covered Endpoints</dt><dd id="val-covered-endpoints-detail">0</dd></div>
-              <div><dt>Ready Endpoints</dt><dd id="val-ready-endpoints-detail">0</dd></div>
-              <div><dt>Blocked Endpoints</dt><dd id="val-blocked-endpoints">0</dd></div>
-              <div><dt>Blocked Contacts</dt><dd id="val-blocked-contacts">0</dd></div>
-              <div><dt>Never Attempted</dt><dd id="val-never-attempted">0</dd></div>
-              <div><dt>Permanent Failed</dt><dd id="val-permanent-failed">0</dd></div>
-              <div><dt>Retryable Failed</dt><dd id="val-retryable-failed">0</dd></div>
-            </dl>
-          </div>
-          <div class="coverage-detail-group">
-            <h3>Channels</h3>
-            <dl class="coverage-detail-list">
-              <div><dt>WhatsApp Covered Endpoints</dt><dd id="val-wa-sent">0</dd></div>
-              <div><dt>Email Covered Endpoints</dt><dd id="val-email-sent">0</dd></div>
+              <div><dt>Covered</dt><dd id="val-covered-endpoints-detail">0</dd></div>
+              <div><dt>Ready now</dt><dd id="val-ready-endpoints-detail">0</dd></div>
+              <div><dt>Never attempted</dt><dd id="val-never-attempted">0</dd></div>
+              <div><dt>Blocked</dt><dd id="val-blocked-endpoints">0</dd></div>
+              <div><dt>Retryable failures</dt><dd id="val-retryable-failed">0</dd></div>
+              <div><dt>Permanent failures</dt><dd id="val-permanent-failed">0</dd></div>
             </dl>
           </div>
         </div>
       </details>
     </section>
 
-    <!-- Section 7: Campaign Control Plane -->
-    <section class="control-plane" id="campaign-control-card">
-      <div class="campaign-control-group">
+    <!-- Run deck: the campaign controls, then the two meters they drive. -->
+    <section class="run-deck" id="campaign-control-card" aria-labelledby="run-deck-title">
+      <div class="run-deck-head">
+        <h2 class="run-deck-title" id="run-deck-title">Campaign run</h2>
+        <span class="campaign-status-badge" id="campaign-status-pill">IDLE</span>
+        <div class="run-deck-meta">
+          <span>Round <strong id="prog-round">1</strong></span>
+          <span>Channel <strong id="prog-curr-channel">WHATSAPP</strong></span>
+          <span>Sender <strong id="prog-curr-sender">AUTO</strong></span>
+          <span>Template <strong id="prog-curr-template">AUTO</strong></span>
+        </div>      </div>
+
+      <div class="run-deck-controls">
         <div class="campaign-selector-wrap">
           <label for="campaign-selector">Campaign</label>
           <select id="campaign-selector" class="select-input" data-change="selectCampaign">
             <option value="">No campaigns</option>
           </select>
         </div>
-        <div>
-          <span class="campaign-status-badge" id="campaign-status-pill">IDLE</span>
+        <div id="campaign-limit-wrap" class="run-limit">
+          <label for="campaign-limit-input">New run limit</label>
+          <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Maximum successful sends in the next run" class="run-limit-input">
         </div>
-        <div id="campaign-limit-wrap" class="c-inline-9">
-          <label for="campaign-limit-input" class="c-inline-10">Send target:</label>
-          <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Maximum successful sends in this run" class="c-inline-11">
-        </div>
-        <button class="btn btn-secondary btn-sm" id="campaign-action-btn" data-action="onCampaignAction">
+        <button class="btn btn-primary btn-sm" id="campaign-action-btn" data-action="onCampaignAction">
           <span id="campaign-action-label">▶ New Run</span>
         </button>
       </div>
 
-      <!-- Paused Notice Banner (Phase 12) -->
-      <div id="campaign-paused-banner" class="c-inline-12">
-        <span>⏸️</span>
-        <span><strong>Campaign Paused:</strong> No automatic outreach is being dispatched. You can add, authenticate, or reconfigure senders below. Click <strong>Resume</strong> when ready to continue from the current candidate position.</span>
+      <div id="campaign-paused-banner" class="paused-banner">
+        <span class="paused-banner-icon" aria-hidden="true">⏸</span>
+        <span><strong>Campaign paused.</strong> No automatic outreach is dispatching. Click <strong>Resume</strong> to continue from the current candidate position.</span>
       </div>
 
-      <!-- Policy, Quota & Round Info Grid -->
-      <div class="c-inline-13">
-        <div>Round: <strong id="prog-round" class="c-inline-14">Round 1</strong></div>
-        <div>Channel: <strong id="prog-curr-channel" class="c-inline-14">WHATSAPP</strong></div>
-        <div>Sender: <strong id="prog-curr-sender">AUTO</strong></div>
-        <div>Template: <strong id="prog-curr-template">AUTO</strong></div>
-      </div>
-
-      <div class="progress-stack">
-        <div class="progress-metric">
-          <div class="progress-metric-header">
-            <strong>Run target progress</strong>
+      <div class="run-meters">
+        <div class="meter">
+          <div class="meter-head">
+            <span>Run target</span>
             <span id="target-progress-label">Target not recorded</span>
           </div>
           <div class="progress-bar-container" id="target-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Run target progress">
             <div class="progress-bar-fill" id="target-progress-fill"></div>
           </div>
-          <div class="progress-metric-detail" id="target-progress-detail">Successful sends: 0 / target not recorded</div>
+          <div class="meter-detail" id="target-progress-detail">Successful sends: 0 / target not recorded</div>
         </div>
-        <div class="progress-metric">
-          <div class="progress-metric-header">
-            <strong>Global endpoint coverage</strong>
+        <div class="meter">
+          <div class="meter-head">
+            <span>Global coverage</span>
             <span id="coverage-progress-label">0 / 0</span>
           </div>
           <div class="progress-bar-container" id="coverage-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Global endpoint coverage">
-            <div class="progress-bar-fill progress-bar-coverage" id="coverage-progress-fill"></div>
+            <div class="progress-bar-fill" id="coverage-progress-fill"></div>
           </div>
-          <div class="progress-metric-detail" id="coverage-progress-detail">0% of valid phone and email endpoints covered</div>
+          <div class="meter-detail" id="coverage-progress-detail">0% of valid phone and email endpoints covered</div>
         </div>
-        <div class="attempt-outcome-grid">
-          <span>Attempts: <strong id="attempt-total">0</strong></span>
-          <span>Sent: <strong id="attempt-sent">0</strong></span>
-          <span>Failed: <strong id="attempt-failed">0</strong></span>
-          <span>Unresolved: <strong id="attempt-unresolved">0</strong></span>
-          <span>In flight/prepared: <strong id="attempt-pending">0</strong></span>
-          <span>Sent rate: <strong id="attempt-success-rate">0%</strong></span>
-        </div>
+      </div>
+
+      <div class="attempt-outcome-grid">
+        <span>Attempts <strong id="attempt-total">0</strong></span>
+        <span>Sent <strong id="attempt-sent">0</strong></span>
+        <span>Failed <strong id="attempt-failed">0</strong></span>
+        <span>Unresolved <strong id="attempt-unresolved">0</strong></span>
+        <span>Prepared <strong id="attempt-pending">0</strong></span>
+        <span>Sent rate <strong id="attempt-success-rate">0%</strong></span>
       </div>
     </section>
 
-    <!-- Live Activity + Quick Actions -->
+    <!-- Attention: only the numbers that ask for a decision. -->
+    <section class="attention" aria-labelledby="attention-title">
+      <h2 class="section-title" id="attention-title">Needs attention</h2>
+      <div class="attention-grid">
+        <button type="button" class="attention-item attention-danger" id="kpi-failed" data-action="openFailedDrawer" aria-label="Open failed attempts">
+          <span class="attention-count" id="val-failed">0</span>
+          <span class="attention-copy">
+            <span class="attention-title">Failed attempts</span>
+            <span class="attention-sub"><span id="val-failed-destinations">0</span> destinations to review</span>
+          </span>
+          <span class="attention-cta">Review</span>
+        </button>
+        <button type="button" class="attention-item attention-warn" id="kpi-recovery" data-action="openRecoveryDrawer" aria-label="Open unresolved attempts">
+          <span class="attention-count" id="val-recovery">0</span>
+          <span class="attention-copy">
+            <span class="attention-title">Unresolved attempts</span>
+            <span class="attention-sub">Unknown or recovery required</span>
+          </span>
+          <span class="attention-cta">Review</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Activity and the two read-only breakdowns beside it. -->
     <div class="overview-bottom">
       <section class="activity-feed" aria-labelledby="activity-title">
-        <h2 class="section-title" id="activity-title">Live Activity</h2>
+        <h2 class="section-title" id="activity-title">Live activity</h2>
         <div id="activity-list" role="log" aria-live="polite" aria-relevant="additions">
-          <div class="activity-empty">Events from campaigns, senders, and syncs will appear here.</div>
+          <div class="activity-empty">Sends, failures, and syncs appear here as they happen.</div>
         </div>
       </section>
-      <section class="quick-actions" aria-labelledby="quick-actions-title">
-        <h2 class="section-title" id="quick-actions-title">Quick Actions</h2>
-        <div class="quick-actions-grid">
-          <button type="button" class="btn btn-secondary" data-action="triggerSync"><span aria-hidden="true">🔄</span><span>Sync Contacts</span></button>
-          <button type="button" class="btn btn-secondary" data-action="openSendersDrawer"><span aria-hidden="true">👥</span><span>Senders</span></button>
-          <button type="button" class="btn btn-secondary" data-action="openTemplatesDrawer"><span aria-hidden="true">📝</span><span>Templates</span></button>
-          <a class="btn btn-secondary" href="/api/contacts/export/csv" download><span aria-hidden="true">📥</span><span>Export CSV</span></a>
-        </div>
-      </section>
+      <div class="overview-side">
+        <section class="side-panel" aria-labelledby="responses-title">
+          <h2 class="section-title" id="responses-title">Responses</h2>
+          <dl class="mini-stats">
+            <div><dt>Interested</dt><dd id="val-interested">0</dd></div>
+            <div><dt>Not interested</dt><dd id="val-not-interested">0</dd></div>
+            <div><dt>Interview</dt><dd id="val-interview">0</dd></div>
+          </dl>
+        </section>
+        <section class="side-panel" aria-labelledby="channel-mix-title">
+          <h2 class="section-title" id="channel-mix-title">Channel mix</h2>
+          <dl class="mix-list">
+            <div class="mix-row">
+              <dt><span class="mix-dot mix-dot-wa" aria-hidden="true"></span>WhatsApp</dt>
+              <dd><span id="val-wa-sent">0</span> covered</dd>
+              <div class="mix-track"><div class="mix-fill mix-fill-wa" id="wa-mix-fill"></div></div>
+            </div>
+            <div class="mix-row">
+              <dt><span class="mix-dot mix-dot-em" aria-hidden="true"></span>Email</dt>
+              <dd><span id="val-email-sent">0</span> covered</dd>
+              <div class="mix-track"><div class="mix-fill mix-fill-em" id="email-mix-fill"></div></div>
+            </div>
+          </dl>
+        </section>
+      </div>
     </div>
 
-    </section>
+    </section><!-- /page-overview -->
 
     <!-- ============================ Contacts ============================ -->
     <section id="page-contacts" class="page" tabindex="-1" aria-label="Contacts">
-    <!-- Section 8: Search & Priority Filter Bar -->
-    <section class="filters-bar">
-      <div class="search-wrapper">
-        <span class="search-icon" aria-hidden="true">🔍</span>
-        <input type="text" class="search-input" id="search-input" aria-label="Search companies, contacts, phone, email, notes" placeholder="Search company, name, phone, email, notes..." data-input="handleSearchChange">
-      </div>
-
-      <select class="select-input" id="company-filter" aria-label="Filter by company" data-change="applyFilters">
-        <option value="ALL">All Companies</option>
-      </select>
-
-      <select class="select-input" id="crm-status-filter" aria-label="Filter by CRM outcome" data-change="applyFilters">
-        <option value="ALL">All CRM Outcomes</option>
-        <option value="INTERESTED">Interested</option>
-        <option value="NOT_INTERESTED">Not Interested</option>
-        <option value="PENDING_REPLY">Pending Reply</option>
-        <option value="NONE">No CRM status</option>
-      </select>
-
-      <select class="select-input" id="coverage-filter" aria-label="Filter by endpoint coverage state" data-change="applyFilters">
-        <option value="ALL">All Delivery States</option>
-        <option value="WITH_SENDS">Has successful sends</option>
-        <option value="FULLY_MESSAGED">Fully messaged</option>
-        <option value="READY">Ready now</option>
-        <option value="NEVER_ATTEMPTED">Has never-attempted endpoint</option>
-        <option value="BLOCKED">Blocked</option>
-        <option value="HAS_FAILED">Has failed endpoint</option>
-      </select>
-
-      <div class="priority-pills" role="group" aria-label="Priority filters">
-        <button class="pill-btn active" data-filter="ALL" aria-pressed="true" data-action="setPriorityFilter" data-args='["ALL"]'>All</button>
-        <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" aria-pressed="false" data-action="setPriorityFilter" data-args='["FOLLOW_UP_DUE"]'><span aria-hidden="true">⚠️</span> Follow-up Due</button>
-        <button class="pill-btn pill-recovery" data-filter="RECOVERY" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECOVERY"]'><span aria-hidden="true">⏱</span> Recovery Queue</button>
-        <button class="pill-btn" data-filter="INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["INTERESTED"]'><span aria-hidden="true">★</span> Interested</button>
-        <button class="pill-btn" data-filter="RECENTLY_ACTIVE" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECENTLY_ACTIVE"]'><span aria-hidden="true">⚡</span> Recently Active</button>
-        <button class="pill-btn" data-filter="NOT_INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["NOT_INTERESTED"]'>Not Interested</button>
-      </div>
-    </section>
-
-    <!-- Company Hierarchy View (single view) -->
-    <div id="hierarchy-summary-text" class="c-inline-17">
-      Companies &rarr; Contacts &rarr; Phones &amp; Emails
-    </div>
-    <section class="hierarchy-container" id="hierarchy-view-section">
-      <div id="hierarchy-cards-list" role="status" aria-label="Loading company hierarchies" class="c-inline-18">
-        <div class="skeleton-card" aria-hidden="true">
-          <div class="skeleton-line c-inline-19"></div>
-          <div class="skeleton-line c-inline-20"></div>
-          <div class="skeleton-line c-inline-21"></div>
-        </div>
-        <div class="skeleton-card" aria-hidden="true">
-          <div class="skeleton-line c-inline-22"></div>
-          <div class="skeleton-line c-inline-23"></div>
-          <div class="skeleton-line c-inline-24"></div>
-        </div>
-        <div class="skeleton-card" aria-hidden="true">
-          <div class="skeleton-line c-inline-25"></div>
-          <div class="skeleton-line c-inline-26"></div>
-          <div class="skeleton-line c-inline-27"></div>
+      <div class="page-header">
+        <div>
+          <h2 class="page-title page-title-xl">Contacts</h2>
+          <p class="page-subtitle" id="hierarchy-summary-text">Companies → Contacts → Phones &amp; Emails</p>
         </div>
       </div>
-      <div id="contacts-pagination" class="contacts-pagination" role="navigation" aria-label="Contacts pagination"></div>
-    </section>
+
+      <!-- One toolbar: search and filters on a single surface. -->
+      <section class="contacts-toolbar" aria-label="Search and filter contacts">
+        <div class="toolbar-main">
+          <div class="search-wrapper">
+            <span class="search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="1.8" fill="none" focusable="false">
+                <circle cx="10.5" cy="10.5" r="6.5"/>
+                <path d="m15.5 15.5 4 4"/>
+              </svg>
+            </span>
+            <input type="text" class="search-input" id="search-input" aria-label="Search companies, contacts, phone, email, notes" placeholder="Search company, name, phone, email, notes…" data-input="handleSearchChange">
+          </div>
+
+          <select class="select-input" id="company-filter" aria-label="Filter by company" data-change="applyFilters">
+            <option value="ALL">All Companies</option>
+          </select>
+
+          <select class="select-input" id="crm-status-filter" aria-label="Filter by CRM outcome" data-change="applyFilters">
+            <option value="ALL">All CRM Outcomes</option>
+            <option value="INTERESTED">Interested</option>
+            <option value="NOT_INTERESTED">Not Interested</option>
+            <option value="PENDING_REPLY">Pending Reply</option>
+            <option value="NONE">No CRM status</option>
+          </select>
+
+          <select class="select-input" id="coverage-filter" aria-label="Filter by endpoint coverage state" data-change="applyFilters">
+            <option value="ALL">All Delivery States</option>
+            <option value="WITH_SENDS">Has successful sends</option>
+            <option value="FULLY_MESSAGED">Fully messaged</option>
+            <option value="READY">Ready now</option>
+            <option value="NEVER_ATTEMPTED">Has never-attempted endpoint</option>
+            <option value="BLOCKED">Blocked</option>
+            <option value="HAS_FAILED">Has failed endpoint</option>
+          </select>
+        </div>
+
+        <div class="toolbar-pills">
+          <div class="priority-pills" role="group" aria-label="Priority filters">
+            <button class="pill-btn active" data-filter="ALL" aria-pressed="true" data-action="setPriorityFilter" data-args='["ALL"]'>All</button>
+            <button class="pill-btn pill-followup" data-filter="FOLLOW_UP_DUE" aria-pressed="false" data-action="setPriorityFilter" data-args='["FOLLOW_UP_DUE"]'>Follow-up due</button>
+            <button class="pill-btn pill-recovery" data-filter="RECOVERY" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECOVERY"]'>Recovery queue</button>
+            <button class="pill-btn" data-filter="INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["INTERESTED"]'>Interested</button>
+            <button class="pill-btn" data-filter="RECENTLY_ACTIVE" aria-pressed="false" data-action="setPriorityFilter" data-args='["RECENTLY_ACTIVE"]'>Recently active</button>
+            <button class="pill-btn" data-filter="NOT_INTERESTED" aria-pressed="false" data-action="setPriorityFilter" data-args='["NOT_INTERESTED"]'>Not interested</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="hierarchy-container" id="hierarchy-view-section">
+        <div id="hierarchy-cards-list" role="status" aria-label="Loading company hierarchies" class="company-rows">
+          <div class="skeleton-card" aria-hidden="true">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+          </div>
+          <div class="skeleton-card" aria-hidden="true">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+          </div>
+          <div class="skeleton-card" aria-hidden="true">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+          </div>
+        </div>
+        <div id="contacts-pagination" class="contacts-pagination" role="navigation" aria-label="Contacts pagination"></div>
+      </section>
     </section>
 
     <!-- ============================ Senders ============================ -->

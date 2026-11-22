@@ -1,23 +1,35 @@
 // Company hierarchy card component.
 //
-// Renders the company card with its HR contacts, endpoints, and interaction
-// history. Status/badge mapping is a data table, extended by adding entries
-// rather than editing conditionals.
+// Renders one flat company row plus, when expanded, its contacts with their
+// endpoints and interaction history. Status/badge mapping is a data table,
+// extended by adding entries rather than editing conditionals.
 
 import { renderCompactAttemptRow, isRecoveryAttempt } from './timeline.js';
 import { escapeHtml, jsonAttr } from '../modules/dom.js';
 import { formatDate } from '../modules/format.js';
 
 const COMPANY_STATUS_MAP = {
-  NOT_CONTACTED: { cls: 'status-not-contacted', icon: '🔴', text: 'NOT CONTACTED' },
-  IN_PROGRESS: { cls: 'status-in-progress', icon: '🟡', text: 'IN PROGRESS' },
-  CONTACTED: { cls: 'status-contacted', icon: '🟢', text: 'CONTACTED' },
-  CLOSED: { cls: 'status-closed', icon: '⚫', text: 'CLOSED' },
+  NOT_CONTACTED: { cls: 'status-not-contacted', text: 'Not contacted' },
+  IN_PROGRESS: { cls: 'status-in-progress', text: 'In progress' },
+  CONTACTED: { cls: 'status-contacted', text: 'Contacted' },
+  CLOSED: { cls: 'status-closed', text: 'Closed' },
 };
 
 function companyStatusMeta(status) {
   return COMPANY_STATUS_MAP[status] || COMPANY_STATUS_MAP.NOT_CONTACTED;
 }
+
+// Endpoint coverage state -> chip text. The colour class is the only styling
+// hook; the label always says what the colour means.
+const ENDPOINT_STATE_MAP = {
+  SENT: { cls: 'ep-sent', text: 'Sent' },
+  NEVER_ATTEMPTED: { cls: 'ep-idle', text: 'Never attempted' },
+  RETRYABLE: { cls: 'ep-failed', text: 'Failed · retryable' },
+  PERMANENT_FAILED: { cls: 'ep-failed', text: 'Permanent failure' },
+  SUPPRESSED: { cls: 'ep-idle', text: 'Suppressed' },
+  BLOCKED: { cls: 'ep-warn', text: 'Blocked · recovery' },
+  READY: { cls: 'ep-idle', text: 'Ready' },
+};
 
 const CRM_OPTIONS = [
   ['NOT_CONTACTED', 'Not Contacted'],
@@ -25,13 +37,13 @@ const CRM_OPTIONS = [
   ['CONTACTED', 'Contacted'],
   ['REPLIED', 'Replied'],
   ['FOLLOW_UP', 'Follow-Up Due'],
-  ['INTERESTED', 'Interested ★'],
+  ['INTERESTED', 'Interested'],
   ['NOT_INTERESTED', 'Not Interested'],
-  ['INTERVIEW', 'Interview 📅'],
-  ['OFFER', 'Offer 🏆'],
-  ['REJECTED', 'Rejected ✕'],
-  ['CLOSED', 'Closed ⚫'],
-  ['DO_NOT_CONTACT', 'Do Not Contact ⛔'],
+  ['INTERVIEW', 'Interview'],
+  ['OFFER', 'Offer'],
+  ['REJECTED', 'Rejected'],
+  ['CLOSED', 'Closed'],
+  ['DO_NOT_CONTACT', 'Do Not Contact'],
 ];
 
 function hrStatusSelect(contactId, currentStatus) {
@@ -41,24 +53,23 @@ function hrStatusSelect(contactId, currentStatus) {
     return `<option value="${value}" ${selected}>${label}</option>`;
   }).join('');
   return `
-    <select class="form-control select-compact" data-change="updateContactStatus" data-args='[${jsonAttr(contactId)},"$value","$el"]'>
+    <select class="form-control select-compact" aria-label="CRM outcome" data-change="updateContactStatus" data-args='[${jsonAttr(contactId)},"$value","$el"]'>
       ${options}
     </select>
   `;
 }
 
-function endpointStatusBadge(endpoint) {
+function endpointStateChip(endpoint) {
   const state = endpoint.coverage_state || endpoint.status || 'NEVER_ATTEMPTED';
-  const badges = {
-    SENT: `<span class="endpoint-sent">✓ ${escapeHtml(endpoint.channel)} COVERED</span>`,
-    NEVER_ATTEMPTED: `<span class="endpoint-uncontacted">○ ${escapeHtml(endpoint.channel)} NEVER ATTEMPTED</span>`,
-    RETRYABLE: `<span class="endpoint-failed-badge">✕ ${escapeHtml(endpoint.channel)} FAILED · RETRYABLE</span>`,
-    PERMANENT_FAILED: `<span class="endpoint-failed-badge">⛔ ${escapeHtml(endpoint.channel)} PERMANENT FAILURE</span>`,
-    SUPPRESSED: `<span class="endpoint-uncontacted">⊘ ${escapeHtml(endpoint.channel)} SUPPRESSED</span>`,
-    BLOCKED: `<span class="endpoint-recovery-badge">⏱ ${escapeHtml(endpoint.channel)} BLOCKED · RECOVERY</span>`,
-    READY: `<span class="endpoint-uncontacted">○ ${escapeHtml(endpoint.channel)} READY</span>`,
-  };
-  return badges[state] || badges.READY;
+  const meta = ENDPOINT_STATE_MAP[state] || ENDPOINT_STATE_MAP.READY;
+  return `<span class="endpoint-state ${meta.cls}">${meta.text}</span>`;
+}
+
+function channelChip(channel) {
+  if (channel === 'WHATSAPP') return '<span class="channel-chip channel-chip-wa">WhatsApp</span>';
+  if (channel === 'EMAIL') return '<span class="channel-chip channel-chip-em">Email</span>';
+  // Unknown channel values are shown escaped rather than silently relabelled.
+  return `<span class="channel-chip channel-chip-other">${escapeHtml(channel || 'Unknown')}</span>`;
 }
 
 function findEndpointAttempt(hr, endpoint) {
@@ -71,7 +82,7 @@ function findEndpointAttempt(hr, endpoint) {
   ) || null;
 }
 
-function renderEndpointBox(hr, endpoint) {
+function renderEndpointRow(hr, endpoint) {
   const isSent = endpoint.coverage_state === 'SENT' || endpoint.status === 'SENT';
   const isBlocked = endpoint.coverage_state === 'BLOCKED' || isRecoveryAttempt(findEndpointAttempt(hr, endpoint));
   const isInFlight = ['PREPARED', 'QUEUED', 'SENDING'].includes(endpoint.status);
@@ -79,11 +90,11 @@ function renderEndpointBox(hr, endpoint) {
 
   let metaDetails = '';
   if (isSent && endpoint.sender_account_id) {
-    metaDetails = `<div class="endpoint-meta">${escapeHtml(endpoint.sender_account_id)} &bull; ${escapeHtml(endpoint.template_id || 'Direct')} &bull; ${formatDate(endpoint.sent_at)}</div>`;
+    metaDetails = `<span class="endpoint-meta">${escapeHtml(endpoint.sender_account_id)} · ${escapeHtml(endpoint.template_id || 'Direct')} · ${formatDate(endpoint.sent_at)}</span>`;
   } else if (endpoint.failure_detail || (attempt && attempt.failure_detail)) {
     const detail = endpoint.failure_detail || attempt.failure_detail;
     const code = endpoint.failure_code || attempt.failure_code;
-    metaDetails = `<div class="endpoint-meta endpoint-meta-warn">${escapeHtml(detail)}${code ? ` · ${escapeHtml(code)}` : ''}</div>`;
+    metaDetails = `<span class="endpoint-meta endpoint-meta-warn">${escapeHtml(detail)}${code ? ` · ${escapeHtml(code)}` : ''}</span>`;
   }
 
   let sendBtn;
@@ -98,13 +109,16 @@ function renderEndpointBox(hr, endpoint) {
   }
 
   return `
-    <div class="endpoint-box ${isSent ? 'endpoint-covered' : ''}">
-      <div class="endpoint-info">
-        <span class="endpoint-label">${escapeHtml(endpoint.label)} &bull; ${endpointStatusBadge(endpoint)}</span>
+    <div class="endpoint-row ${isSent ? 'endpoint-row-sent' : ''}">
+      ${channelChip(endpoint.channel)}
+      <div class="endpoint-main">
         <span class="endpoint-addr">${escapeHtml(endpoint.address)}</span>
-        ${metaDetails}
+        <span class="endpoint-line">
+          ${endpointStateChip(endpoint)}
+          ${metaDetails}
+        </span>
       </div>
-      <div>${sendBtn}</div>
+      <div class="endpoint-action">${sendBtn}</div>
     </div>
   `;
 }
@@ -116,39 +130,39 @@ function renderContactHistory(hr) {
   return (hr.history || []).map(renderCompactAttemptRow).join('');
 }
 
-function renderHrCard(hr, index) {
+function renderHrCard(hr) {
   const followUpBadge = hr.follow_up_due
-    ? `<span class="badge badge-pending-reply badge-compact">⚠️ FOLLOW-UP DUE${hr.follow_up_due_at ? ` ${formatDate(hr.follow_up_due_at)}` : ''}</span>`
+    ? `<span class="badge badge-pending-reply badge-compact">Follow-up due${hr.follow_up_due_at ? ` · ${formatDate(hr.follow_up_due_at)}` : ''}</span>`
     : '';
-  const endpointsHtml = (hr.endpoints || []).map((ep) => renderEndpointBox(hr, ep)).join('');
+  const endpointsHtml = (hr.endpoints || []).map((ep) => renderEndpointRow(hr, ep)).join('');
+  const historyCount = (hr.history || []).length;
 
   return `
     <div class="hr-card" data-contact-id="${escapeHtml(hr.contact_id)}">
       <div class="hr-header">
-        <div class="hr-title-wrap">
-          <span class="hr-name-bold">Contact ${index + 1}: ${escapeHtml(hr.name)}</span>
-          ${hr.designation ? `<span class="hr-designation-text">&bull; ${escapeHtml(hr.designation)}</span>` : ''}
+        <div class="hr-identity">
+          <span class="hr-name">${escapeHtml(hr.name)}</span>
+          ${hr.designation ? `<span class="hr-designation">${escapeHtml(hr.designation)}</span>` : ''}
           ${followUpBadge}
         </div>
         <div class="hr-header-actions">
-          <span>CRM Status:</span>
           ${hrStatusSelect(hr.contact_id, hr.crm_outcome)}
           <button class="btn btn-secondary btn-xs" data-action="openHistoryModal" data-args='[${jsonAttr(hr.contact_id)}]'>History</button>
-          <button class="btn btn-outline-danger btn-xs" title="Archive / DNC" aria-label="Archive contact" data-action="archiveContact" data-args='[${jsonAttr(hr.contact_id)}]'>🗑</button>
+          <button class="btn btn-outline btn-xs" title="Archive / do not contact" aria-label="Archive contact" data-action="archiveContact" data-args='[${jsonAttr(hr.contact_id)}]'>Archive</button>
         </div>
       </div>
       <div class="hr-contact-meta">
-        <span>📞 ${escapeHtml(hr.phone || '-')}</span>
-        <span>✉️ ${escapeHtml(hr.email || '-')}</span>
-        ${hr.last_activity_at ? `<span>🕒 Last activity: ${formatDate(hr.last_activity_at)}</span>` : ''}
+        <span>${escapeHtml(hr.phone || '—')}</span>
+        <span>${escapeHtml(hr.email || '—')}</span>
+        ${hr.last_activity_at ? `<span>Last activity ${formatDate(hr.last_activity_at)}</span>` : ''}
       </div>
-      <div class="endpoints-container">
+      <div class="endpoint-list">
         ${endpointsHtml || '<div class="history-empty">No endpoints registered for this contact.</div>'}
       </div>
-      <div class="hr-history-block">
-        <div class="hr-history-title">Interaction History</div>
+      <details class="hr-history-block">
+        <summary>Interaction history${historyCount ? ` (${historyCount})` : ''}</summary>
         ${renderContactHistory(hr)}
-      </div>
+      </details>
     </div>
   `;
 }
@@ -165,22 +179,19 @@ export function renderCompanyCard(comp) {
   card.setAttribute('data-company-id', comp.id);
 
   const meta = companyStatusMeta(comp.status);
-  const hrsHtml = (comp.contacts || []).map((hr, index) => renderHrCard(hr, index)).join('');
+  const hrsHtml = (comp.contacts || []).map(renderHrCard).join('');
+  const contactCount = (comp.contacts || []).length || comp.total_contacts || 0;
 
   card.innerHTML = `
-    <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="hrlist-${escapeHtml(comp.id)}" aria-label="Expand or collapse HR contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='[${jsonAttr(comp.id)}]' title="Click to expand / collapse HR contacts">
-      <div class="company-title-area">
-        <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
-        <span class="company-name-lg">${escapeHtml(comp.name)}</span>
-        <span class="company-status-badge ${meta.cls}">${meta.icon} ${meta.text}</span>
-      </div>
-      <div class="company-meta-pills">
-        <span>Contacts: <strong>${comp.total_contacts || 0}</strong></span>
-        <span>Endpoints: <strong>${comp.covered_endpoints || 0} / ${comp.total_endpoints || 0} covered</strong></span>
-      </div>
+    <div class="company-card-header" role="button" tabindex="0" aria-expanded="false" aria-controls="hrlist-${escapeHtml(comp.id)}" aria-label="Expand or collapse contacts for ${escapeHtml(comp.name)}" data-action="toggleCompany" data-args='[${jsonAttr(comp.id)}]' title="Click to expand / collapse contacts">
+      <span class="company-expand-caret" id="caret-${escapeHtml(comp.id)}">▸</span>
+      <span class="company-name-lg">${escapeHtml(comp.name)}</span>
+      <span class="company-status-badge ${meta.cls}">${meta.text}</span>
+      <span class="company-row-meta">${contactCount} contact${contactCount === 1 ? '' : 's'}</span>
+      <span class="company-row-meta">${comp.covered_endpoints || 0} / ${comp.total_endpoints || 0} endpoints</span>
     </div>
     <div class="hr-contacts-list" id="hrlist-${escapeHtml(comp.id)}" style="display: none;">
-      ${hrsHtml || '<div class="history-empty">No HR contacts registered.</div>'}
+      ${hrsHtml || '<div class="history-empty">No contacts registered.</div>'}
     </div>
   `;
   return card;

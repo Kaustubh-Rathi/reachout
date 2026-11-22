@@ -31,25 +31,35 @@ function renderKpis(k) {
     const element = document.getElementById(id);
     if (element) element.innerText = value;
   };
+  const sentAttempts = k.sent_attempts || 0;
+  const totalAttempts = k.total_attempts || 0;
+  const sentRate = totalAttempts > 0 ? Math.round((sentAttempts / totalAttempts) * 100) : 0;
+  const waSent = k.whatsapp_sent_endpoints || 0;
+  const emailSent = k.email_sent_endpoints || 0;
+  const mixTotal = Math.max(waSent + emailSent, 1);
+
   setText('overview-summary-text', `${k.total_contacts || 0} contacts · ${k.total_endpoints || 0} phone and email endpoints`);
   setText('val-total', k.total_contacts || 0);
-  setText('val-fully-messaged', k.fully_messaged_contacts || 0);
-  setText('val-dispatch-complete', k.dispatch_complete_contacts || 0);
-  setText('val-with-sends', k.contacts_with_any_send || 0);
+  setText('val-phone-endpoints', k.phone_endpoints || 0);
+  setText('val-email-endpoints', k.email_endpoints || 0);
   setText('val-ready-contacts', k.ready_contacts || 0);
   setText('val-ready-endpoints', k.ready_endpoints || 0);
-  setText('val-total-endpoints', k.total_endpoints || 0);
+  setText('val-sent-attempts', sentAttempts);
+  setText('val-total-attempts', totalAttempts);
+  setText('val-sent-rate', sentRate);
   setText('val-covered-endpoints', `${k.covered_endpoints || 0} / ${k.total_endpoints || 0}`);
-  setText('val-covered-endpoints-detail', k.covered_endpoints || 0);
   setText('val-coverage-percent', k.endpoint_coverage_percent || 0);
+  setText('val-sent-contacts', k.sent_contacts || 0);
+  setText('val-no-endpoint', k.contacts_without_valid_endpoints || 0);
+  setText('val-covered-endpoints-detail', k.covered_endpoints || 0);
   setText('val-ready-endpoints-detail', k.ready_endpoints || 0);
   setText('val-blocked-endpoints', k.blocked_endpoints || 0);
   setText('val-blocked-contacts', k.blocked_contacts || 0);
   setText('val-never-attempted', k.never_attempted_endpoints || 0);
   setText('val-permanent-failed', k.permanent_failed_endpoints || 0);
   setText('val-retryable-failed', k.retryable_failed_endpoints || 0);
-  setText('val-wa-sent', k.whatsapp_sent_endpoints || 0);
-  setText('val-email-sent', k.email_sent_endpoints || 0);
+  setText('val-wa-sent', waSent);
+  setText('val-email-sent', emailSent);
   setText('val-failed', k.failed_attempts || 0);
   setText('val-failed-destinations', k.failed_destinations || 0);
   setText('val-interested', k.interested || 0);
@@ -57,6 +67,11 @@ function renderKpis(k) {
   setText('val-interview', k.interview || 0);
   setText('val-followup', k.follow_up_due || 0);
   setText('val-recovery', k.unresolved_attempts || 0);
+
+  const waFill = document.getElementById('wa-mix-fill');
+  if (waFill) waFill.style.width = `${Math.round((waSent / mixTotal) * 100)}%`;
+  const emailFill = document.getElementById('email-mix-fill');
+  if (emailFill) emailFill.style.width = `${Math.round((emailSent / mixTotal) * 100)}%`;
 }
 
 // 6. Campaign Control Plane
@@ -206,7 +221,7 @@ function updateCampaignControls(camp) {
     setText('attempt-pending', camp.attempt_outcomes?.pending || 0);
     setText('attempt-success-rate', `${camp.attempt_outcomes?.sent_percent || 0}%`);
 
-    setText('prog-round', `Round ${camp.current_round || 1}`);
+    setText('prog-round', camp.current_round || 1);
     setText('prog-curr-channel', camp.current_dispatch_channel || camp.channel || 'WHATSAPP');
     setText('prog-curr-sender', camp.current_sender || 'AUTO');
     setText('prog-curr-template', camp.template_used || 'AUTO');
@@ -363,6 +378,12 @@ async function fetchActivity() {
     const list = document.getElementById('activity-list');
     if (list) list.innerHTML = '';
     (events || []).slice().reverse().forEach((ev) => addActivityItem(describeLiveActivity(ev.event_type, ev.payload || {}), ev.occurred_at));
+    if (list && !list.children.length) {
+      const empty = document.createElement('div');
+      empty.className = 'activity-empty';
+      empty.textContent = 'Sends, failures, and syncs appear here as they happen.';
+      list.appendChild(empty);
+    }
     return true;
   } catch (err) {
     console.error('Error loading activity:', err);
