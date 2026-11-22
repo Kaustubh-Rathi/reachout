@@ -36,13 +36,13 @@ async function openTemplatesDrawer() {
 
 function renderTemplatesLoading() {
   const container = document.getElementById('templates-list-container');
-  if (container) container.innerHTML = '<div style="color:var(--text-muted);">Loading templates…</div>';
+  if (container) container.innerHTML = '<div class="template-load-state">Loading templates…</div>';
 }
 
 function renderTemplatesLoadError(message) {
   const container = document.getElementById('templates-list-container');
   if (container) {
-    container.innerHTML = `<div style="color:var(--accent-rose);">Failed to load templates: ${escapeHtml(message)}</div>`;
+    container.innerHTML = `<div class="template-load-state template-load-error">Failed to load templates: ${escapeHtml(message)}</div>`;
   }
 }
 
@@ -52,28 +52,32 @@ function renderTemplatesList() {
 
   if (!state.templates || state.templates.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;" aria-hidden="true">📝</div>
-        <div style="font-weight: 600; color: var(--text-primary);">No templates yet</div>
-        <div style="font-size: 0.8rem; margin-top: 0.25rem;">Add your first message template to start outreach.</div>
+      <div class="template-empty">
+        <strong>No templates yet</strong>
+        <div>Add a message template to start outreach.</div>
       </div>`;
     return;
   }
 
   state.templates.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'kpi-card';
+    const card = document.createElement('article');
+    card.className = 'template-card';
+    const channelClass = t.channel === 'WHATSAPP' ? 'template-channel-wa' : (t.channel === 'EMAIL' ? 'template-channel-em' : '');
+    const channelLabel = t.channel === 'WHATSAPP' ? 'WhatsApp' : (t.channel === 'EMAIL' ? 'Email' : (t.channel || 'Unknown'));
     card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-        <strong>${escapeHtml(t.id)} - ${escapeHtml(t.name)}</strong>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span class="badge badge-sent">${escapeHtml(t.channel)}</span>
+      <div class="template-card-header">
+        <div class="template-card-title">
+          <span class="template-id">${escapeHtml(t.id)}</span>
+          <strong class="template-name">${escapeHtml(t.name)}</strong>
+        </div>
+        <div class="template-card-controls">
+          <span class="template-channel ${channelClass}">${escapeHtml(channelLabel)}</span>
           <button class="btn btn-outline btn-xs" data-action="openTemplateFormById" data-args='[${jsonAttr(t.id)}]'>Edit</button>
         </div>
       </div>
-      ${t.subject ? `<div style="font-size: 0.75rem; color: var(--accent-blue); font-weight: 600;">Subject: ${escapeHtml(t.subject)}</div>` : ''}
-      <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.3rem;">Resume: ${t.attachment_ref ? escapeHtml(t.attachment_ref) : 'not set'}</div>
-      <div style="font-size: 0.75rem; color: var(--text-secondary); background: var(--bg-surface-raised); padding: 0.45rem; border-radius: var(--radius-xs); white-space: pre-wrap; font-family: 'JetBrains Mono', monospace;">${escapeHtml(t.body)}</div>
+      ${t.subject ? `<div class="template-subject">Subject: ${escapeHtml(t.subject)}</div>` : ''}
+      <div class="template-body-preview">${escapeHtml(t.body || '')}</div>
+      ${t.attachment_ref ? `<div class="template-attachment">Attachment: ${escapeHtml(t.attachment_ref)}</div>` : ''}
     `;
     container.appendChild(card);
   });
@@ -103,11 +107,11 @@ function openTemplateFormById(templateId) {
 
 function openTemplateForm(template) {
   renderTemplateForm(template);
-  document.getElementById('template-form-container').style.display = 'flex';
+  document.getElementById('template-form-container').hidden = false;
 }
 
 function closeTemplateForm() {
-  document.getElementById('template-form-container').style.display = 'none';
+  document.getElementById('template-form-container').hidden = true;
 }
 
 async function saveTemplate() {

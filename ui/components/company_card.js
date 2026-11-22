@@ -112,7 +112,7 @@ function renderEndpointRow(hr, endpoint) {
     <div class="endpoint-row ${isSent ? 'endpoint-row-sent' : ''}">
       ${channelChip(endpoint.channel)}
       <div class="endpoint-main">
-        <span class="endpoint-addr">${escapeHtml(endpoint.address)}</span>
+        <span class="endpoint-addr">${endpoint.channel === 'WHATSAPP' ? 'WhatsApp endpoint' : endpoint.channel === 'EMAIL' ? 'Email endpoint' : 'Endpoint'}</span>
         <span class="endpoint-line">
           ${endpointStateChip(endpoint)}
           ${metaDetails}
@@ -152,8 +152,8 @@ function renderHrCard(hr) {
         </div>
       </div>
       <div class="hr-contact-meta">
-        <span>${escapeHtml(hr.phone || '—')}</span>
-        <span>${escapeHtml(hr.email || '—')}</span>
+        ${hr.phone ? '<span>WhatsApp available</span>' : ''}
+        ${hr.email ? '<span>Email available</span>' : ''}
         ${hr.last_activity_at ? `<span>Last activity ${formatDate(hr.last_activity_at)}</span>` : ''}
       </div>
       <div class="endpoint-list">

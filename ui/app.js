@@ -22,6 +22,7 @@ function toggleMoreMenu(event) {
   const btn = document.getElementById('more-menu-btn');
   if (!panel) return;
   const willOpen = !panel.classList.contains('open');
+  closeThemeMenu();
   panel.classList.toggle('open', willOpen);
   if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
 }
@@ -33,15 +34,51 @@ function closeMoreMenu() {
   if (btn) btn.setAttribute('aria-expanded', 'false');
 }
 
+// ------------------------------------------------------------------
+// Theme menu: one trigger in the rail footer, opening a mode picker.
+// The trigger shows the active mode's icon; the panel is the same
+// .menu-panel anatomy the header overflow menu uses.
+// ------------------------------------------------------------------
+function toggleThemeMenu(event) {
+  if (event) event.stopPropagation();
+  const panel = document.getElementById('theme-menu-panel');
+  const btn = document.getElementById('theme-menu-btn');
+  if (!panel) return;
+  const willOpen = !panel.classList.contains('open');
+  closeMoreMenu();
+  panel.classList.toggle('open', willOpen);
+  if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  if (willOpen) {
+    const current = panel.querySelector('[aria-checked="true"]') || panel.querySelector('button');
+    if (current) current.focus();
+  }
+}
+
+function closeThemeMenu(restoreFocus) {
+  const panel = document.getElementById('theme-menu-panel');
+  const btn = document.getElementById('theme-menu-btn');
+  if (!panel || !panel.classList.contains('open')) return;
+  panel.classList.remove('open');
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) btn.focus();
+  }
+}
+
 document.addEventListener('click', (event) => {
-  const panel = document.getElementById('more-menu-panel');
-  if (panel && panel.classList.contains('open') && !event.target.closest('.menu-wrap')) {
+  const pickedTheme = event.target.closest('.theme-menu [data-action="setThemeMode"]');
+  if (pickedTheme) closeThemeMenu();
+  if (!event.target.closest('.menu-wrap')) {
     closeMoreMenu();
+    closeThemeMenu();
   }
 });
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeMoreMenu();
+  if (event.key === 'Escape') {
+    closeMoreMenu();
+    closeThemeMenu(true);
+  }
 });
 
 // ------------------------------------------------------------------
@@ -303,6 +340,8 @@ async function loadInitialData() {
 registerActions({
   toggleMoreMenu,
   closeMoreMenu,
+  toggleThemeMenu,
+  closeThemeMenu,
   reportLoadError,
   clearLoadError,
   retryLoad,

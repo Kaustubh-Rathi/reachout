@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDate, formatTime } from '../modules/format.js';
+import { formatDate, formatTime, maskEndpoint } from '../modules/format.js';
 import { getAction, registerActions } from '../modules/actions.js';
 import { state } from '../modules/store.js';
 import { allLoadsSucceeded } from '../modules/load_state.js';
@@ -18,6 +18,16 @@ test('formatTime normalizes timezone-less ISO values and rejects invalid values'
   assert.equal(formatTime('invalid'), '');
   assert.match(formatTime('2026-08-17T12:34:00'), /^\d{2}:\d{2}$/);
   assert.match(formatTime('2026-08-17T12:34:00Z'), /^\d{2}:\d{2}$/);
+});
+
+test('maskEndpoint hides most of an address but keeps endpoints distinguishable', () => {
+  assert.equal(maskEndpoint(), '');
+  assert.equal(maskEndpoint('   '), '');
+  assert.equal(maskEndpoint('alex.turner@stripe.com'), 'a\u2022\u2022\u2022\u2022\u2022@stripe.com');
+  // Formatting characters are dropped before masking, so a formatted number
+  // never leaks its punctuation or middle digits.
+  assert.equal(maskEndpoint('+1 (555) 010-0001'), '+15\u2022\u2022\u2022\u2022001');
+  assert.equal(maskEndpoint('9876543210'), '98\u2022\u2022\u2022\u2022210');
 });
 
 test('action registry validates registrations and resolves actions', () => {

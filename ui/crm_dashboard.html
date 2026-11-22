@@ -60,25 +60,44 @@
         </button>
       </nav>
       <div class="sidebar-footer">
-        <div class="theme-toggle" role="group" aria-label="Color theme">
-          <button type="button" id="theme-system" data-theme-mode="system" title="Match system theme" aria-label="Use system theme" aria-pressed="false" data-action="setThemeMode" data-args='["system"]'>
-            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+        <div class="menu-wrap theme-menu-wrap">
+          <button type="button" id="theme-menu-btn" class="theme-trigger" title="Color theme" aria-label="Color theme" aria-haspopup="true" aria-expanded="false" data-action="toggleThemeMenu" data-args='["$event"]'>
+            <svg data-icon="system" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
               <rect x="2.5" y="4" width="19" height="13" rx="2"/>
               <path d="M8.5 20.5h7"/>
               <path d="M12 17v3.5"/>
             </svg>
-          </button>
-          <button type="button" id="theme-light" data-theme-mode="light" title="Light theme" aria-label="Use light theme" aria-pressed="false" data-action="setThemeMode" data-args='["light"]'>
-            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+            <svg data-icon="light" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false" hidden>
               <circle cx="12" cy="12" r="4"/>
               <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
             </svg>
-          </button>
-          <button type="button" id="theme-dark" data-theme-mode="dark" title="Dark theme" aria-label="Use dark theme" aria-pressed="false" data-action="setThemeMode" data-args='["dark"]'>
-            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+            <svg data-icon="dark" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false" hidden>
               <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/>
             </svg>
           </button>
+          <div class="menu-panel theme-menu" id="theme-menu-panel" role="menu" aria-label="Color theme">
+            <button type="button" role="menuitemradio" aria-checked="false" id="theme-system" data-theme-mode="system" data-action="setThemeMode" data-args='["system"]'>
+              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+                <rect x="2.5" y="4" width="19" height="13" rx="2"/>
+                <path d="M8.5 20.5h7"/>
+                <path d="M12 17v3.5"/>
+              </svg>
+              <span>System</span>
+            </button>
+            <button type="button" role="menuitemradio" aria-checked="false" id="theme-light" data-theme-mode="light" data-action="setThemeMode" data-args='["light"]'>
+              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+              </svg>
+              <span>Light</span>
+            </button>
+            <button type="button" role="menuitemradio" aria-checked="false" id="theme-dark" data-theme-mode="dark" data-action="setThemeMode" data-args='["dark"]'>
+              <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6" fill="none" aria-hidden="true" focusable="false">
+                <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/>
+              </svg>
+              <span>Dark</span>
+            </button>
+          </div>
         </div>
       </div>
     </aside>
@@ -439,8 +458,7 @@
         <div class="sender-channel-card">
           <div class="sender-channel-header">
             <div>
-              <h4 class="sender-channel-title sender-channel-wa">
-                <span aria-hidden="true">📱</span> WhatsApp Senders
+              <h4 class="sender-channel-title sender-channel-wa">WhatsApp Senders
                 <span id="wa-active-badge" class="badge badge-emerald">0 Active</span>
               </h4>
               <div class="sender-channel-sub">Each session operates in an isolated browser context with dedicated QR code authentication.</div>
@@ -456,8 +474,7 @@
         <div class="sender-channel-card">
           <div class="sender-channel-header">
             <div>
-              <h4 class="sender-channel-title sender-channel-em">
-                <span aria-hidden="true">✉️</span> Email Senders
+              <h4 class="sender-channel-title sender-channel-em">Email Senders
                 <span id="email-active-badge" class="badge badge-blue">0 Active</span>
               </h4>
               <div class="sender-channel-sub">Authenticated SMTP credentials and TLS delivery verification.</div>
@@ -472,7 +489,7 @@
 
       <div class="senders-page-footer">
         <div id="senders-readiness-summary" role="status" aria-live="polite" class="readiness-summary">
-          Readiness: <strong id="overall-readiness-text" class="c-inline-28">Checking...</strong>
+          Readiness: <strong id="overall-readiness-text">Checking...</strong>
         </div>
         <button class="btn btn-secondary" data-action="fetchSenders">Refresh State</button>
       </div>
@@ -488,9 +505,9 @@
         <button class="btn btn-emerald btn-xs" id="add-template-btn" data-action="openTemplateForm" data-args='[null]'>+ Add Template</button>
       </div>
 
-      <div id="template-form-container" class="template-form c-inline-29">
-        <div class="c-inline-30">
-          <strong id="template-form-title" class="c-inline-14">Add Template</strong>
+      <div id="template-form-container" class="template-form" hidden>
+        <div class="template-form-header">
+          <strong id="template-form-title">Add Template</strong>
         </div>
         <div class="form-group">
           <label class="form-label" for="tpl-id">Template ID</label>
@@ -515,7 +532,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="tpl-body">Body</label>
-          <textarea id="tpl-body" class="form-control" rows="4" placeholder="Message body / content"></textarea>
+          <textarea id="tpl-body" class="form-control template-body-input" rows="6" placeholder="Message body / content"></textarea>
         </div>
         <div class="form-group">
           <label class="form-label" for="tpl-attachment-ref">Resume / Attachment Path</label>
@@ -540,9 +557,12 @@
 
   <!-- 1. Send / Resend Custom Message Modal -->
   <div class="modal-overlay" id="send-modal" role="dialog" aria-modal="true" aria-labelledby="send-modal-title">
-    <div class="modal-content">
+    <div class="modal-content modal-send">
       <div class="modal-header">
-        <h3 id="send-modal-title">Send Message</h3>
+        <div class="modal-heading">
+          <h3 id="send-modal-title">Send message</h3>
+          <p class="modal-subtitle">One message to one endpoint. Sends immediately.</p>
+        </div>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeSendModal">&times;</button>
       </div>
       <div class="modal-body">
@@ -550,45 +570,50 @@
         <input type="hidden" id="modal-channel">
         <input type="hidden" id="modal-is-resend">
 
-        <div class="form-group">
-          <label class="form-label">Recipient Contact</label>
-          <div id="modal-recipient-preview" class="c-inline-31"></div>
+        <div class="send-recipient">
+          <div class="send-recipient-main">
+            <span class="send-recipient-label">Recipient</span>
+            <span id="modal-recipient-preview" class="send-recipient-name"></span>
+          </div>
+          <span class="channel-chip channel-chip-wa" id="modal-channel-chip">WhatsApp</span>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="modal-destination-select">Target Endpoint / Destination</label>
-          <select class="form-control" id="modal-destination-select"></select>
+        <div class="send-pickers">
+          <div class="form-group">
+            <label class="form-label" for="modal-destination-select">Destination</label>
+            <select class="form-control" id="modal-destination-select"></select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="modal-sender-select">Send from</label>
+            <select class="form-control" id="modal-sender-select"></select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="modal-template-select">Template</label>
+            <select class="form-control" id="modal-template-select" data-change="handleTemplateSelectChange"></select>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="modal-sender-select">Sender Account</label>
-          <select class="form-control" id="modal-sender-select"></select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="modal-template-select">Template</label>
-          <select class="form-control" id="modal-template-select" data-change="handleTemplateSelectChange"></select>
-        </div>
-
-        <div class="form-group c-inline-29" id="modal-subject-group">
-          <label class="form-label" for="modal-subject-input">Email Subject</label>
+        <div class="form-group" id="modal-subject-group" hidden>
+          <label class="form-label" for="modal-subject-input">Subject</label>
           <input type="text" class="form-control" id="modal-subject-input">
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="modal-body-input">Message Body</label>
-          <textarea class="form-control" id="modal-body-input" rows="5"></textarea>
+          <label class="form-label" for="modal-body-input">Message</label>
+          <textarea class="form-control send-body" id="modal-body-input" rows="7"></textarea>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="modal-attachment-input">Attachment (optional)</label>
           <input type="text" class="form-control" id="modal-attachment-input" placeholder="e.g. resume.pdf (relative to project root)">
-          <div class="c-inline-32">Prefilled from the selected template. A missing file fails the send.</div>
+          <p class="form-hint">Prefilled from the selected template. A missing file fails the send.</p>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" data-action="closeSendModal">Cancel</button>
-        <button class="btn btn-primary" id="modal-submit-send-btn" data-action="submitSendMessage">Send Now</button>
+        <button class="btn btn-primary" id="modal-submit-send-btn" data-action="submitSendMessage">Send now</button>
       </div>
     </div>
   </div>
@@ -597,13 +622,15 @@
   <div class="modal-overlay" id="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="history-modal-title">Activity Timeline</h3>
+        <div class="modal-heading">
+          <h3 id="history-modal-title">Activity</h3>
+          <p id="history-contact-summary" class="modal-subtitle"></p>
+        </div>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeHistoryModal">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="history-contact-summary" class="c-inline-33"></div>
         <div class="timeline" id="history-timeline-list">
-          <div class="c-inline-34">Loading activity history...</div>
+          <div class="history-empty">Loading activity history...</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -614,13 +641,13 @@
 
   <!-- 4. Email Configuration Modal -->
   <div class="modal-overlay" id="email-config-modal" role="dialog" aria-modal="true" aria-labelledby="email-config-title">
-    <div class="modal-content c-inline-35">
+    <div class="modal-content">
       <div class="modal-header">
         <h3 id="email-config-title">Configure Email Credentials</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeEmailConfigModal">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="c-inline-36">
+        <div class="form-stack">
           <div class="form-group">
             <label class="form-label" for="cfg-email-id">Session ID</label>
             <input type="text" id="cfg-email-id" class="form-control" value="EMAIL_SESSION_1" placeholder="e.g. EMAIL_SESSION_1">
@@ -633,7 +660,7 @@
             <label class="form-label" for="cfg-email-addr">Email Address (From Identity)</label>
             <input type="email" id="cfg-email-addr" class="form-control" value="outreach.primary@domain.com" placeholder="name@domain.com">
           </div>
-          <div class="c-inline-37">
+          <div class="form-row-2">
             <div class="form-group">
               <label class="form-label" for="cfg-email-host">SMTP Host</label>
               <input type="text" id="cfg-email-host" class="form-control" value="smtp.gmail.com" placeholder="smtp.gmail.com">
@@ -664,16 +691,16 @@
 
   <!-- 4a. WhatsApp QR Link Modal -->
   <div class="modal-overlay" id="wa-qr-modal" role="dialog" aria-modal="true" aria-labelledby="wa-qr-title">
-    <div class="modal-content c-inline-38">
+    <div class="modal-content">
       <div class="modal-header">
         <h3 id="wa-qr-title">Link WhatsApp Device</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeWhatsAppQrModal">&times;</button>
       </div>
-      <div class="modal-body c-inline-39">
-        <div id="wa-qr-subtitle" class="c-inline-40">Waiting for QR code...</div>
+      <div class="modal-body qr-panel">
+        <div id="wa-qr-subtitle" class="qr-subtitle">Waiting for QR code...</div>
         <img id="wa-qr-img" src="" alt="WhatsApp QR Code"
-             class="c-inline-41">
-        <div id="wa-qr-status" class="c-inline-42">Launching secure browser...</div>
+             class="qr-image">
+        <div id="wa-qr-status" class="qr-status">Launching secure browser...</div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-action="closeWhatsAppQrModal">Cancel</button>
@@ -683,19 +710,17 @@
 
   <!-- 4b. Data Discrepancies Drawer -->
   <div class="modal-overlay" id="discrepancies-modal" role="dialog" aria-modal="true" aria-labelledby="discrepancies-modal-title">
-    <div class="modal-content c-inline-43">
+    <div class="modal-content">
       <div class="modal-header">
-        <h3 id="discrepancies-modal-title" class="c-inline-44">
-          <span>⚠️ Data Discrepancies</span>
-        </h3>
+        <h3 id="discrepancies-modal-title">Data discrepancies</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeDiscrepanciesDrawer">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="c-inline-45">
+        <p class="drawer-intro">
           Contacts sharing the same phone or email across different companies (potential duplicate people). Review and reconcile.
-        </div>
-        <div id="discrepancies-list-container" class="c-inline-36">
-          <div class="c-inline-46">Loading discrepancies...</div>
+        </p>
+        <div id="discrepancies-list-container" class="drawer-list">
+          <div class="drawer-empty">Loading discrepancies…</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -707,46 +732,42 @@
 
   <!-- 5. Outreach Readiness Error Modal (Phase 8.4) -->
   <div class="modal-overlay" id="readiness-modal" role="dialog" aria-modal="true" aria-labelledby="readiness-modal-title">
-    <div class="modal-content c-inline-47">
+    <div class="modal-content">
       <div class="modal-header">
-        <h3 id="readiness-modal-title" class="c-inline-48">
-          <span>⚠️ Outreach Cannot Start</span>
-        </h3>
+        <h3 id="readiness-modal-title">Outreach cannot start</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeReadinessModal">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="readiness-error-reason" class="c-inline-49">
+        <div id="readiness-error-reason" class="readiness-reason">
           NO_ACTIVE_WHATSAPP_SESSION
         </div>
-        <div id="readiness-error-detail" class="c-inline-50">
+        <div id="readiness-error-detail" class="readiness-detail">
           No active WhatsApp sender session available. Please authenticate at least one WhatsApp session before starting outreach.
         </div>
-        <div class="c-inline-51">
+        <div class="modal-note">
           <strong>Control Plane Policy:</strong> Automated campaign outreach is strictly blocked until legitimate sender sessions and channel prerequisites are actively verified.
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-action="closeReadinessModal">Dismiss</button>
-        <button class="btn btn-emerald" data-action="closeReadinessModal openSendersDrawer">
-          <span>👥 Open Senders &amp; Authenticate</span>
-        </button>
+        <button class="btn btn-emerald" data-action="closeReadinessModal openSendersDrawer">Open senders</button>
       </div>
     </div>
   </div>
 
   <!-- 7. Synchronization Summary Modal (Section 16 & Phase 8) -->
   <div class="modal-overlay" id="sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-modal-title">
-    <div class="modal-content c-inline-52">
+    <div class="modal-content">
       <div class="modal-header">
         <h3 id="sync-modal-title">Source Synchronization Summary</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeSyncModal">&times;</button>
       </div>
       <div class="modal-body" id="sync-modal-body">
-        <div class="c-inline-45">
-          Source: <strong id="sync-source-filename" class="c-inline-14">MNC_Final.xlsx</strong> &bull; Operational Truth: <strong class="c-inline-53">SQLite Relational Store</strong>
-        </div>
+        <p class="drawer-intro">
+          Source: <strong id="sync-source-filename">MNC_Final.xlsx</strong> &bull; Operational truth: <strong>SQLite relational store</strong>
+        </p>
 
-        <div class="sync-stats-grid c-inline-54">
+        <div class="sync-stats-grid">
           <div class="kpi-card"><div class="kpi-label">Total Read</div><div class="kpi-value" id="sync-total">0</div></div>
           <div class="kpi-card kpi-wa"><div class="kpi-label">New Companies</div><div class="kpi-value" id="sync-new-comp">0</div></div>
           <div class="kpi-card kpi-eligible"><div class="kpi-label">Updated Companies</div><div class="kpi-value" id="sync-upd-comp">0</div></div>
@@ -756,12 +777,12 @@
           <div class="kpi-card kpi-email"><div class="kpi-label">New Phone Endpoints</div><div class="kpi-value" id="sync-new-phones">0</div></div>
           <div class="kpi-card kpi-email"><div class="kpi-label">New Email Endpoints</div><div class="kpi-value" id="sync-new-emails">0</div></div>
           <div class="kpi-card kpi-failed"><div class="kpi-label">Skipped Invalid</div><div class="kpi-value" id="sync-skipped">0</div></div>
-          <div class="kpi-card kpi-interested"><div class="kpi-label">Outreach History</div><div class="kpi-value c-inline-55">PRESERVED</div></div>
+          <div class="kpi-card kpi-interested"><div class="kpi-label">Outreach History</div><div class="kpi-value">PRESERVED</div></div>
         </div>
 
-        <div id="sync-errors-box" class="c-inline-56">
-          <div class="c-inline-57">Errors Encountered:</div>
-          <ul id="sync-errors-list" class="c-inline-58"></ul>
+        <div id="sync-errors-box" class="sync-errors">
+          <div class="sync-errors-title">Errors encountered</div>
+          <ul id="sync-errors-list" class="sync-errors-list"></ul>
         </div>
       </div>
       <div class="modal-footer">
@@ -810,19 +831,17 @@
 
   <!-- 8. Recovery Queue Drawer -->
   <div class="modal-overlay" id="recovery-modal" role="dialog" aria-modal="true" aria-labelledby="recovery-modal-title">
-    <div class="modal-content c-inline-59">
+    <div class="modal-content">
       <div class="modal-header">
-        <h3 id="recovery-modal-title" class="c-inline-44">
-          <span>⏱ Recovery Queue</span>
-        </h3>
+        <h3 id="recovery-modal-title">Recovery queue</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeRecoveryDrawer">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="c-inline-45">
+        <p class="drawer-intro">
           Attempts with an uncertain provider outcome. Confirm a send that succeeded, allow a fresh retry, or cancel it. Allowing a retry closes the uncertain row as failed so a resumed campaign can create a new attempt.
-        </div>
-        <div id="recovery-list-container" role="status" aria-live="polite" class="c-inline-36">
-          <div class="c-inline-60">Loading recovery queue...</div>
+        </p>
+        <div id="recovery-list-container" role="status" aria-live="polite" class="drawer-list">
+          <div class="drawer-empty">Loading recovery queue…</div>
         </div>
       </div>
       <div class="modal-footer">
@@ -834,13 +853,13 @@
 
   <!-- Styled confirmation dialog (replaces native confirm()) -->
   <div class="modal-overlay" id="confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message">
-    <div class="modal-content c-inline-61">
+    <div class="modal-content">
       <div class="modal-header">
         <h3 id="confirm-modal-title">Confirm action</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="resolveConfirm" data-args='[false]'>&times;</button>
       </div>
       <div class="modal-body">
-        <p id="confirm-modal-message" class="c-inline-62"></p>
+        <p id="confirm-modal-message" class="confirm-message"></p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-action="resolveConfirm" data-args='[false]'>Cancel</button>

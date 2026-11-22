@@ -24,7 +24,7 @@ def test_senders_control_plane(browser_page: Page):
 
     # 2. Open the Senders page
     page.click('[data-nav="senders"]')
-    page.wait_for_selector("#senders-list-container .kpi-card", timeout=30000)
+    page.wait_for_selector("#senders-list-container .sender-card", timeout=30000)
     assert page.is_visible("text=WhatsApp Senders")
     assert page.is_visible("text=Email Senders")
 
@@ -42,9 +42,14 @@ def test_senders_control_plane(browser_page: Page):
     assert page.eval_on_selector("#page-senders", "el => !el.classList.contains('active')")
 
 
-def test_readiness_modal_on_blocked_start(browser_page: Page):
-    """Test that starting outreach when unauthenticated triggers the Readiness Error Modal."""
+def test_resume_blocked_without_active_sender(browser_page: Page):
+    """Resuming a PAUSED campaign without an active sender is refused server-side.
+
+    The Overview deck is pause/resume only, so the readiness gate is exercised
+    through Resume rather than the removed "New Run" action.
+    """
     with database_module.SessionFactory() as session:
+        from app.domain.campaign import Campaign
         from app.domain.enums import CampaignStatus
         from app.services.campaign_service import CampaignService
 
@@ -58,29 +63,29 @@ def test_readiness_modal_on_blocked_start(browser_page: Page):
             for sender in sender_svc.repo.list_by_channel(sender_channel):
                 sender.status = SenderStatus.AUTH_REQUIRED
                 sender_svc.repo.save(sender)
+
+        campaign = Campaign.create("E2E Blocked Resume", Channel.WHATSAPP)
+        campaign.status = CampaignStatus.PAUSED
+        camp_svc.campaign_repo.save(campaign)
         session.commit()
+        campaign_id = campaign.id
 
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
     wait_for_dashboard_ready(page)
 
-    # Wait for the consolidated campaign action to be enabled
-    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=30000)
+    # Select the paused campaign explicitly; other tests may leave campaigns behind.
+    page.wait_for_selector("#campaign-selector", timeout=30000)
+    page.select_option("#campaign-selector", campaign_id)
+    page.wait_for_selector("#campaign-action-btn:not([hidden])", timeout=30000)
+    assert "Resume" in page.locator("#campaign-action-btn").inner_text()
 
-    # Click New Run
     page.click("#campaign-action-btn")
-    page.wait_for_selector("#readiness-modal.open", timeout=30000)
-    assert page.is_visible("#readiness-error-reason")
-    assert page.is_visible("text=NO_ACTIVE_WHATSAPP_SESSION")
+    toast = page.locator(".toast").first
+    toast.wait_for(state="visible", timeout=30000)
+    assert "resume" in toast.inner_text().lower()
 
-    # Click Open Senders & Authenticate button inside readiness modal
-    page.click("#readiness-modal button:has-text('Open Senders')")
-    page.wait_for_selector("#senders-list-container .kpi-card", timeout=30000)
-
-    # Re-activate sender
-    confirm_btn = page.locator("button:has-text('Confirm')").first
-    if confirm_btn.is_visible():
-        confirm_btn.click()
-        page.wait_for_selector(".toast", timeout=30000)
+    # The campaign must stay paused: the readiness gate is enforced, not skipped.
+    assert page.locator("#campaign-status-pill").inner_text().strip() == "PAUSED"
 
     page.click('[data-nav="overview"]')

@@ -4,7 +4,7 @@ Tests complete administrative workflows in headless Camoufox (Firefox), the
 same browser engine the application uses for WhatsApp automation:
 - Dashboard loading & KPI metrics
 - Contact table rendering & direct email visibility
-- Campaign lifecycle (Start, Pause, Resume)
+- Campaign lifecycle (Pause / Resume)
 - Manual WhatsApp & Email dispatches & resends
 - Interested & Not-Interested state transitions
 - Interview & Not-Interview workflows
@@ -59,8 +59,6 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
     primary_kpis = [
         "Ready Now",
         "Endpoint Coverage",
-        "Failed Attempts",
-        "Unresolved Attempts",
     ]
     compact_metrics = [
         "Interested",
@@ -68,35 +66,54 @@ def test_dashboard_loading_and_kpis(browser_page: Page):
         "Interview",
         "Follow-up Due",
     ]
-    for label in primary_kpis + compact_metrics + ["Coverage Details"]:
+    for label in primary_kpis + compact_metrics + ["Coverage details"]:
         assert page.is_visible(f"text={label}"), f"Metric '{label}' must be visible on dashboard"
 
+    # The attention block is conditional: with nothing to review it stays in the
+    # DOM but hidden, so the dashboard does not show empty warning rows.
+    for element_id in ("#kpi-failed", "#kpi-recovery"):
+        assert page.locator(element_id).count() == 1
+        assert page.locator(element_id).is_hidden()
+
     page.locator("#coverage-details > summary").click()
+    coverage_text = page.locator("#coverage-details").inner_text()
     detail_metrics = [
-        "Total Contacts",
-        "Fully Messaged",
-        "Policy Complete",
-        "Contacts With Sends",
-        "Total Endpoints",
-        "Covered Endpoints",
-        "Ready Endpoints",
-        "Blocked Endpoints",
-        "Never Attempted",
-        "Permanent Failed",
-        "Retryable Failed",
-        "WhatsApp Covered Endpoints",
-        "Email Covered Endpoints",
+        "Contacts",
+        "With a successful send",
+        "No valid endpoint",
+        "Endpoints",
+        "Covered",
+        "Ready now",
+        "Never attempted",
+        "Retryable failures",
+        "Permanent failures",
     ]
     for label in detail_metrics:
-        assert page.is_visible(f"text={label}"), f"Coverage detail '{label}' must be visible when expanded"
+        assert label in coverage_text, f"Coverage detail '{label}' must be visible when expanded"
+
+    # Every detail row is wired to a live counter element, so the panel is not
+    # a static mock when opened.
+    for element_id in (
+        "val-sent-contacts",
+        "val-no-endpoint",
+        "val-blocked-contacts",
+        "val-covered-endpoints-detail",
+        "val-ready-endpoints-detail",
+        "val-never-attempted",
+        "val-blocked-endpoints",
+        "val-retryable-failed",
+        "val-permanent-failed",
+    ):
+        assert page.locator(f"#{element_id}").count() == 1
 
 
 def test_failed_dispatch_drawer_opens_with_operational_filters(browser_page: Page):
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
     wait_for_dashboard_ready(page)
-    page.wait_for_selector("#kpi-failed", timeout=30000)
-    page.click("#kpi-failed")
+    # The fixture seeds no failed attempts, so the attention item is hidden by
+    # design; trigger its action directly to exercise the drawer and filters.
+    page.eval_on_selector("#kpi-failed", "el => el.click()")
     page.wait_for_selector("#failed-modal.open", timeout=30000)
     assert page.is_visible("text=Failed Dispatches")
     assert page.locator("#failed-channel-filter").count() == 1
@@ -117,17 +134,25 @@ def test_theme_toggle_switches_modes(browser_page: Page):
     html = page.locator("html")
     assert html.get_attribute("data-theme") in ("light", "dark")
 
-    page.click("#theme-dark")
+    def pick(mode: str) -> None:
+        page.click("#theme-menu-btn")
+        page.wait_for_selector("#theme-menu-panel.open", timeout=5000)
+        page.click(f"#theme-{mode}")
+
+    pick("dark")
     page.wait_for_function("document.documentElement.getAttribute('data-theme') === 'dark'", timeout=15000)
     assert html.get_attribute("data-theme") == "dark"
     assert html.get_attribute("data-theme-mode") == "dark"
+    # The trigger reflects the active mode, and the picker closes on choice.
+    assert page.get_attribute("#theme-menu-btn svg[data-icon='dark']", "hidden") is None
+    assert not page.is_visible("#theme-menu-panel.open")
 
-    page.click("#theme-light")
+    pick("light")
     page.wait_for_function("document.documentElement.getAttribute('data-theme') === 'light'", timeout=15000)
     assert html.get_attribute("data-theme") == "light"
     assert html.get_attribute("data-theme-mode") == "light"
 
-    page.click("#theme-system")
+    pick("system")
     page.wait_for_function("document.documentElement.getAttribute('data-theme-mode') === 'system'", timeout=15000)
     assert html.get_attribute("data-theme-mode") == "system"
     assert html.get_attribute("data-theme") in ("light", "dark")
@@ -157,31 +182,19 @@ def test_contact_display_and_email_visibility(browser_page: Page):
 
 
 def test_campaign_lifecycle_controls(browser_page: Page):
-    """Test the consolidated campaign control: one context-aware Start/Pause/Resume action."""
+    """The campaign deck is pause/resume only; it offers no action without a live run."""
     page = browser_page
     page.goto(BASE_URL, wait_until="networkidle")
-    page.wait_for_selector("#campaign-action-btn", timeout=30000)
+    wait_for_dashboard_ready(page)
+    page.wait_for_selector("#campaign-control-card", timeout=30000)
 
-    action_btn = page.locator("#campaign-action-btn")
-    assert action_btn.count() == 1
-
-    # Idle/terminal state exposes a single "New Run" action.
-    page.wait_for_selector("#campaign-action-btn:not([disabled])", timeout=30000)
-    assert "New Run" in action_btn.inner_text()
-
-    if "New Run" in action_btn.inner_text():
-        action_btn.click()
-        page.wait_for_timeout(500)
-
-    status_text = page.locator("#campaign-status-pill").inner_text().strip()
-    assert status_text in ("RUNNING", "COMPLETED", "PAUSED", "IDLE")
-
-    # While running, the same control offers Pause.
-    if status_text == "RUNNING":
-        assert "Pause" in action_btn.inner_text()
-        action_btn.click()
-        page.wait_for_timeout(300)
-        assert page.locator("#campaign-status-pill").inner_text().strip() in ("PAUSED", "COMPLETED", "RUNNING")
+    # The fixture has no RUNNING/PAUSED campaign, so the status pill is IDLE and
+    # the deck deliberately hides its single Pause/Resume control.
+    page.wait_for_function(
+        "() => (document.getElementById('campaign-status-pill')?.innerText || '').trim() === 'IDLE'",
+        timeout=30000,
+    )
+    assert page.locator("#campaign-action-btn").is_hidden()
 
 
 def test_manual_whatsapp_send_and_resend(browser_page: Page):
@@ -206,7 +219,7 @@ def test_manual_whatsapp_send_and_resend(browser_page: Page):
     # Submit
     page.click("#modal-submit-send-btn")
     page.wait_for_selector(".toast", timeout=30000)
-    assert "Sent" in page.inner_text(".toast"), "WhatsApp send should succeed"
+    assert "sent" in page.inner_text(".toast").lower(), "WhatsApp send should succeed"
     page.wait_for_selector("#send-modal.open", state="hidden", timeout=30000)
     # The Overview KPI reflects the persisted SENT attempt.
     page.click('[data-nav="overview"]')
@@ -246,7 +259,7 @@ def test_manual_email_send_and_resend(browser_page: Page):
 
     page.click("#modal-submit-send-btn")
     page.wait_for_selector(".toast", timeout=30000)
-    assert "Sent" in page.inner_text(".toast"), "Email send should succeed"
+    assert "sent" in page.inner_text(".toast").lower(), "Email send should succeed"
     page.wait_for_selector("#send-modal.open", state="hidden", timeout=30000)
     page.click('[data-nav="overview"]')
     _open_coverage_details(page)
@@ -335,7 +348,7 @@ def test_senders_and_templates_pages(browser_page: Page):
 
     # 1. Senders page
     page.click('[data-nav="senders"]')
-    page.wait_for_selector("#senders-list-container .kpi-card", timeout=30000)
+    page.wait_for_selector("#senders-list-container .sender-card", timeout=30000)
     assert page.is_visible("text=WhatsApp Senders")
     assert page.is_visible("text=Email Senders")
     # Verify no passwords or tokens exposed in HTML
@@ -347,9 +360,10 @@ def test_senders_and_templates_pages(browser_page: Page):
     page.click('[data-nav="templates"]')
     page.wait_for_selector("#templates-list-container", timeout=30000)
     templates_text = page.locator("#templates-list-container").inner_text()
-    assert (
-        "tmpl_wa_default" in templates_text or "Default SDE Outreach" in templates_text or "WHATSAPP" in templates_text
-    )
+    # The catalog seeds WA-01 (and siblings); the card renders the id plus a
+    # human channel label rather than the raw enum.
+    assert "WA-01" in templates_text, "Templates page must list the seeded catalog"
+    assert "WhatsApp" in templates_text, "Template cards must show a readable channel label"
 
 
 def test_contact_history_timeline_modal(browser_page: Page):
@@ -366,7 +380,13 @@ def test_contact_history_timeline_modal(browser_page: Page):
     hist_btn.click()
 
     page.wait_for_selector("#history-modal.open", timeout=30000)
-    assert page.is_visible("text=Activity Timeline")
+    assert page.locator("#history-modal-title").inner_text().strip() == "Activity"
+    # The summary is filled after the detail request resolves; wait for it so
+    # this does not race the fetch.
+    page.wait_for_function(
+        "() => (document.getElementById('history-contact-summary')?.textContent || '').trim().length > 0",
+        timeout=30000,
+    )
     page.wait_for_selector("#history-timeline-list", timeout=30000)
     page.click("#history-modal .modal-footer button")
     page.wait_for_timeout(300)

@@ -1,5 +1,5 @@
 /* ===================================================================
-       THEME TOKENS — warm neutral surfaces with a single emerald accent.
+       THEME TOKENS â€” warm neutral surfaces with a single emerald accent.
 
        data-theme-mode = user preference (system | light | dark)
        data-theme      = resolved theme actually applied (light | dark)
@@ -7,13 +7,13 @@
 
        Token NAMES are load-bearing: senders.js writes var(--accent-emerald),
        var(--accent-blue) and var(--accent-rose) as inline style strings, so
-       only values change here — never a name.
+       only values change here â€” never a name.
        =================================================================== */
     :root,
     :root[data-theme="light"] {
       color-scheme: light;
 
-      /* Surfaces — warm neutral, deliberately not blue-grey. */
+      /* Surfaces â€” warm neutral, deliberately not blue-grey. */
       --bg-base: #f7f5f2;
       --bg-surface: #fdfcfa;
       --bg-surface-raised: #f2efea;
@@ -173,15 +173,15 @@
       --space-5: 1.5rem;
 
       /* Type scale. Only the weights the variable fonts actually render. */
-      --text-xs: 0.75rem;       /* 12px — timestamps, badge text */
-      --text-sm: 0.8125rem;     /* 13px — table cells, meta, KPI sub-label */
-      --text-base: 0.875rem;    /* 14px — body, inputs, buttons, rows */
-      --text-md: 0.9375rem;     /* 15px — company/contact names */
-      --text-lg: 1.0625rem;     /* 17px — section headings */
-      --text-xl: 1.25rem;       /* 20px — page titles */
-      --text-2xl: 1.625rem;     /* 26px — Overview title only */
-      --text-metric: 1.875rem;  /* 30px mono — KPI values */
-      --text-metric-sm: 1.25rem;/* 20px mono — inline meters, counts */
+      --text-xs: 0.75rem;       /* 12px â€” timestamps, badge text */
+      --text-sm: 0.8125rem;     /* 13px â€” table cells, meta, KPI sub-label */
+      --text-base: 0.875rem;    /* 14px â€” body, inputs, buttons, rows */
+      --text-md: 0.9375rem;     /* 15px â€” company/contact names */
+      --text-lg: 1.0625rem;     /* 17px â€” section headings */
+      --text-xl: 1.25rem;       /* 20px â€” page titles */
+      --text-2xl: 1.625rem;     /* 26px â€” Overview title only */
+      --text-metric: 1.875rem;  /* 30px mono â€” KPI values */
+      --text-metric-sm: 1.25rem;/* 20px mono â€” inline meters, counts */
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -259,7 +259,7 @@
     .topbar-title {
       font-size: var(--text-lg);
       font-weight: 700;
-      letter-spacing: -0.01em;
+      letter-spacing: 0;
       color: var(--text-primary);
       white-space: nowrap;
     }
@@ -455,7 +455,7 @@
     /* Pressed feedback that does not shift layout (keeps hit-testing stable). */
     .btn:active:not(:disabled),
     .pill-btn:active,
-    .theme-toggle button:active {
+    .theme-trigger:active {
       filter: brightness(0.94);
     }
 
@@ -465,17 +465,11 @@
     .pill-btn { min-height: 2.25rem; }
 
     /* ------------------------------------------------------------------
-       Theme control (system / light / dark), stacked at the rail bottom.
-       Same three buttons, same data-action; only the presentation moves.
+       Theme control: one trigger at the rail bottom showing the active
+       mode's glyph. The picker reuses the .menu-panel anatomy and opens
+       beside the 72px rail, not below it.
        ------------------------------------------------------------------ */
-    .theme-toggle {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: var(--space-1);
-    }
-
-    .theme-toggle button {
+    .theme-trigger {
       border: 1px solid transparent;
       background: transparent;
       color: var(--text-muted);
@@ -489,20 +483,36 @@
       transition: background 0.15s ease, color 0.15s ease;
     }
 
-    .theme-toggle button:hover {
+    .theme-trigger:hover,
+    .theme-trigger[aria-expanded="true"] {
       color: var(--text-primary);
       background: var(--bg-surface-hover);
     }
 
-    .theme-toggle button[aria-pressed="true"] {
-      background: var(--bg-surface-raised);
-      color: var(--text-primary);
-      border-color: var(--border-subtle);
-    }
-
-    .theme-toggle svg {
+    .theme-trigger svg {
       width: 16px;
       height: 16px;
+    }
+
+    .theme-trigger svg[hidden] { display: none; }
+
+    .theme-menu-wrap .menu-panel {
+      top: auto;
+      bottom: 0;
+      right: auto;
+      left: calc(100% + 0.5rem);
+      min-width: 10rem;
+    }
+
+    .theme-menu [aria-checked="true"] {
+      background: var(--bg-surface-raised);
+      color: var(--text-primary);
+    }
+
+    .theme-menu svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
     }
 
     /* ------------------------------------------------------------------
@@ -558,7 +568,7 @@
       color: var(--text-primary);
     }
 
-    /* Loading Spinner — uses currentColor so it stays visible on any button */
+    /* Loading Spinner â€” uses currentColor so it stays visible on any button */
     .spinner {
       display: inline-block;
       width: 13px;
@@ -589,7 +599,7 @@
     }
 
     /* Compact metric card. Used by sender cards, template cards and the
-       sync drawer — not by the Overview stat strip, which is one surface. */
+       sync drawer â€” not by the Overview stat strip, which is one surface. */
     .kpi-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
@@ -1351,7 +1361,7 @@
     .hr-history-block > summary::-webkit-details-marker { display: none; }
 
     .hr-history-block > summary::before {
-      content: '▸';
+      content: 'â–¸';
       display: inline-block;
       margin-right: var(--space-2);
       transition: transform 0.15s ease;
@@ -1473,20 +1483,9 @@
     }
 
     @media (max-width: 480px) {
-      .modal-overlay {
-        padding: 0.5rem;
-        align-items: flex-end;
-      }
-      .modal-content {
-        max-width: 100%;
-        max-height: 94vh;
-      }
       #wa-senders-list-container,
       #email-senders-list-container {
         grid-template-columns: minmax(0, 1fr) !important;
-      }
-      .sync-stats-grid {
-        grid-template-columns: 1fr !important;
       }
     }
 
@@ -1584,7 +1583,7 @@
 
     /* Narrow viewports: the rail stays 72px and the top bar keeps every
        control. The readiness chip is a live region, so it is never
-       display:none'd — the title truncates instead. */
+       display:none'd â€” the title truncates instead. */
     @media (max-width: 900px) {
       .sender-health { gap: var(--space-3); margin-right: 0; }
     }
@@ -1699,7 +1698,7 @@
       line-height: 1;
     }
 
-    .coverage-details[open] summary::after { content: '−'; }
+    .coverage-details[open] summary::after { content: 'âˆ’'; }
 
     .coverage-details-summary {
       margin-left: auto;
@@ -2026,7 +2025,7 @@
       font-size: 1.25rem;
       font-weight: 800;
       color: var(--text-primary);
-      letter-spacing: -0.01em;
+      letter-spacing: 0;
     }
 
     .page-subtitle {
@@ -2121,7 +2120,6 @@
       color: var(--accent-rose);
     }
 
-
     .badge-compact {
       font-size: var(--text-xs);
     }
@@ -2189,128 +2187,3 @@
     /* ===================================================================
        H3: classes migrated from inline styles
        =================================================================== */
-    .c-inline-14 { color: var(--accent-blue); }
-    .c-inline-28 { color: var(--accent-amber); }
-    .c-inline-29 { display: none; }
-    .c-inline-30 { display: flex; justify-content: space-between; align-items: center; }
-    .c-inline-31 { font-weight: 600; color: var(--text-primary); }
-    .c-inline-32 { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
-    .c-inline-33 { margin-bottom: 0.5rem; font-size: 0.825rem; color: var(--text-secondary); }
-    .c-inline-34 { color: var(--text-muted); font-size: 0.8rem; }
-    .c-inline-35 { max-width: 480px; }
-    .c-inline-36 { display: flex; flex-direction: column; gap: 0.75rem; }
-    .c-inline-37 { display: grid; grid-template-columns: 2fr 1fr; gap: 0.5rem; }
-    .c-inline-38 { max-width: 460px; }
-    .c-inline-39 { display: flex; flex-direction: column; align-items: center; gap: 0.9rem; padding: 1.5rem 1.25rem; }
-    .c-inline-40 { font-size: 0.8rem; color: var(--text-secondary); text-align: center; }
-    .c-inline-41 { width: 210px; height: 210px; border-radius: 8px; display: none; border: 1px solid var(--border-medium); object-fit: contain; background: #fff; }
-    .c-inline-42 { font-size: 0.82rem; color: var(--text-secondary); text-align: center; min-height: 1.2rem; }
-    .c-inline-43 { max-width: 720px; border-top: 4px solid var(--accent-amber); }
-    .c-inline-44 { color: var(--accent-amber); display: flex; align-items: center; gap: 0.4rem; }
-    .c-inline-45 { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
-    .c-inline-46 { color: var(--text-muted); font-size: 0.85rem; }
-    .c-inline-47 { max-width: 520px; border-top: 4px solid var(--accent-rose); }
-    .c-inline-48 { color: var(--accent-rose); display: flex; align-items: center; gap: 0.4rem; }
-    .c-inline-49 { font-weight: 700; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.5rem; }
-    .c-inline-50 { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1rem; }
-    .c-inline-51 { background: var(--bg-surface-raised); border-radius: var(--radius-sm); padding: 0.75rem; border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-muted); }
-    .c-inline-52 { max-width: 580px; }
-    .c-inline-53 { color: var(--accent-emerald); }
-    .c-inline-54 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
-    .c-inline-55 { font-size: 0.95rem; color: var(--accent-emerald); }
-    .c-inline-56 { margin-top: 0.75rem; display: none; }
-    .c-inline-57 { color: var(--accent-rose); font-size: 0.75rem; font-weight: 700; }
-    .c-inline-58 { color: var(--text-secondary); font-size: 0.75rem; margin-left: 1.2rem; }
-    .c-inline-59 { max-width: 760px; border-top: 4px solid var(--accent-amber); }
-    .c-inline-60 { color: var(--text-secondary); font-size: 0.85rem; }
-    .c-inline-61 { max-width: 440px; }
-    .c-inline-62 { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
-
-    /* The failed-attempts table needs the wide sheet. Qualified with
-       .modal-overlay so the width holds regardless of stylesheet order. */
-    .modal-overlay .modal-content.failed-modal-content {
-      max-width: 1100px;
-    }
-
-    .failed-filters {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(150px, 1fr)) minmax(220px, 2fr) auto auto;
-      gap: 0.5rem;
-      align-items: center;
-    }
-
-    .failed-filters .search-input {
-      padding-left: 0.75rem;
-    }
-
-    .failed-list-summary {
-      color: var(--text-secondary);
-      font-size: 0.8rem;
-    }
-
-    .failed-table-wrap {
-      overflow-x: auto;
-      border: 1px solid var(--border-medium);
-      border-radius: var(--radius-sm);
-    }
-
-    .failure-table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 980px;
-      font-size: 0.75rem;
-    }
-
-    .failure-table th,
-    .failure-table td {
-      padding: 0.55rem 0.65rem;
-      border-bottom: 1px solid var(--border-subtle);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    .failure-table th {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      background: var(--bg-surface-raised);
-      color: var(--text-secondary);
-      font-size: var(--text-xs);
-      font-weight: 600;
-      text-transform: none;
-      letter-spacing: 0;
-    }
-
-    .failure-table tbody tr:hover {
-      background: var(--bg-surface-hover);
-    }
-
-    .failed-destination {
-      font-family: 'JetBrains Mono', monospace;
-      overflow-wrap: anywhere;
-      min-width: 150px;
-    }
-
-    .failed-reason,
-    .failed-muted {
-      color: var(--text-muted);
-      overflow-wrap: anywhere;
-    }
-
-    .failed-table-empty {
-      padding: 1rem;
-      color: var(--text-secondary);
-      text-align: center;
-    }
-
-    @media (max-width: 900px) {
-      .failed-filters {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    @media (max-width: 560px) {
-      .failed-filters {
-        grid-template-columns: 1fr;
-      }
-    }

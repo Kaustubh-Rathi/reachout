@@ -34,3 +34,27 @@ export function formatTime(dateStr) {
     return '';
   }
 }
+
+/**
+ * Endpoint addresses are personal data, so lists show a masked form that still
+ * distinguishes one endpoint from another. The full value never leaves the
+ * form control that performs the send.
+ * @param {string} value Phone number or email address.
+ * @returns {string} Masked display value.
+ */
+export function maskEndpoint(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return '';
+  const at = text.lastIndexOf('@');
+  if (at > 0) {
+    const local = text.slice(0, at);
+    const domain = text.slice(at + 1);
+    const head = local.slice(0, 1);
+    return `${head}${'\u2022'.repeat(Math.min(Math.max(local.length - 1, 3), 5))}@${domain}`;
+  }
+  const digits = text.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length <= 4) return digits;
+  const prefix = text.startsWith('+') ? `+${digits.slice(0, 2)}` : digits.slice(0, 2);
+  return `${prefix}\u2022\u2022\u2022\u2022${digits.slice(-3)}`;
+}

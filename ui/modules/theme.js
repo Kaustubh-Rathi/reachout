@@ -26,8 +26,15 @@ function applyTheme(mode) {
   const resolved = resolveTheme(mode);
   document.documentElement.setAttribute('data-theme-mode', mode);
   document.documentElement.setAttribute('data-theme', resolved);
-  document.querySelectorAll('.theme-toggle button[data-theme-mode]').forEach((btn) => {
-    btn.setAttribute('aria-pressed', btn.getAttribute('data-theme-mode') === mode ? 'true' : 'false');
+  document.querySelectorAll('.theme-menu [data-theme-mode]').forEach((item) => {
+    item.setAttribute('aria-checked', item.getAttribute('data-theme-mode') === mode ? 'true' : 'false');
+  });
+  // The trigger shows the active mode's glyph, so the rail reads at a glance.
+  // SVG elements do not reflect the `hidden` IDL property, so toggle the
+  // attribute explicitly (the stylesheet keys off svg[hidden]).
+  document.querySelectorAll('.theme-trigger [data-icon]').forEach((icon) => {
+    if (icon.getAttribute('data-icon') === mode) icon.removeAttribute('hidden');
+    else icon.setAttribute('hidden', '');
   });
 }
 

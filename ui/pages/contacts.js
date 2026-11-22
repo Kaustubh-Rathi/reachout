@@ -271,16 +271,24 @@ async function openHistoryModal(contactId) {
 
   modal.classList.add('open');
   summaryBox.innerHTML = '';
-  timelineList.innerHTML = '<div style="color: var(--text-muted);">Loading activity history...</div>';
+  timelineList.innerHTML = '<div class="history-empty">Loading activity history\u2026</div>';
 
   try {
     const res = await api.getContact(contactId);
     if (!res.ok) {
-      timelineList.innerHTML = `<div style="color: var(--accent-rose);">Failed to load history: ${escapeHtml(await apiErrorText(res))}</div>`;
+      timelineList.innerHTML = `<div class="history-empty">Failed to load activity: ${escapeHtml(await apiErrorText(res))}</div>`;
       return false;
     }
     const detail = await res.json();
-    summaryBox.innerHTML = `<strong>${escapeHtml(detail.name)}</strong> (${escapeHtml(detail.company_name)}) &bull; Phone(s): ${escapeHtml(((detail.phones && detail.phones.length ? detail.phones : (detail.phone ? [detail.phone] : [])).join(', ') || '-'))} &bull; Email(s): ${escapeHtml(((detail.emails && detail.emails.length ? detail.emails : (detail.email ? [detail.email] : [])).join(', ') || '-'))}`;
+    // The header names the person and the company; counts stand in for the
+    // addresses themselves, which are never rendered in a list.
+    const phoneCount = (detail.phones && detail.phones.length ? detail.phones.length : (detail.phone ? 1 : 0));
+    const emailCount = (detail.emails && detail.emails.length ? detail.emails.length : (detail.email ? 1 : 0));
+    const channels = [];
+    if (phoneCount) channels.push(`${phoneCount} WhatsApp ${phoneCount === 1 ? 'endpoint' : 'endpoints'}`);
+    if (emailCount) channels.push(`${emailCount} email ${emailCount === 1 ? 'endpoint' : 'endpoints'}`);
+    const who = [detail.name, detail.company_name].filter(Boolean).join(' at ');
+    summaryBox.textContent = [who, ...channels].filter(Boolean).join(' \u00b7 ');
 
     timelineList.innerHTML = '';
     const events = buildTimelineEvents(detail);
@@ -293,7 +301,7 @@ async function openHistoryModal(contactId) {
     events.forEach((ev) => appendTimelineItem(timelineList, ev));
     return true;
   } catch (err) {
-    timelineList.innerHTML = `<div style="color: var(--accent-rose);">Failed to load history: ${escapeHtml(err.message)}</div>`;
+    timelineList.innerHTML = `<div class="history-empty">Failed to load activity: ${escapeHtml(err.message)}</div>`;
     return false;
   }
 }

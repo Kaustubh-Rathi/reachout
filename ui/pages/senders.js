@@ -236,7 +236,7 @@ async function pollWhatsAppAuth(senderId, existingName) {
 
   if (data.status === 'ACTIVE') {
     imgEl.style.display = 'none';
-    statusEl.innerHTML = '<span style="color: var(--accent-emerald); font-weight: 700;">✓ WhatsApp linked successfully!</span>';
+    statusEl.innerHTML = '<span style="color: var(--accent-emerald); font-weight: 700;">WhatsApp linked successfully.</span>';
     modal._waStopped = true;
     setTimeout(() => closeWhatsAppQrModal(), 1200);
     showToast('WhatsApp session authenticated and saved!', 'success');

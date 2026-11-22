@@ -47,7 +47,7 @@ export function renderCompactAttemptRow(att) {
     <div class="attempt-row">
       <span class="attempt-icon" style="color: ${color}; font-weight: 700;">${icon}</span>
       <div class="attempt-row-body">
-        <div><strong>${escapeHtml(att.channel)}</strong> ${escapeHtml(att.attempt_type || '')} &rarr; <span class="attempt-dest">${escapeHtml(att.destination || '')}</span></div>
+        <div><strong>${escapeHtml(att.channel)}</strong> ${escapeHtml(att.attempt_type || '')}</div>
         <div class="attempt-meta">${when ? formatDate(when) : '--'} &bull; ${escapeHtml(att.template_id || 'Direct')}</div>
         ${att.failure_detail ? `<div class="attempt-failure">${escapeHtml(att.failure_detail)}</div>` : ''}
       </div>
@@ -67,7 +67,7 @@ export function buildTimelineEvents(detail) {
 
   (detail.history || []).forEach((h) => {
     // Titles/bodies are built as plain text; escaping happens once at render time.
-    const destStr = h.destination ? ` → ${h.destination}` : '';
+    // Destinations are deliberately omitted: they are phone numbers/emails.
     const tplStr = h.template_id ? ` • Template: ${h.template_id}` : '';
     const refStr = h.provider_reference ? ` • Ref: ${h.provider_reference}` : '';
     const attStr = h.attachment ? ` • Attachment: ${h.attachment}` : '';
@@ -75,7 +75,7 @@ export function buildTimelineEvents(detail) {
 
     events.push({
       type: h.channel,
-      title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr}${tplStr}${refStr}${attStr}`,
+      title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${tplStr}${refStr}${attStr}`,
       status: h.status,
       body: (h.message_body || '') + (failStr ? `\n${failStr}` : ''),
       date: h.completed_at || h.prepared_at,

@@ -1,13 +1,8 @@
-// Sender account card component.
-//
-// One renderer for both WhatsApp and Email senders — the two cards were
-// previously near-duplicate template blocks differing only in the badge map
-// and the action buttons.
+// Sender account row shared by WhatsApp and Email.
 
 import { escapeHtml, jsonAttr } from '../modules/dom.js';
 import { formatDate } from '../modules/format.js';
 
-// Shared status → badge class map (superset covering both channels).
 const SENDER_STATUS_BADGES = {
   ACTIVE: 'badge-sent',
   AUTHENTICATING: 'badge-partial',
@@ -24,44 +19,44 @@ function senderBadgeClass(status) {
 function limitsLine(sender) {
   const daily = sender.daily_limit == null ? 'Unlimited' : String(sender.daily_limit);
   const hourly = sender.hourly_limit == null ? 'Unlimited' : String(sender.hourly_limit);
-  return `<div class="sender-limits">Limit: ${escapeHtml(daily)}/day &bull; Rate: ${escapeHtml(hourly)}/hr</div>`;
+  return `<span class="sender-limits">Limit: ${escapeHtml(daily)}/day</span><span class="sender-limits">Rate: ${escapeHtml(hourly)}/hr</span>`;
 }
 
 /**
- * Build a sender account card element.
- *
- * @param {object} sender Sender projection (id, display_name, identity, status, …)
+ * Build a sender account row. Identity values are deliberately never rendered:
+ * the row shows the account's display name, health and limits only.
+ * @param {object} sender Sender projection (id, display_name, status, …)
  * @param {{actionsHtml?: string, showLastChecked?: boolean}} [options]
  * @returns {HTMLElement}
  */
 export function renderSenderCard(sender, options = {}) {
   const { actionsHtml = '', showLastChecked = false } = options;
   const card = document.createElement('div');
-  card.className = 'kpi-card sender-card';
+  card.className = 'sender-card';
 
   const errorHtml = sender.error_message
-    ? `<div class="sender-error">⚠️ ${escapeHtml(sender.error_message)}</div>`
+    ? `<div class="sender-error">${escapeHtml(sender.error_message)}</div>`
     : '';
   const lastCheckedHtml = showLastChecked && sender.last_checked
-    ? `<div class="sender-meta">Last verified: ${formatDate(sender.last_checked)}</div>`
+    ? `<span class="sender-meta">Last checked: ${escapeHtml(formatDate(sender.last_checked))}</span>`
     : '';
   const lastUsedHtml = sender.last_used_at
-    ? `<div class="sender-meta">Last used: ${formatDate(sender.last_used_at)}</div>`
+    ? `<span class="sender-meta">Last used: ${escapeHtml(formatDate(sender.last_used_at))}</span>`
     : '';
 
   card.innerHTML = `
-    <div class="sender-card-header">
-      <div>
-        <strong class="sender-name">${escapeHtml(sender.display_name)}</strong>
-        <div class="sender-id">${escapeHtml(sender.id)}</div>
-        <div class="sender-identity">${escapeHtml(sender.identity)}</div>
+    <div class="sender-card-main">
+      <div class="sender-primary-line">
+        <strong class="sender-name">${escapeHtml(sender.display_name || 'Sender')}</strong>
+        <span class="sender-status ${senderBadgeClass(sender.status)}">${escapeHtml(sender.status || 'UNKNOWN')}</span>
       </div>
-      <span class="badge ${senderBadgeClass(sender.status)}">${escapeHtml(sender.status)}</span>
+      <div class="sender-meta-line">
+        ${limitsLine(sender)}
+        ${lastCheckedHtml}
+        ${lastUsedHtml}
+      </div>
+      ${errorHtml}
     </div>
-    ${limitsLine(sender)}
-    ${errorHtml}
-    ${lastCheckedHtml}
-    ${lastUsedHtml}
     <div class="sender-actions">${actionsHtml}</div>
   `;
   return card;
@@ -69,40 +64,27 @@ export function renderSenderCard(sender, options = {}) {
 
 /**
  * Action buttons for a sender, per channel and lifecycle state.
- *
  * @param {object} sender
  * @param {'WHATSAPP'|'EMAIL'} channel
  * @returns {string}
  */
 export function senderActionsHtml(sender, channel) {
   const args = `data-args='[${jsonAttr(sender.id)}]'`;
-  const deactivate = `<button class="btn btn-amber btn-xs" data-action="deactivateSender" ${args} title="Deactivate and pause from rotation (history preserved)">
-      <span>⏸️ Deactivate</span>
-    </button>`;
-  const reactivate = `<button class="btn btn-outline btn-xs" data-action="reactivateSender" ${args} title="Reactivate sender into rotation">
-      <span>⚡ Reactivate</span>
-    </button>`;
+  const deactivate = `<button class="btn btn-amber btn-xs" data-action="deactivateSender" ${args} title="Deactivate and pause from rotation (history preserved)">Deactivate</button>`;
+  const reactivate = `<button class="btn btn-outline btn-xs" data-action="reactivateSender" ${args} title="Reactivate sender into rotation">Reactivate</button>`;
 
   if (sender.status === 'INACTIVE') return reactivate;
 
   if (channel === 'WHATSAPP') {
     return `
-      <button class="btn btn-emerald btn-xs" data-action="startWhatsAppAuth" ${args} title="Re-authenticate this WhatsApp sender (re-scan QR)">
-        <span>📱 Re-Authenticate</span>
-      </button>
-      <button class="btn btn-outline btn-xs" data-action="checkWhatsAppAuthStatus" ${args} title="Check connection health">
-        <span>🔍 Status</span>
-      </button>
+      <button class="btn btn-emerald btn-xs" data-action="startWhatsAppAuth" ${args} title="Re-authenticate this WhatsApp sender (re-scan QR)">Re-authenticate</button>
+      <button class="btn btn-outline btn-xs" data-action="checkWhatsAppAuthStatus" ${args} title="Check connection health">Check status</button>
       ${deactivate}
     `;
   }
   return `
-    <button class="btn btn-primary btn-xs" data-action="openEmailConfigModal" ${args}>
-      <span>⚙️ Re-configure</span>
-    </button>
-    <button class="btn btn-outline btn-xs" data-action="verifyEmailSender" ${args}>
-      <span>🔌 Test & Verify</span>
-    </button>
+    <button class="btn btn-primary btn-xs" data-action="openEmailConfigModal" ${args}>Reconfigure</button>
+    <button class="btn btn-outline btn-xs" data-action="verifyEmailSender" ${args}>Test and verify</button>
     ${deactivate}
   `;
 }

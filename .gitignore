@@ -73,16 +73,22 @@ logs/screenshots/
 # Demo video artifacts (large binaries, generated locally)
 out/
 
-# Local dev / sandbox helper artifacts
-.tmp_tests/
-.tmp_run*/
-.tmp_probe/
+# Local dev / sandbox helper artifacts (scratch dirs, probes, ad-hoc test runs)
+.tmp_*
 
+# Browser automation artifacts
+test-results/
+playwright-report/
+.playwright/
+.playwright-mcp/
+
+# Generated data artifacts (verification caches and editor backups)
+data/hunter_verification_cache.json
+data/*.bak
 
 # Personal / local artifacts (do not commit)
 logs/*.csv
 resume.pdf
-.env
 # Local live E2E harness (references real authenticated WhatsApp session IDs + personal test targets)
 tests/e2e/live/live_e2e_harness.py
 # Debug screenshots written by the browser provider (root level)

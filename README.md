@@ -1,10 +1,10 @@
 # Reachout — Multi-Channel Enterprise Recruitment & Outreach Platform
 
-Reachout is an automated, multi-channel candidate outreach and relationship management (CRM) platform supporting WhatsApp and Email channels. It enforces company-first round-robin scheduling, multi-endpoint HR coverage, provider-compliant rate limiting and pacing, encrypted credential vaults, transactional crash recovery, and real-time WebSocket event streaming.
+Reachout is a self-hosted recruiting CRM that sends templated **WhatsApp** and **email** outreach to HR contacts and tracks every reply, send, failure, and follow-up.
 
-## ✨ Features
+It runs as a single local FastAPI process: the same server serves the JSON API and the web dashboard, and all state lives in SQLite. There is no cloud dependency, no build step, and no Node runtime needed to use it.
 
-- **Company-first round-robin dispatch** — contacts are interleaved across companies so no single employer receives simultaneous outreach, with quota-aware campaign pacing.
+- **Company-first round-robin dispatch** — contacts are interleaved across companies so no employer receives simultaneous outreach, with quota-aware campaign pacing.
 - **Multi-endpoint HR coverage** — every phone number and email address on a contact is tracked and dispatched independently, with per-endpoint state, retry, and exclusion rules.
 - **Two real channels** — WhatsApp Web through Camoufox (Firefox) and SMTP email, sharing one template and scheduling model.
 - **Provider-compliant pacing** — per-sender inter-message spacing with human jitter, hourly/daily caps, and exponential backoff, configurable per channel.
@@ -13,18 +13,107 @@ Reachout is an automated, multi-channel candidate outreach and relationship mana
 - **Lossless source sync** — Excel/CSV imports are fingerprinted and never mutate existing records or historical audit logs.
 - **Live operations dashboard** — a dependency-free SPA with KPI overview, contact hierarchy views, sender health, templates, campaign controls, and a WebSocket event stream.
 
-## 🖥️ Dashboard
+---
 
-The SPA is served directly by FastAPI at `http://localhost:8000` and needs no build step or Node runtime.
+## 🚀 Quick Start
 
-| View | What it does |
-| :--- | :--- |
-| **Overview** | Outreach KPIs, campaign readiness and controls, company hierarchy, and recent activity. |
-| **Contacts** | Search and filter across companies, endpoints, CRM outcomes, and follow-ups; send a templated message on either channel. |
-| **Senders** | WhatsApp QR authentication and health checks, SMTP configuration and live verification, daily/hourly limits. |
-| **Templates** | Create and edit message templates with variable substitution and attachment paths. |
+### 1. Prerequisites
 
-Canonical domain events stream over `/api/events/stream`, so sends, failures, campaign state changes, and recovery requirements appear without a refresh.
+- Python **3.10+**
+- [`uv`](https://github.com/astral-sh/uv) (recommended), or a plain virtual environment
+- Node.js **18+** — only for the UI unit tests (`npm test`), not for running the app
+
+```powershell
+uv sync
+```
+
+### 2. Start the application
+
+```powershell
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Open **[http://localhost:8000](http://localhost:8000)**.
+
+> If `uv` is not available, use the project virtual environment directly:
+>
+> ```powershell
+> .venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+> ```
+
+The first start creates `data/reachout.db` automatically. That is the **real** database the app uses unless you point `DATABASE_URL` somewhere else.
+
+### 3. First-run checklist
+
+Work through these in order — the dashboard is designed around this flow.
+
+1. **Add a sender** → **Senders**
+   - WhatsApp: click **Re-authenticate** on a sender row and scan the QR code.
+   - Email: click **Reconfigure**, enter SMTP host/port/username/app password, then **Test and verify**.
+2. **Create a template** → **Templates** → **+ Add Template**. Templates hold the message body, optional email subject, and an optional attachment path.
+3. **Bring in contacts** → **Sync** in the header. Point it at an Excel/CSV source. Re-syncing is safe: existing records and history are never overwritten.
+4. **Send a message** → **Contacts** → open a company → **Send**. Pick the endpoint, sender, and template, then review the prefilled message.
+5. **Watch progress** → **Overview** shows readiness, campaign state, delivery KPIs, failed attempts, and follow-ups due.
+
+---
+
+## 🖥️ Dashboard Guide
+
+The SPA is served by FastAPI at the root URL. Navigation is hash-based, so each view has a stable link:
+
+| View | Link | What it does |
+| :--- | :--- | :--- |
+| **Overview** | `/#/overview` | Coverage KPIs, the campaign run deck (pause/resume), needs-attention queue (failed attempts + recovery), live activity, response outcomes, and channel mix. |
+| **Contacts** | `/#/contacts` | Company hierarchy, search and filters across endpoints, CRM outcomes, and follow-ups; send a templated message on either channel. |
+| **Senders** | `/#/senders` | WhatsApp QR authentication and health checks, SMTP configuration and live verification, daily/hourly limits. |
+| **Templates** | `/#/templates` | Create and edit message templates with variable substitution and attachment paths. |
+
+Canonical domain events stream over `/api/events/ws` (WebSocket), with `/api/events/stream` (SSE) and `/api/events/history` available for clients that prefer them. Sends, failures, campaign state changes, and recovery requirements appear without a refresh.
+
+### Color theme
+
+The button at the bottom of the left rail opens a small menu with **System**, **Light**, and **Dark**. The trigger icon always shows the active mode (monitor / sun / moon). The choice is saved per browser in `localStorage`, and **System** follows your OS setting live.
+
+### Privacy in the interface
+
+The dashboard treats phone numbers and email addresses as personal data. Lists never render raw endpoints:
+
+- Endpoint rows show the channel and a state badge, not the address.
+- The send modal labels endpoints as "WhatsApp endpoint 1", "Email endpoint 2", etc. The selected value is sent to the API but is not displayed in lists.
+- Failed-attempt and recovery rows show a masked destination (`al+••••@domain.com`, `+91••••123`).
+- Sender rows hide account ids and identities; the send modal labels them "WhatsApp sender 1", "Email sender 2".
+- The activity timeline and duplicate-contact report omit destinations and shared identifiers.
+
+The full values still exist in the database and are used by the send pipeline. If you need them for debugging, query SQLite directly rather than expecting them in the UI.
+
+---
+
+## 🧪 Demo Database
+
+`scripts/seed_demo.py` builds a **separate** database, `data/demo.db`, with fictional companies, contacts, templates, campaigns, attempts, and follow-up reminders. It copies only the sender-account rows from `data/reachout.db` — never credentials, real contacts, or history — so an already-authenticated environment can be reused safely.
+
+```powershell
+# Stop the running app first; the script refuses to write to a locked database.
+uv run python scripts/seed_demo.py
+
+$env:DATABASE_URL = "sqlite:///D:/Reachout/data/demo.db"
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+### Switching back to the real database
+
+`DATABASE_URL` is read once at process start. To return to real data, close the server, clear the variable, and start it again:
+
+```powershell
+$env:DATABASE_URL = ""
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+To confirm which database is actually in use, compare row counts:
+
+```powershell
+.venv/Scripts/python.exe -c "import sqlite3; [print(p, sqlite3.connect(p).execute('select count(*) from companies').fetchone()[0]) for p in ('data/reachout.db','data/demo.db')]"
+```
 
 ---
 
@@ -73,80 +162,66 @@ D:\Reachout\
 
 ---
 
-## 🚀 Quick Start with `uv`
-
-### 1. Prerequisites
-
-Ensure Python 3.10+ and [`uv`](https://github.com/astral-sh/uv) are installed.
-
-```powershell
-uv sync
-```
-
-### 2. Launch the Production Application
-
-Start the FastAPI application and background worker control plane:
-
-```powershell
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-Open your browser at **[http://localhost:8000](http://localhost:8000)** to access the operational CRM Dashboard.
-
-### 3. Optional: Synthetic Demo Database
-
-`scripts/seed_demo.py` builds `data/demo.db` with fictional companies, contacts, templates, campaigns, attempts, and follow-up reminders. It copies only the sender-account rows from `data/reachout.db` — never credentials, real contacts, or history — so an already-authenticated environment can be reused safely.
-
-```powershell
-uv run python scripts/seed_demo.py
-$env:DATABASE_URL = "sqlite:///D:/Reachout/data/demo.db"
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-Stop the running app before reseeding: the script refuses to write to a database that is currently locked. `scripts/capture_receiver.py` records the receiver side of a demo WhatsApp conversation from an authenticated Camoufox profile for use in recorded walkthroughs.
-
----
-
 ## 🔐 Sender Authentication & Configuration
 
 ### WhatsApp Authentication (Camoufox / Firefox)
 
-1. Open the Dashboard at `http://localhost:8000` and navigate to the **Senders** tab.
-2. Under WhatsApp Senders, click **Start Authentication** on the target sender account.
-3. Scan the displayed WhatsApp QR code with your mobile device.
-4. The background session manager persists authenticated session profiles to `.sessions/` (protected from Git).
+1. Open the dashboard and go to **Senders**.
+2. Under WhatsApp Senders, click **Re-authenticate** on the target sender.
+3. Scan the displayed QR code with your mobile device.
+4. The background session manager persists authenticated session profiles to `.sessions/` (excluded from Git).
+
+If the browser engine is missing, install it once:
+
+```powershell
+uv run python -m camoufox fetch
+```
 
 ### Email Configuration (SMTP Vault)
 
-1. Navigate to the **Senders** tab and click **Configure Email Sender**.
-2. Provide your SMTP host, port (e.g., `smtp.gmail.com:587`), username, and App Password.
+1. Go to **Senders** and click **Reconfigure** on an email sender.
+2. Provide the SMTP host, port (for example `smtp.gmail.com:587`), username, and app password.
 3. Credentials are encrypted at rest using HMAC-SHA256 authenticated encryption via `app.infrastructure.security.credential_vault.CredentialVault`.
-4. Click **Verify Connection** to perform live SMTP TLS handshake verification.
+4. Click **Test and verify** to perform a live SMTP TLS handshake.
 
 ---
 
 ## ⚙️ Configuration & Environment Variables
 
-Reachout operates with safe defaults out-of-the-box, configurable via environment variables:
+Reachout works with safe defaults out of the box. Everything below is optional.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `sqlite:///data/reachout.db` | Primary SQLite database path (WAL mode enabled) |
-| `VAULT_ENCRYPTION_KEY` | Auto-generated in `.sessions/.vault_key` | Master key for SMTP credentials encryption |
-| `OUTREACH_CHANNEL_DELAY_WA` | `120.0` | Production inter-message spacing delay for WhatsApp (seconds) |
-| `OUTREACH_CHANNEL_DELAY_EM` | `60.0` | Production inter-message spacing delay for Email (seconds) |
+| `DATABASE_URL` | `sqlite:///data/reachout.db` | Database the API process opens. Set it to run against `data/demo.db` or a copy. |
+| `VAULT_ENCRYPTION_KEY` | Auto-generated in `.sessions/.vault_key` | Master key for SMTP credential encryption. |
+| `OUTREACH_CHANNEL_DELAY_WA` | `120.0` | Inter-message spacing for WhatsApp, in seconds. |
+| `OUTREACH_CHANNEL_DELAY_EM` | `60.0` | Inter-message spacing for Email, in seconds. |
+| `REACHOUT_PRIVATE_IDS` | empty | Extra strings to blur in the Gmail capture helper (comma-separated address locals / phone numbers). |
 
 ---
 
-## 🧪 Running the Test Suite
+## 🛠️ Utility Scripts
 
-Run the full canonical test suite with pytest:
+| Script | Purpose |
+| :--- | :--- |
+| `scripts/seed_demo.py` | Rebuild `data/demo.db` with fictional data, reusing sender rows from the real database. |
+| `scripts/verify_and_import_good_one.py` | Strict Hunter-based email verification. Runs read-only by default; pass `--apply` to write. |
+| `scripts/capture_receiver.py` | Record the receiver side of a demo WhatsApp chat from an authenticated profile (build-side helper). |
+| `scripts/capture_gmail_receiver.py` | Record a Gmail inbox proof for the demo video, with automatic address/phone blurring. |
+
+Both capture helpers write under `out/raw/` (ignored by Git) and need `.sessions/`, so they are meant for the machine that owns the authenticated profiles — never for CI or a shared checkout.
+
+---
+
+## 🧪 Running the Tests
+
+### Backend (pytest)
 
 ```powershell
 uv run pytest
 ```
 
-To run specific subsystems:
+Focused runs:
 
 ```powershell
 # Unit tests
@@ -155,30 +230,32 @@ uv run pytest tests/unit/
 # Integration tests
 uv run pytest tests/integration/
 
-# End-to-End browser tests (Camoufox / Firefox, ~1 min; tagged `e2e`)
+# Browser end-to-end tests (Camoufox / Firefox, ~3 min; tagged `e2e`)
 uv run pytest tests/e2e/
 
 # Everything except the browser suite (~45s)
 uv run pytest -m "not e2e"
 ```
 
-> **Run the suite serially.** A number of tests drive real threads and sleeps
-> (scheduler pause/resume, server restart, recovery race resolution), and they
-> become timing-sensitive under parallel load. `pytest-xdist` (`-n`) is not
-> supported here — a serial run is the authoritative result. A 300s per-test
-> timeout is configured so a hang fails loudly instead of blocking the run.
+> **Run the suite serially.** Several tests drive real threads and sleeps (scheduler pause/resume, server restart, recovery race resolution), and they become timing-sensitive under parallel load. `pytest-xdist` (`-n`) is not supported — a serial run is the authoritative result. A 300s per-test timeout is configured so a hang fails loudly instead of blocking the run.
 
-The two `tests/e2e/live/` tests dispatch real messages and skip automatically
-unless live SMTP / WhatsApp credentials are configured. Lint with
-`uv run ruff check app tests` and format with `uv run ruff format`.
+The E2E suite starts its own server on `127.0.0.1:8899` against an isolated temporary database, so it never touches `data/reachout.db`.
 
-### Live Provider Tests (sends real messages)
+### Frontend unit tests (Node)
 
-`tests/e2e/live/` dispatches a **real** WhatsApp message and a **real** email. It is
-skipped unless explicitly opted in, so it never runs from a plain `uv run pytest`.
+```powershell
+npm test
+```
 
-Sender accounts are discovered from `ACTIVE` rows in `sender_accounts`, and the
-recipient is another one of your own accounts (sender ≠ recipient is enforced).
+This runs the `ui/tests/*.test.mjs` suite with Node's built-in test runner. It covers formatting/masking helpers, the action registry, load-state gating, and renderer escaping. No `npm install` is required.
+
+Lint and format the backend with `uv run ruff check app tests` and `uv run ruff format`.
+
+### Live provider tests (sends real messages)
+
+`tests/e2e/live/` dispatches a **real** WhatsApp message and a **real** email. It is skipped unless explicitly opted in, so it never runs from a plain `uv run pytest`.
+
+Sender accounts are discovered from `ACTIVE` rows in `sender_accounts`, and the recipient must be another one of your own accounts (sender ≠ recipient is enforced).
 
 ```powershell
 # Both channels: needs >= 2 ACTIVE accounts per channel
@@ -193,7 +270,7 @@ uv run pytest tests/e2e/live/test_email_live.py
 $env:LIVE_WHATSAPP_E2E="1"
 uv run pytest tests/e2e/live/test_whatsapp_live.py
 
-# Pin a specific sender, and an explicit recipient when only one account is ACTIVE
+# Pin a specific sender and recipient when only one account is ACTIVE
 $env:LIVE_WHATSAPP_E2E="1"
 $env:LIVE_TEST_WHATSAPP_SENDER_ID="wa_919000000000"
 $env:LIVE_TEST_WHATSAPP_RECIPIENT="919000000001"
@@ -204,13 +281,44 @@ $env:LIVE_E2E=""; $env:LIVE_WHATSAPP_E2E=""; $env:LIVE_EMAIL_E2E=""
 ```
 
 Notes:
-- WhatsApp runs **headed** by default. Headless is a strong automation signal on
-  WhatsApp Web, so `PLAYWRIGHT_HEADLESS=true` is an explicit opt-in only.
-- WhatsApp must be re-authenticated (QR scan via the Senders page) if the session
-  expires; the test then skips with `ERR_AUTH_REQUIRED` rather than failing.
-- Both tests build their fixtures in an in-memory SQLite database, so the
-  production database is never written to — only the outbound message is real.
+
+- WhatsApp runs **headed** by default. Headless is a strong automation signal on WhatsApp Web, so `PLAYWRIGHT_HEADLESS=true` is an explicit opt-in only.
+- WhatsApp must be re-authenticated (QR scan via **Senders**) if the session expires; the test then skips with `ERR_AUTH_REQUIRED` rather than failing.
+- Both tests build their fixtures in an in-memory SQLite database, so the production database is never written to — only the outbound message is real.
 - Clear `LIVE_*` variables before sharing a shell; the opt-in is env-var based.
+
+---
+
+## 🩺 Troubleshooting
+
+**The dashboard shows data from the wrong database.**
+Check the `DATABASE_URL` in the shell that started the server. It is read once at startup; changing it requires a restart. `data/reachout.db` is the default, `data/demo.db` is the synthetic demo.
+
+**A CSS or JS change did not appear after a reload.**
+Static asset URLs carry a content hash computed when the server starts (`ASSET_VERSION` in `app/main.py`). Restart the server after editing files under `ui/`, then hard-refresh the page.
+
+**Port 8000 is already in use.**
+Stop the old process and start again:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
+**The app starts but the Senders page shows nothing.**
+Run the server from the project root so `data/` and `.sessions/` resolve correctly, and confirm the database file exists.
+
+**`uv` is not installed.**
+Install it once, then use the `uv run ...` commands above:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+If a virtual environment already exists in the checkout, you can bypass `uv` entirely:
+
+```powershell
+.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
 ---
 
