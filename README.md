@@ -57,6 +57,37 @@ Work through these in order — the dashboard is designed around this flow.
 
 ---
 
+## 🎬 Demo Video
+
+A 2 min 35 s narrated walkthrough: the problem, setup, the live dashboard, and the crash-recovery code path.
+
+| | |
+| :--- | :--- |
+| Runtime | 2:35 (1920x1080, 30 fps, burned-in captions) |
+| Narration | Windows built-in speech (SAPI) — no cloud TTS, no API key |
+| Footage | the real app on `127.0.0.1:8000`, reading `data/demo.db` |
+| Files | `out/reachout-voiced.mp4`, `out/reachout-captions-only.mp4`, `out/reachout.srt` |
+
+`out/` is ignored by Git, so these files exist only on the machine that recorded them. They are build artifacts, not part of the checkout, and the scene-recording scripts are not part of this repository either.
+
+| Start | Section |
+| :--- | :--- |
+| 0:00 | The problem — duplicate outreach, dead endpoints, missing records |
+| 0:16 | Setup — `uv sync`, then one uvicorn command on port 8000 |
+| 0:43 | The live dashboard — KPIs, company-first pacing, per-endpoint state, the send dialog, failed dispatches |
+| 1:37 | Code tour — the composition root, the prioritization policy, the recovery state machine |
+| 2:03 | Architecture — one local process, two real channels, SQLite |
+| 2:22 | Close — what is guaranteed, and what is not |
+
+The recording is privacy-clean by construction, which is easy to get wrong in a screen recording:
+
+- contacts render as `WhatsApp endpoint` / `Email endpoint` — never a phone number or an address — and the failed-dispatches table masks destinations (`+15••••006`, `e•••••@alderfinch.example`);
+- senders render as `Email sender 1` / `WhatsApp sender 1`, so the Senders identity fields never appear on screen;
+- the footage comes from `data/demo.db`, seeded by `scripts/seed_demo.py`, and is unrelated to `data/reachout.db`;
+- the send dialog is opened and the template rendered so the pre-send review step is visible, but **no message is sent**. The closing card states this on screen.
+
+---
+
 ## 🖥️ Dashboard Guide
 
 The SPA is served by FastAPI at the root URL. Navigation is hash-based, so each view has a stable link:
