@@ -4,14 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reachout CRM Control Plane</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230284c7'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>R</text></svg>">
-  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#090d16" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230d7a55'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>R</text></svg>">
+  <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#131110" media="(prefers-color-scheme: dark)">
   <link rel="stylesheet" href="/ui/fonts/fonts.css">
   <script src="/ui/theme.js?v=__ASSET_VERSION__"></script>
   <link rel="stylesheet" href="/ui/styles.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/ui/modals.css?v=__ASSET_VERSION__">
+  <link rel="stylesheet" href="/ui/panels.css?v=__ASSET_VERSION__">
 </head>
-<body data-default-limit="__DEFAULT_OUTREACH_LIMIT__" data-max-limit="__MAX_OUTREACH_LIMIT__">
+<body>
 
   <div class="app-shell">
     <aside class="sidebar" aria-label="Primary navigation">
@@ -232,9 +234,9 @@
         <div class="run-deck-meta">
           <span>Round <strong id="prog-round">1</strong></span>
           <span>Channel <strong id="prog-curr-channel">WHATSAPP</strong></span>
-          <span>Sender <strong id="prog-curr-sender">AUTO</strong></span>
           <span>Template <strong id="prog-curr-template">AUTO</strong></span>
-        </div>      </div>
+        </div>
+      </div>
 
       <div class="run-deck-controls">
         <div class="campaign-selector-wrap">
@@ -243,17 +245,14 @@
             <option value="">No campaigns</option>
           </select>
         </div>
-        <div id="campaign-limit-wrap" class="run-limit">
-          <label for="campaign-limit-input">New run limit</label>
-          <input type="number" id="campaign-limit-input" value="__DEFAULT_OUTREACH_LIMIT__" min="1" max="__MAX_OUTREACH_LIMIT__" title="Maximum successful sends in the next run" class="run-limit-input">
-        </div>
-        <button class="btn btn-primary btn-sm" id="campaign-action-btn" data-action="onCampaignAction">
-          <span id="campaign-action-label">▶ New Run</span>
+        <button class="btn btn-amber btn-sm" id="campaign-action-btn" data-action="onCampaignAction" hidden>
+          <svg class="btn-glyph btn-glyph-pause" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><rect x="2" y="2" width="2.5" height="8" rx="0.75"/><rect x="7.5" y="2" width="2.5" height="8" rx="0.75"/></svg>
+          <svg class="btn-glyph btn-glyph-resume" viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M3.5 1.8 10 6l-6.5 4.2z"/></svg>
+          <span id="campaign-action-label">Pause</span>
         </button>
       </div>
 
       <div id="campaign-paused-banner" class="paused-banner">
-        <span class="paused-banner-icon" aria-hidden="true">⏸</span>
         <span><strong>Campaign paused.</strong> No automatic outreach is dispatching. Click <strong>Resume</strong> to continue from the current candidate position.</span>
       </div>
 
@@ -774,7 +773,7 @@
   <div class="modal-overlay" id="failed-modal" role="dialog" aria-modal="true" aria-labelledby="failed-modal-title">
     <div class="modal-content failed-modal-content">
       <div class="modal-header">
-        <h3 id="failed-modal-title">Failed Dispatches</h3>
+        <h3 id="failed-modal-title">Failed dispatches</h3>
         <button class="modal-close-btn" aria-label="Close dialog" data-action="closeFailedDrawer">&times;</button>
       </div>
       <div class="modal-body">

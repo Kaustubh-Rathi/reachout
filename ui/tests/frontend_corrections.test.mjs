@@ -230,9 +230,9 @@ test('endpoint channels and sender limits are escaped', () => {
   assert.match(company.innerHTML, /&lt;img/);
 });
 
-test('successful campaign start keeps the pause control without an error toast', async () => {
-  const originalQuickStart = api.quickStartCampaign;
+test('campaign control pauses and resumes but never starts a run', async () => {
   const originalListCampaigns = api.listCampaigns;
+  const originalCampaignAction = api.campaignAction;
   const campaign = {
     id: 'campaign-1',
     name: 'Run',
@@ -245,30 +245,41 @@ test('successful campaign start keeps the pause control without an error toast',
     attempt_outcomes: {},
     global_endpoint_coverage: {},
   };
-  api.quickStartCampaign = async () => ({
+  api.listCampaigns = async () => response([campaign]);
+  api.campaignAction = async () => ({
     ok: true,
     status: 200,
-    json: async () => { throw new SyntaxError('empty body'); },
+    json: async () => ({ ...campaign, status: 'PAUSED' }),
   });
-  api.listCampaigns = async () => response([campaign]);
-  state.campaigns = [];
-  state.activeCampaign = null;
-  state.selectedCampaignId = null;
-  document.getElementById('campaign-limit-input').value = '25';
-  document.getElementById('campaign-action-label').innerText = 'New Run';
-  document.getElementById('campaign-action-btn').dataset.intent = 'start';
+  state.campaigns = [campaign];
+  state.activeCampaign = campaign;
+  state.selectedCampaignId = campaign.id;
+  document.getElementById('campaign-selector').value = campaign.id;
   document.getElementById('toast-container').children = [];
   const originalSetTimeout = globalThis.setTimeout;
   globalThis.setTimeout = () => 0;
 
   try {
-    await getAction('onCampaignAction')();
-    assert.equal(document.getElementById('campaign-action-btn').dataset.intent, 'pause');
+    await getAction('selectCampaign')();
+    const btn = document.getElementById('campaign-action-btn');
+    assert.equal(btn.dataset.intent, 'pause');
+    assert.equal(btn.hidden, false);
     assert.match(document.getElementById('campaign-action-label').innerText, /Pause/);
-    assert.doesNotMatch(document.getElementById('toast-container').children[0].innerHTML, /Failed to start/);
+
+    await getAction('onCampaignAction')();
+    assert.equal(btn.dataset.intent, 'resume');
+    assert.equal(btn.hidden, false);
+    assert.match(document.getElementById('campaign-action-label').innerText, /Resume/);
+
+    // The Overview cannot start outreach: there is no client path for it.
+    assert.equal(api.quickStartCampaign, undefined);
+
+    state.campaigns = [{ ...campaign, status: 'COMPLETED' }];
+    await getAction('selectCampaign')();
+    assert.equal(btn.hidden, true, 'a finished campaign has no action');
   } finally {
     globalThis.setTimeout = originalSetTimeout;
-    api.quickStartCampaign = originalQuickStart;
     api.listCampaigns = originalListCampaigns;
+    api.campaignAction = originalCampaignAction;
   }
 });

@@ -90,7 +90,7 @@ function renderEndpointRow(hr, endpoint) {
 
   let metaDetails = '';
   if (isSent && endpoint.sender_account_id) {
-    metaDetails = `<span class="endpoint-meta">${escapeHtml(endpoint.sender_account_id)} · ${escapeHtml(endpoint.template_id || 'Direct')} · ${formatDate(endpoint.sent_at)}</span>`;
+    metaDetails = `<span class="endpoint-meta">${escapeHtml(endpoint.template_id || 'Direct')} · ${formatDate(endpoint.sent_at)}</span>`;
   } else if (endpoint.failure_detail || (attempt && attempt.failure_detail)) {
     const detail = endpoint.failure_detail || attempt.failure_detail;
     const code = endpoint.failure_code || attempt.failure_code;

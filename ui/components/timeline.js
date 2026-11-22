@@ -48,7 +48,7 @@ export function renderCompactAttemptRow(att) {
       <span class="attempt-icon" style="color: ${color}; font-weight: 700;">${icon}</span>
       <div class="attempt-row-body">
         <div><strong>${escapeHtml(att.channel)}</strong> ${escapeHtml(att.attempt_type || '')} &rarr; <span class="attempt-dest">${escapeHtml(att.destination || '')}</span></div>
-        <div class="attempt-meta">${when ? formatDate(when) : '--'} &bull; ${escapeHtml(att.sender_account_id || 'auto')} &bull; ${escapeHtml(att.template_id || 'Direct')}</div>
+        <div class="attempt-meta">${when ? formatDate(when) : '--'} &bull; ${escapeHtml(att.template_id || 'Direct')}</div>
         ${att.failure_detail ? `<div class="attempt-failure">${escapeHtml(att.failure_detail)}</div>` : ''}
       </div>
     </div>
@@ -75,7 +75,7 @@ export function buildTimelineEvents(detail) {
 
     events.push({
       type: h.channel,
-      title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr} • Sender: ${h.sender_account_id || 'AUTO'}${tplStr}${refStr}${attStr}`,
+      title: `${h.channel} (${h.attempt_type || 'AUTOMATIC'})${destStr}${tplStr}${refStr}${attStr}`,
       status: h.status,
       body: (h.message_body || '') + (failStr ? `\n${failStr}` : ''),
       date: h.completed_at || h.prepared_at,

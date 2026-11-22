@@ -3,7 +3,6 @@ import { formatDate, formatTime } from '../modules/format.js';
 import { showToast } from '../modules/toast.js';
 import { state } from '../modules/store.js';
 import { registerActions, getAction } from '../modules/actions.js';
-import { APP_CONFIG } from '../modules/config.js';
 
 const ACTIVITY_MAX = 20;
 const ONBOARDING_KEY = 'reachout-onboarding-dismissed';
@@ -67,6 +66,17 @@ function renderKpis(k) {
   setText('val-interview', k.interview || 0);
   setText('val-followup', k.follow_up_due || 0);
   setText('val-recovery', k.unresolved_attempts || 0);
+
+  // An attention item with nothing to act on is noise, so zero-count items
+  // (and the whole section when both are zero) are removed from the layout.
+  const failed = k.failed_attempts || 0;
+  const unresolved = k.unresolved_attempts || 0;
+  const failedItem = document.getElementById('kpi-failed');
+  const recoveryItem = document.getElementById('kpi-recovery');
+  if (failedItem) failedItem.hidden = failed === 0;
+  if (recoveryItem) recoveryItem.hidden = unresolved === 0;
+  const attention = document.querySelector('.attention');
+  if (attention) attention.hidden = failed === 0 && unresolved === 0;
 
   const waFill = document.getElementById('wa-mix-fill');
   if (waFill) waFill.style.width = `${Math.round((waSent / mixTotal) * 100)}%`;
@@ -137,8 +147,6 @@ function updateCampaignControls(camp) {
   const statusPill = document.getElementById('campaign-status-pill');
   const actionBtn = document.getElementById('campaign-action-btn');
   const actionLabel = document.getElementById('campaign-action-label');
-  const limitWrap = document.getElementById('campaign-limit-wrap');
-  const limitInput = document.getElementById('campaign-limit-input');
 
   const st = camp ? camp.status : 'IDLE';
   statusPill.innerText = st;
@@ -146,32 +154,33 @@ function updateCampaignControls(camp) {
 
   const banner = document.getElementById('campaign-paused-banner');
 
-  // Single context-aware primary control: Start -> Pause -> Resume.
+  // This deck monitors and controls the selected campaign. Starting a new
+  // batch is not an Overview action, so the only control is Pause/Resume,
+  // and it is absent whenever there is no live run to control.
   if (st === 'RUNNING') {
     statusPill.classList.add('status-running');
     actionBtn.className = 'btn btn-amber btn-sm';
-    actionLabel.innerText = '⏸ Pause';
+    actionLabel.innerText = 'Pause';
     actionBtn.dataset.intent = 'pause';
     actionBtn.disabled = false;
-    if (limitWrap) limitWrap.style.display = 'none';
+    actionBtn.hidden = false;
     if (banner) banner.style.display = 'none';
   } else if (st === 'PAUSED') {
     statusPill.classList.add('status-paused');
     actionBtn.className = 'btn btn-primary btn-sm';
-    actionLabel.innerText = '▶ Resume';
+    actionLabel.innerText = 'Resume';
     actionBtn.dataset.intent = 'resume';
     actionBtn.disabled = false;
-    if (limitWrap) limitWrap.style.display = 'none';
+    actionBtn.hidden = false;
     if (banner) banner.style.display = 'flex';
   } else {
     if (st === 'COMPLETED') statusPill.classList.add('status-completed');
     else if (st === 'FAILED') statusPill.classList.add('status-failed');
     actionBtn.className = 'btn btn-secondary btn-sm';
-    actionLabel.innerText = '▶ New Run';
-    actionBtn.dataset.intent = 'start';
-    actionBtn.disabled = false;
-    if (limitWrap) limitWrap.style.display = 'flex';
-    if (limitInput) limitInput.disabled = false;
+    actionLabel.innerText = '';
+    delete actionBtn.dataset.intent;
+    actionBtn.disabled = true;
+    actionBtn.hidden = true;
     if (banner) banner.style.display = 'none';
   }
 
@@ -223,7 +232,6 @@ function updateCampaignControls(camp) {
 
     setText('prog-round', camp.current_round || 1);
     setText('prog-curr-channel', camp.current_dispatch_channel || camp.channel || 'WHATSAPP');
-    setText('prog-curr-sender', camp.current_sender || 'AUTO');
     setText('prog-curr-template', camp.template_used || 'AUTO');
   } else {
     ['target-progress-label', 'coverage-progress-label', 'target-progress-detail', 'coverage-progress-detail'].forEach(id => {
@@ -243,57 +251,9 @@ function updateCampaignControls(camp) {
 
 function onCampaignAction() {
   const btn = document.getElementById('campaign-action-btn');
-  const action = btn ? btn.dataset.intent : 'start';
+  const action = btn ? btn.dataset.intent : '';
   if (action === 'pause') return pauseCampaign();
   if (action === 'resume') return resumeCampaign();
-  return startCampaign();
-}
-
-async function startCampaign() {
-  const limitInput = document.getElementById('campaign-limit-input');
-  const parsedLimit = limitInput ? parseInt(limitInput.value, 10) : NaN;
-  // Clamp to the configured ceiling (the HTML max attribute is advisory only).
-  let maxCount = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : APP_CONFIG.defaultOutreachLimit;
-  if (maxCount > APP_CONFIG.maxOutreachLimit) {
-    maxCount = APP_CONFIG.maxOutreachLimit;
-    if (limitInput) limitInput.value = maxCount;
-    showToast(`Limit capped at the maximum of ${APP_CONFIG.maxOutreachLimit}.`, 'info');
-  }
-  const actionBtn = document.getElementById('campaign-action-btn');
-  const actionLabel = document.getElementById('campaign-action-label');
-  if (actionBtn) actionBtn.disabled = true;
-  if (actionLabel) actionLabel.innerHTML = '<span class="spinner"></span> Starting...';
-  let accepted = false;
-
-  try {
-    const res = await api.quickStartCampaign('WHATSAPP', maxCount);
-    if (res.ok) {
-      accepted = true;
-      showToast(`Campaign started with a target of ${maxCount} successful sends.`, 'success');
-      let data = null;
-      try {
-        data = await res.json();
-      } catch (err) {
-        if (err.name !== 'SyntaxError') console.error('Error reading campaign start response:', err);
-      }
-      if (data) {
-        upsertCampaign(data);
-        updateCampaignControls(data);
-      } else {
-        await getAction('fetchCampaigns')();
-      }
-    } else {
-      const data = await res.json().catch(() => ({}));
-      const detail = data.detail || {};
-      const reason = detail.reason || 'OUTREACH_NOT_READY';
-      const msg = detail.message || (typeof detail === 'string' ? detail : 'Prerequisites not met');
-      getAction('openReadinessModal')(reason, msg);
-    }
-  } catch (err) {
-    if (!accepted) showToast('Failed to start campaign: ' + err.message, 'error');
-  } finally {
-    if (!accepted) updateCampaignControls(state.activeCampaign);
-  }
 }
 
 async function pauseCampaign() {

@@ -33,7 +33,6 @@ const routes = {
   contact: (id) => `/api/contacts/${encodeURIComponent(id)}`,
   contactDiscrepancies: '/api/contacts/discrepancies',
   campaigns: '/api/campaigns',
-  campaignQuickStart: '/api/campaigns/quick-start',
   campaignAction: (id, action) => `/api/campaigns/${encodeURIComponent(id)}/${action}`,
   outreachPreview: '/api/outreach/preview',
   outreachSend: (channel, isResend) =>
@@ -67,8 +66,6 @@ export const api = {
   getContact: (contactId) => apiFetch(routes.contact(contactId)),
   getContactDiscrepancies: () => apiFetch(routes.contactDiscrepancies),
   listCampaigns: () => apiFetch(routes.campaigns),
-  quickStartCampaign: (channel, maxCount) =>
-    apiFetch(routes.campaignQuickStart, { method: 'POST', body: JSON.stringify({ channel, max_count: maxCount }) }),
   campaignAction: (campaignId, action) => apiFetch(routes.campaignAction(campaignId, action), { method: 'POST' }),
   previewMessage: (payload) => apiFetch(routes.outreachPreview, { method: 'POST', body: JSON.stringify(payload) }),
   sendMessage: (channel, isResend, payload) =>
