@@ -162,14 +162,12 @@ D:\Reachout\
 │   │                         # repositories + Clock + EventPublisher, no concrete imports)
 │   ├── api/                  # FastAPI REST and WebSocket routers
 │   └── main.py               # Canonical FastAPI application entry point
-├── data/                     # Operational databases & source Excel workbooks
-├── docs/archive/             # Historical engineering phase reports & audit logs
-├── migrations/               # Alembic database migration revisions
+├── data/                     # Local SQLite databases (git-ignored, never committed)
 ├── scripts/                  # Data migration & administrative maintenance utilities
 ├── tests/                    # Canonical test suite (unit, integration, e2e)
 ├── ui/                       # Modern SPA CRM dashboard
-├── pyproject.toml            # uv / PEP 621 dependencies & project config
-└── alembic.ini               # Database migration configuration
+├── assets/                   # Demo video and captions
+└── pyproject.toml            # uv / PEP 621 dependencies & project config
 ```
 
 ---

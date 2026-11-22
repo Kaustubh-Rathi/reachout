@@ -80,9 +80,9 @@ class TestDataIntegrityAndMigration:
     def test_migration_seed_survives_losslessly_in_relational_schema(self, db_session):
         """Simulate ingesting contact rows and assert lossless fidelity across entities."""
         # 1. Create company and contact entities with full metadata
-        company = Company.create(name="Acme Software Private Limited", domain="razorpay.com")
+        company = Company.create(name="Acme Software Private Limited", domain="acme.example")
         contact = Contact(
-            contact_id="cnt_razorpay_1",
+            contact_id="cnt_acme_1",
             company_id=company.id,
             name="Demo Contact",
             phone="919000000001",
@@ -94,10 +94,10 @@ class TestDataIntegrityAndMigration:
             tags=["MNC", "Fintech", "Priority"],
         )
         source_rec = SourceRecord.create(
-            source_file="MNC_Final.xlsx",
-            source_sheet="MNC_Cleaned",
+            source_file="demo_contacts.xlsx",
+            source_sheet="Contacts",
             source_row=12,
-            raw_payload={"company": "Razorpay", "phone": "9000000001"},
+            raw_payload={"company": "Acme", "phone": "9000000001"},
         )
 
         # 2. Persist to relational DB via ORM models

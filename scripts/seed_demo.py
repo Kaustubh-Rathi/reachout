@@ -33,6 +33,11 @@ DEMO_DB = ROOT / "data" / "demo.db"
 DEMO_URL = f"sqlite:///{DEMO_DB.as_posix()}"
 SOURCE_DB = ROOT / "data" / "reachout.db"
 
+# A real recipient belongs in .env, never in the repository. Override these for a
+# live demo; the defaults are deliberately unroutable.
+DEMO_TARGET_PHONE = os.environ.get("REACHOUT_DEMO_TARGET_PHONE", "+919000000000")
+DEMO_TARGET_EMAIL = os.environ.get("REACHOUT_DEMO_TARGET_EMAIL", "demo.target@example.com")
+
 # Must happen before any app import. database.py reads DATABASE_URL at import.
 os.environ["DATABASE_URL"] = DEMO_URL
 
@@ -199,6 +204,23 @@ def seed() -> None:
         # --- Senders -------------------------------------------------------
         sender_count = _copy_senders(session)
 
+        # Reference whichever sender rows actually exist (copied from the real DB
+        # or the placeholders) instead of hard-coding an account id.
+        wa_sender_id = (
+            session.query(SenderAccountModel.id)
+            .filter(SenderAccountModel.channel == "WHATSAPP")
+            .order_by(SenderAccountModel.id)
+            .scalar()
+            or "WA_SESSION_1"
+        )
+        email_sender_id = (
+            session.query(SenderAccountModel.id)
+            .filter(SenderAccountModel.channel == "EMAIL")
+            .order_by(SenderAccountModel.id)
+            .scalar()
+            or "EMAIL_SESSION_1"
+        )
+
         # --- Companies -----------------------------------------------------
         for company_id, name, domain, _industry in COMPANIES:
             session.add(
@@ -256,8 +278,8 @@ def seed() -> None:
                 company_id="cmp_demo_target",
                 name="Demo Target",
                 designation="Hiring Manager",
-                phone="+919000000000",
-                email="demo.target@example.com",
+                phone=DEMO_TARGET_PHONE,
+                email=DEMO_TARGET_EMAIL,
                 crm_outcome="NONE",
                 interview_status="NOT_APPLICABLE",
                 notes="Receiver account used for the recorded demo.",
@@ -296,7 +318,7 @@ def seed() -> None:
                     # seed the post-restart state the app will actually show.
                     status="PAUSED",
                     template_ids_json='["DEMO-WA-01"]',
-                    sender_account_ids_json='["wa_919000000001"]',
+                    sender_account_ids_json=f'["{wa_sender_id}"]',
                     started_at=NOW - timedelta(days=5),
                     metadata_json='{"automatic_quota": 20, "automatic_used": 12, "manual_used": 3, "rotation_state": {}}',
                 ),
@@ -339,7 +361,7 @@ def seed() -> None:
                 OutreachAttemptModel(
                     id=f"att_demo_{index + 1:03d}",
                     contact_id=contact.contact_id,
-                    sender_account_id="wa_919000000001" if channel == "WHATSAPP" else "EMAIL_1",
+                    sender_account_id=wa_sender_id if channel == "WHATSAPP" else email_sender_id,
                     channel=channel,
                     attempt_type="MANUAL",
                     status=status,
@@ -392,7 +414,7 @@ def seed() -> None:
     for table, count in counts.items():
         print(f"  {table:22} {count}")
     print(f"  senders copied         {sender_count}")
-    print("  demo target            +919000000000 / demo.target@example.com")
+    print(f"  demo target            {DEMO_TARGET_PHONE} / {DEMO_TARGET_EMAIL}")
 
     empty = [table for table, count in counts.items() if count == 0]
     if empty:

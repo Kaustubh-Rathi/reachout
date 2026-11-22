@@ -27,7 +27,7 @@ from tests.doubles.fake_providers import FakeEmailProvider, FakeWhatsAppProvider
 
 
 def test_resolve_attachment_path_is_root_relative_and_absolute():
-    resolved = resolve_attachment_path("data/MNC_Final.xlsx")
+    resolved = resolve_attachment_path("pyproject.toml")
     assert resolved is not None and resolved.is_absolute() and resolved.exists()
     assert resolve_attachment_path(None) is None
     assert resolve_attachment_path("   ") is None
