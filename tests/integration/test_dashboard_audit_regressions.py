@@ -51,11 +51,15 @@ def test_default_limit_is_exactly_100():
     assert MAX_OUTREACH_LIMIT >= DEFAULT_OUTREACH_LIMIT
 
 
-def test_dashboard_html_uses_injected_limit_token_not_hardcoded_200():
-    """The UI must source its default limit from the injected token, not a magic 200."""
+def test_dashboard_html_versions_assets_and_has_no_hardcoded_limit():
+    """The served shell must version its assets and carry no magic limit fallback.
+
+    The run deck is pause/resume only, so the old injected outreach-limit
+    control is gone; what still matters is that every asset URL is cache-busted
+    by the content version and no stale hardcoded limit survives in the markup.
+    """
     html = (ROOT_DIR / "ui" / "crm_dashboard.html").read_text(encoding="utf-8")
-    assert "__DEFAULT_OUTREACH_LIMIT__" in html
-    assert "__MAX_OUTREACH_LIMIT__" in html
+    assert "__ASSET_VERSION__" in html
     # Ensure no stale hardcoded 200 fallback remains in the campaign start logic
     assert "|| 200" not in html
 

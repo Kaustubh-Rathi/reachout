@@ -19,13 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import api_router
 from app.api.error_handlers import register_exception_handlers
-from app.config import (
-    DEFAULT_OUTREACH_LIMIT,
-    HTML_ASSET_VERSION_TOKEN,
-    HTML_DEFAULT_LIMIT_TOKEN,
-    HTML_MAX_LIMIT_TOKEN,
-    MAX_OUTREACH_LIMIT,
-)
+from app.config import HTML_ASSET_VERSION_TOKEN
 from app.domain.errors import SourceError
 from app.infrastructure import database as database_module
 from app.infrastructure.scheduler.campaign_scheduler import get_campaign_scheduler
@@ -153,9 +147,6 @@ def index():
     if not html_file.exists():
         raise HTTPException(status_code=404, detail="Dashboard UI file not found.")
     html = html_file.read_text(encoding="utf-8")
-    # Inject configured limits so the frontend never hardcodes magic numbers.
-    html = html.replace(HTML_DEFAULT_LIMIT_TOKEN, str(DEFAULT_OUTREACH_LIMIT))
-    html = html.replace(HTML_MAX_LIMIT_TOKEN, str(MAX_OUTREACH_LIMIT))
     # Version asset URLs + force revalidation so a deploy can never leave a
     # stale cached shell (e.g. a removed button) behind in the browser.
     html = html.replace(HTML_ASSET_VERSION_TOKEN, ASSET_VERSION)

@@ -95,9 +95,6 @@ SENDER_PROFILE = {
     "sender_resume": _env("SENDER_RESUME", "resume.pdf"),
 }
 
-# Placeholder tokens injected into the served dashboard HTML so the frontend
-# reads configuration from this module instead of duplicating magic numbers.
-HTML_DEFAULT_LIMIT_TOKEN = "__DEFAULT_OUTREACH_LIMIT__"
-HTML_MAX_LIMIT_TOKEN = "__MAX_OUTREACH_LIMIT__"
-# Bumped on every deploy so browsers never serve a stale cached UI shell.
+# Placeholder token injected into the served dashboard HTML so asset URLs carry
+# the content version and browsers never serve a stale cached UI shell.
 HTML_ASSET_VERSION_TOKEN = "__ASSET_VERSION__"
