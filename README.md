@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="assets/reachout-demo.mp4"><img src="assets/demo-poster.png" alt="Reachout dashboard: coverage KPIs, campaign deck, company-first contact queue and failed-dispatch drawer" width="100%"></a>
+  <img src="assets/demo-poster.png" alt="Reachout dashboard: coverage KPIs, campaign deck, company-first contact queue and failed-dispatch drawer" width="100%">
 </p>
 
 # Reachout
@@ -24,11 +24,15 @@ A dispatch moves through `PREPARED → SENDING → SENT / FAILED`, and a process
 mid-send leaves a `RECOVERY_REQUIRED` row instead of a silent retry.
 
 <p align="center">
-  <a href="assets/reachout-demo.mp4"><strong>▶ Watch the narrated walkthrough</strong></a>
-  (2:51, 1080p, H.264/AAC)
-  <br>
-  <em>The dashboard on the seeded database, setup, a real WhatsApp and email send between the owner's accounts, and the crash-recovery path.</em>
-  <br>
+  <em>2:51 · 1080p · H.264/AAC — the dashboard on the seeded database, setup, a real
+  WhatsApp and email send between the owner's accounts, and the crash-recovery path.</em>
+</p>
+
+https://github.com/user-attachments/assets/97511eba-850f-40f8-8060-766cba8ffcf2
+
+<p align="center">
+  <a href="assets/reachout-demo.mp4">Download (8.4 MB)</a>
+  &nbsp;·&nbsp;
   <a href="assets/reachout-demo.captions.srt">Captions (.srt)</a>
   &nbsp;·&nbsp;
   <a href="narration.md">Narration script</a>
@@ -472,8 +476,9 @@ recording follows the same rules:
 The full values still exist in the database and are used by the send pipeline. For
 debugging, query SQLite directly rather than expecting them in the UI.
 
-The recording uses `data/demo.db` only. Endpoints are masked throughout, and no message is
-sent.
+The recording uses `data/demo.db` only, and endpoints are masked throughout. The two live
+sends in it go between the owner's own accounts, with the destinations and mail identities
+masked on screen.
 
 ---
 
