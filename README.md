@@ -29,7 +29,7 @@ mid-send leaves a `RECOVERY_REQUIRED` row instead of a silent retry.
   <br>
   <em>The dashboard on the seeded database, setup, a real WhatsApp and email send between the owner's accounts, and the crash-recovery path.</em>
   <br>
-  <a href="assets/reachout-demo.srt">Captions (.srt)</a>
+  <a href="assets/reachout-demo.captions.srt">Captions (.srt)</a>
   &nbsp;·&nbsp;
   <a href="narration.md">Narration script</a>
   &nbsp;·&nbsp;

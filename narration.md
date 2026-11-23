@@ -1,6 +1,6 @@
 # Narration script
 
-Total runtime 2:51.5. Times are where each line starts in the final video. The burned-in captions match this text exactly, and reachout-demo.srt carries the same cues for players that render their own.
+Total runtime 2:51.5. Times are where each line starts in the final video. The burned-in captions match this text exactly; reachout-demo.captions.srt carries the same cues for players that render their own. The sidecar is deliberately not named reachout-demo.srt so a desktop player does not load it on top of the burned-in layer.
 
 To use your own voice, record each line and drop it in at its timestamp (or replace the audio track with one read straight through at the same pace). The captions-only cut needs no voice.
 

@@ -107,85 +107,85 @@ Failures stay visible, with masked destinations, the failure reason,
 and the attempt history.
 
 28
-00:01:33,306 --> 00:01:36,056
+00:01:33,299 --> 00:01:36,049
 A real send now, from this machine to a second account,
 
 29
-00:01:36,056 --> 00:01:37,506
+00:01:36,049 --> 00:01:37,499
 so the whole path is visible.
 
 30
-00:01:37,823 --> 00:01:41,943
+00:01:37,818 --> 00:01:41,938
 Camoufox opens WhatsApp Web, finds the chat, and types the rendered message.
 
 31
-00:01:42,262 --> 00:01:46,302
+00:01:42,254 --> 00:01:46,294
 It leaves under the same spacing, retry and audit rules as any campaign send.
 
 32
-00:01:46,622 --> 00:01:50,942
+00:01:46,618 --> 00:01:50,938
 Email takes the same path: credentials from the vault, then the body in the inbox.
 
 33
-00:01:51,262 --> 00:01:52,735
+00:01:51,261 --> 00:01:52,735
 Both channels here are real.
 
 34
-00:01:52,735 --> 00:01:55,262
+00:01:52,735 --> 00:01:55,261
 Every contact in the demo database is synthetic.
 
 35
-00:01:56,629 --> 00:02:00,810
+00:01:56,623 --> 00:02:00,804
 The codebase is hexagonal Python: domain rules in the middle,
 
 36
-00:02:00,810 --> 00:02:03,209
+00:02:00,804 --> 00:02:03,203
 FastAPI and providers at the edges.
 
 37
-00:02:04,027 --> 00:02:07,566
+00:02:04,021 --> 00:02:07,560
 The prioritization policy interleaves companies.
 
 38
-00:02:07,566 --> 00:02:10,662
+00:02:07,560 --> 00:02:10,656
 The rate limiter enforces channel spacing.
 
 39
-00:02:10,662 --> 00:02:13,020
+00:02:10,656 --> 00:02:13,014
 The vault encrypts SMTP secrets.
 
 40
-00:02:13,830 --> 00:02:17,340
+00:02:13,824 --> 00:02:17,334
 Dispatch moves through prepared, sending, sent or failed,
 
 41
-00:02:17,340 --> 00:02:21,158
+00:02:17,334 --> 00:02:21,152
 so a crash leaves a recovery record instead of a silent retry.
 
 42
-00:02:23,192 --> 00:02:28,312
+00:02:23,186 --> 00:02:28,306
 FastAPI and SQLite, Camoufox for WhatsApp Web, SMTP for email.
 
 43
-00:02:28,312 --> 00:02:30,872
+00:02:28,306 --> 00:02:30,866
 Everything runs on one machine.
 
 44
-00:02:31,593 --> 00:02:36,526
+00:02:31,587 --> 00:02:36,520
 Real versus simulated: the application, dispatch pipeline and tests are real.
 
 45
-00:02:36,526 --> 00:02:39,153
+00:02:36,520 --> 00:02:39,147
 The companies and contacts are synthetic.
 
 46
-00:02:41,083 --> 00:02:45,843
+00:02:41,077 --> 00:02:45,837
 Reachout: two real channels, company-first pacing, and a record of every attempt.
 
 47
-00:02:46,293 --> 00:02:48,583
+00:02:46,287 --> 00:02:48,577
 Two real sends, to the owner's own accounts.
 
 48
-00:02:48,583 --> 00:02:50,093
+00:02:48,577 --> 00:02:50,087
 The repository link is below.
