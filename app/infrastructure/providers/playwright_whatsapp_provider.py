@@ -25,6 +25,59 @@ logger = logging.getLogger(__name__)
 
 SEND_LOG = Path(__file__).resolve().parent.parent.parent.parent / "logs" / "whatsapp_send.log"
 
+# WhatsApp paints the bubble the moment send is clicked, then replaces the
+# clock with a tick (accepted) or a red marker (rejected). Only the *newest*
+# message row is inspected, otherwise an older failed bubble in the same
+# conversation would make every later send look rejected.
+#   rejected: red circle ("not sent"), or the retry affordance
+#   accepted: single/double/blue tick
+_VERDICT_JS = """
+() => {
+  const FAILED_ICONS = ['msg-error', 'alert-circle', 'alert-triangle', 'retry'];
+  const ACK_ICONS = ['msg-check', 'msg-dblcheck', 'msg-dblcheck-ack'];
+  const main = document.querySelector('#main');
+  if (!main) return 'pending';
+  const panel = main.querySelector('[data-testid="conversation-panel-messages"]') || main;
+  const rows = panel.querySelectorAll('div[role="row"]');
+  const row = rows.length ? rows[rows.length - 1] : panel;
+  const labels = [...row.querySelectorAll('[aria-label],[title],[alt]')]
+    .map(el => (el.getAttribute('aria-label') || '') + ' ' +
+               (el.getAttribute('title') || '') + ' ' +
+               (el.getAttribute('alt') || ''))
+    .join(' ');
+  if (/not sent|failed to send|click to retry|retry/i.test(labels)) return 'failed';
+  const icons = [...row.querySelectorAll('[data-icon]')].map(el => el.getAttribute('data-icon'));
+  if (icons.some(icon => FAILED_ICONS.includes(icon))) return 'failed';
+  if (icons.some(icon => ACK_ICONS.includes(icon))) return 'ack';
+  return 'pending';
+}
+"""
+
+
+def await_send_outcome(page, within_seconds: float = 12.0) -> Optional[str]:
+    """Return a failure reason if WhatsApp rejects the message we just sent.
+
+    The click only queues the message: WhatsApp paints the bubble immediately
+    and then replaces its clock with a tick (accepted) or a red marker
+    (rejected). Without this check a rejected message is reported as SENT.
+
+    Returns ``None`` when the send is acknowledged *or* when no verdict becomes
+    visible in time, which keeps the historical behaviour for slow but healthy
+    sends.
+    """
+    deadline = time.monotonic() + within_seconds
+    while time.monotonic() < deadline:
+        try:
+            verdict = page.evaluate(_VERDICT_JS)
+        except Exception:  # noqa: BLE001 - UI may re-render mid-check
+            verdict = "pending"
+        if verdict == "failed":
+            return "WhatsApp marked the message as not sent"
+        if verdict == "ack":
+            return None
+        time.sleep(0.4)
+    return None
+
 
 def _dbg(message: str) -> None:
     try:
@@ -227,6 +280,17 @@ class PlaywrightWhatsAppProvider:
                 if not text_sent:
                     return ProviderSendResult.unknown(
                         reason="Message composer did not become ready within timeout period"
+                    )
+
+                # The click only queues the message. Wait for WhatsApp's own
+                # verdict before claiming success: a rejected send shows a red
+                # marker instead of a tick, and must not be recorded as SENT.
+                rejected = await_send_outcome(page)
+                if rejected:
+                    _dbg(f"[send] rejected by WhatsApp: {rejected}")
+                    return ProviderSendResult.failed(
+                        failure_code="ERR_DELIVERY_FAILED",
+                        failure_detail=rejected,
                     )
 
                 # Step 4: Attachment (validated as existing before any text was sent)
