@@ -24,8 +24,8 @@ A dispatch moves through `PREPARED → SENDING → SENT / FAILED`, and a process
 mid-send leaves a `RECOVERY_REQUIRED` row instead of a silent retry.
 
 <p align="center">
-  <a href="assets/reachout-demo.mp4"><strong>▶ Watch the two-minute-fifty narrated walkthrough</strong></a>
-  (1080p, H.264/AAC)
+  <a href="assets/reachout-demo.mp4"><strong>▶ Watch the narrated walkthrough</strong></a>
+  (2:51, 1080p, H.264/AAC)
   <br>
   <em>The dashboard on the seeded database, setup, a real WhatsApp and email send between the owner's accounts, and the crash-recovery path.</em>
   <br>
@@ -107,9 +107,9 @@ checked against the seed:
 | Campaign | `Demo Outreach - Email`, COMPLETED, 12/20 successful sends |
 
 Nothing in that database is a real person. The send dialog is opened and the template
-rendered so the pre-send review step is visible, and the recording closes with two real
+rendered so the pre-send review step is visible, and the recording includes two real
 sends — one WhatsApp message and one email — between the owner's own accounts, watched
-through to the receiving inbox, so the delivery path is shown end to end.
+through to the receiving side, so the delivery path is shown end to end.
 
 ---
 
@@ -542,9 +542,11 @@ audit trail transactional and the setup to two commands.
 
 ### How was the video made?
 
-Screen recordings of the real app against `data/demo.db`, assembled with ffmpeg. The
-recording scripts are not part of this repository, so the video is documentation, not a
-build artifact.
+Screen recordings of the real app against `data/demo.db`, assembled with ffmpeg. The live
+scene is the app itself driving Camoufox over WhatsApp Web and SMTP for email, filmed on
+the sending machine and on the receiving browsers, with destinations and mail identities
+masked. The recording scripts are not part of this repository, so the video is
+documentation, not a build artifact.
 
 ### Is the demo data real?
 
