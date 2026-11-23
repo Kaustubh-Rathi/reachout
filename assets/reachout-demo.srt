@@ -15,149 +15,177 @@ Reachout is a self-hosted recruiting CRM that runs that work across WhatsApp and
 with the audit trail to prove it.
 
 5
-00:00:17,265 --> 00:00:19,081
+00:00:17,263 --> 00:00:18,823
 Setup is three steps.
 
 6
-00:00:19,081 --> 00:00:23,059
+00:00:18,823 --> 00:00:22,240
 Python 3.10 or newer, uv sync for the backend,
 
 7
-00:00:23,059 --> 00:00:26,345
+00:00:22,240 --> 00:00:25,063
 then one uvicorn command on port 8000.
 
 8
-00:00:26,799 --> 00:00:29,893
+00:00:25,518 --> 00:00:28,057
 The first start creates the SQLite database.
 
 9
-00:00:29,893 --> 00:00:35,377
+00:00:28,057 --> 00:00:32,558
 The same FastAPI process serves the API and the dashboard, with no build step.
 
 10
-00:00:35,919 --> 00:00:39,950
+00:00:33,099 --> 00:00:36,088
 The repository ships unit, integration and browser tests.
 
 11
-00:00:39,950 --> 00:00:42,284
+00:00:36,088 --> 00:00:37,819
 This is the recorded backend run.
 
 12
-00:00:43,703 --> 00:00:49,063
+00:00:39,253 --> 00:00:44,613
 This is the seeded demo database: twenty-five contacts, fifty endpoints,
 
 13
-00:00:49,063 --> 00:00:51,296
+00:00:44,613 --> 00:00:46,846
 forty attempts, all synthetic.
 
 14
-00:00:51,664 --> 00:00:55,078
+00:00:47,214 --> 00:00:50,628
 Overview answers who still needs a message, what failed,
 
 15
-00:00:55,078 --> 00:00:56,907
+00:00:50,628 --> 00:00:52,457
 and what is due for follow-up.
 
 16
-00:00:57,280 --> 00:01:02,179
+00:00:52,830 --> 00:00:57,729
 The campaign deck shows the active run, its target, and attempt counters for sent,
 
 17
-00:01:02,179 --> 00:01:03,493
+00:00:57,729 --> 00:00:59,043
 failed and unresolved.
 
 18
-00:01:03,912 --> 00:01:05,857
+00:00:59,462 --> 00:01:01,407
 Contacts are grouped by company.
 
 19
-00:01:05,857 --> 00:01:10,537
+00:01:01,407 --> 00:01:06,087
 The dispatcher reaches one person per company before it returns for a second.
 
 20
-00:01:10,945 --> 00:01:14,931
+00:01:06,495 --> 00:01:10,481
 Every phone number and email is a separate endpoint with its own state,
 
 21
-00:01:14,931 --> 00:01:17,233
+00:01:10,481 --> 00:01:12,783
 so one dead address never hides the rest.
 
 22
-00:01:17,606 --> 00:01:19,231
+00:01:13,156 --> 00:01:14,781
 Open send, and the endpoint,
 
 23
-00:01:19,231 --> 00:01:23,816
+00:01:14,781 --> 00:01:19,366
 sender and rendered template are all chosen before anything leaves the machine.
 
 24
-00:01:24,230 --> 00:01:27,073
+00:01:19,780 --> 00:01:22,623
 Templates keep each message body in one place,
 
 25
-00:01:27,073 --> 00:01:29,544
+00:01:22,623 --> 00:01:25,094
 with variables that fill in per contact.
 
 26
-00:01:29,958 --> 00:01:34,499
+00:01:25,508 --> 00:01:30,049
 Failures stay visible, with masked destinations, the failure reason,
 
 27
-00:01:34,499 --> 00:01:36,101
+00:01:30,049 --> 00:01:31,651
 and the attempt history.
 
 28
-00:01:37,599 --> 00:01:41,780
-The codebase is hexagonal Python: domain rules in the middle,
+00:01:33,306 --> 00:01:36,056
+A real send now, from this machine to a second account,
 
 29
-00:01:41,780 --> 00:01:44,179
-FastAPI and providers at the edges.
+00:01:36,056 --> 00:01:37,506
+so the whole path is visible.
 
 30
-00:01:44,997 --> 00:01:48,536
-The prioritization policy interleaves companies.
+00:01:37,823 --> 00:01:41,943
+Camoufox opens WhatsApp Web, finds the chat, and types the rendered message.
 
 31
-00:01:48,536 --> 00:01:51,632
-The rate limiter enforces channel spacing.
+00:01:42,262 --> 00:01:46,302
+It leaves under the same spacing, retry and audit rules as any campaign send.
 
 32
-00:01:51,632 --> 00:01:53,990
-The vault encrypts SMTP secrets.
+00:01:46,622 --> 00:01:50,942
+Email takes the same path: credentials from the vault, then the body in the inbox.
 
 33
-00:01:54,800 --> 00:01:58,310
-Dispatch moves through prepared, sending, sent or failed,
+00:01:51,262 --> 00:01:52,735
+Both channels here are real.
 
 34
-00:01:58,310 --> 00:02:02,128
-so a crash leaves a recovery record instead of a silent retry.
+00:01:52,735 --> 00:01:55,262
+Every contact in the demo database is synthetic.
 
 35
-00:02:04,142 --> 00:02:09,616
-FastAPI and SQLite, Camoufox for WhatsApp Web, SMTP for email.
+00:01:56,629 --> 00:02:00,810
+The codebase is hexagonal Python: domain rules in the middle,
 
 36
-00:02:09,616 --> 00:02:12,352
-Everything runs on one machine.
+00:02:00,810 --> 00:02:03,209
+FastAPI and providers at the edges.
 
 37
-00:02:13,075 --> 00:02:18,258
-Real versus simulated: the application, dispatch pipeline and tests are real.
+00:02:04,027 --> 00:02:07,566
+The prioritization policy interleaves companies.
 
 38
-00:02:18,258 --> 00:02:21,018
-The companies and contacts are synthetic.
+00:02:07,566 --> 00:02:10,662
+The rate limiter enforces channel spacing.
 
 39
-00:02:22,952 --> 00:02:28,710
-Reachout: two real channels, company-first pacing, and a record of every attempt.
+00:02:10,662 --> 00:02:13,020
+The vault encrypts SMTP secrets.
 
 40
-00:02:29,160 --> 00:02:31,825
-No message is sent in this recording.
+00:02:13,830 --> 00:02:17,340
+Dispatch moves through prepared, sending, sent or failed,
 
 41
-00:02:31,825 --> 00:02:33,914
+00:02:17,340 --> 00:02:21,158
+so a crash leaves a recovery record instead of a silent retry.
+
+42
+00:02:23,192 --> 00:02:28,312
+FastAPI and SQLite, Camoufox for WhatsApp Web, SMTP for email.
+
+43
+00:02:28,312 --> 00:02:30,872
+Everything runs on one machine.
+
+44
+00:02:31,593 --> 00:02:36,526
+Real versus simulated: the application, dispatch pipeline and tests are real.
+
+45
+00:02:36,526 --> 00:02:39,153
+The companies and contacts are synthetic.
+
+46
+00:02:41,083 --> 00:02:45,843
+Reachout: two real channels, company-first pacing, and a record of every attempt.
+
+47
+00:02:46,293 --> 00:02:48,583
+Two real sends, to the owner's own accounts.
+
+48
+00:02:48,583 --> 00:02:50,093
 The repository link is below.

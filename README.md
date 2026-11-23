@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/demo-poster.png" alt="Reachout dashboard: coverage KPIs, campaign deck, company-first contact queue and failed-dispatch drawer" width="100%">
+  <a href="assets/reachout-demo.mp4"><img src="assets/demo-poster.png" alt="Reachout dashboard: coverage KPIs, campaign deck, company-first contact queue and failed-dispatch drawer" width="100%"></a>
 </p>
 
 # Reachout
@@ -9,7 +9,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![FastAPI](https://img.shields.io/badge/FastAPI-one%20process-009688?logo=fastapi&logoColor=white)](app/main.py)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL%20mode-003B57?logo=sqlite&logoColor=white)](app/infrastructure/database.py)
-[![Tests](https://img.shields.io/badge/tests-367%20passing-brightgreen)](tests)
+[![Tests](https://img.shields.io/badge/tests-373%20passing-brightgreen)](tests)
 [![Status: working prototype](https://img.shields.io/badge/status-working%20prototype-orange)](#what-is-not-validated)
 [![UI: masked endpoints](https://img.shields.io/badge/UI-masked%20endpoints-informational)](#privacy)
 
@@ -23,14 +23,17 @@ The design goal is not "send more messages". It is **never lose the record of a 
 A dispatch moves through `PREPARED → SENDING → SENT / FAILED`, and a process that dies
 mid-send leaves a `RECOVERY_REQUIRED` row instead of a silent retry.
 
-https://github.com/user-attachments/assets/b91ad28b-f871-47a3-8c67-c8c12dec7aa6
-
 <p align="center">
-  <em>Full narrated walkthrough: the dashboard, setup, and the crash-recovery path.</em>
+  <a href="assets/reachout-demo.mp4"><strong>▶ Watch the two-minute-fifty narrated walkthrough</strong></a>
+  (1080p, H.264/AAC)
   <br>
-  <a href="assets/reachout-demo.mp4"><strong>Download the 1080p master</strong></a> (MP4, H.264/AAC)
-  &nbsp;·&nbsp;
+  <em>The dashboard on the seeded database, setup, a real WhatsApp and email send between the owner's accounts, and the crash-recovery path.</em>
+  <br>
   <a href="assets/reachout-demo.srt">Captions (.srt)</a>
+  &nbsp;·&nbsp;
+  <a href="narration.md">Narration script</a>
+  &nbsp;·&nbsp;
+  <a href="shotlist.md">Shot list</a>
 </p>
 
 ---
@@ -104,8 +107,9 @@ checked against the seed:
 | Campaign | `Demo Outreach - Email`, COMPLETED, 12/20 successful sends |
 
 Nothing in that database is a real person. The send dialog is opened and the template
-rendered so the pre-send review step is visible, but **no message is sent in the
-recording**, and the closing card says so on screen.
+rendered so the pre-send review step is visible, and the recording closes with two real
+sends — one WhatsApp message and one email — between the owner's own accounts, watched
+through to the receiving inbox, so the delivery path is shown end to end.
 
 ---
 
@@ -306,7 +310,7 @@ uv run pytest tests/e2e/            # browser end-to-end (~3 min)
 uv run pytest -m "not e2e"          # everything except the browser suite (~45s)
 ```
 
-Observed on this checkout: **367 passed** for `tests/unit tests/integration`.
+Observed on this checkout: **373 passed** for `tests/unit tests/integration`.
 
 > **Run the suite serially.** Several tests drive real threads and sleeps (scheduler
 > pause/resume, server restart, recovery race resolution) and become timing-sensitive
@@ -394,6 +398,8 @@ reachout/
 ├── tests/                       Unit, integration, browser and live-provider suites
 ├── scripts/                     Demo seeding and font refresh helpers
 ├── assets/                      Demo video, captions and poster
+├── narration.md                 Script of the walkthrough, with its real timestamps
+├── shotlist.md                  Scene-by-scene shot list for the same cut
 └── data/                        Local SQLite databases — git-ignored, never committed
 ```
 
@@ -417,15 +423,21 @@ amount of caution.
 3. **A send can be ambiguous.** Crash recovery covers process death. It cannot know
    whether a provider accepted a message that the process never recorded; those rows are
    surfaced for a human decision, not resolved automatically.
-4. **Pacing is client-side.** Inter-message delays and caps are enforced by this process,
+4. **WhatsApp delivery is not confirmed end to end.** The provider clicks Send and then
+   reads WhatsApp's own marker for the bubble it just queued, so a rejected message is
+   recorded as `FAILED` rather than `SENT`. That marker is still only the sending
+   client's view: a session that has not finished syncing can accept the click and then
+   fail to transmit, and a message the recipient's device never receives while the client
+   shows a tick cannot be told apart from a delivered one.
+5. **Pacing is client-side.** Inter-message delays and caps are enforced by this process,
    not by the provider. They reduce risk; they do not guarantee compliance.
-5. **SQLite is single-writer.** One process, one file. There is no multi-instance or
+6. **SQLite is single-writer.** One process, one file. There is no multi-instance or
    multi-user story, and no Postgres path.
-6. **Spreadsheet schema is assumed.** The Excel/CSV reader expects the columns the
+7. **Spreadsheet schema is assumed.** The Excel/CSV reader expects the columns the
    synchroniser maps. A different sheet layout needs code changes, not configuration.
-7. **Windows-first.** The documented commands are PowerShell and the Camoufox path has
+8. **Windows-first.** The documented commands are PowerShell and the Camoufox path has
    only been exercised on Windows. Linux and macOS are untested.
-8. **No CI.** The test counts in this README were measured locally, not by a hosted
+9. **No CI.** The test counts in this README were measured locally, not by a hosted
    runner. There is no workflow file.
 
 ---
